@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Tastebuds",
+    "slug": "tastebuds",
+    "owner": "teamtastebuds",
+    "scheme": "tastebuds",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.emilysashavickynatali.tastebuds"
+    },
+    "permissions": {
+      "mediaLibrary": {
+        "read": true,
+        "write": true
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-image-picker"
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "df551302-2994-4ad9-b95f-ae699f52a799"
+      }
+    }
+  }
+}
