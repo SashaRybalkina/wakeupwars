@@ -1,1 +1,44 @@
+# === PYTHON / DJANGO ===
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.log
+.env
+.env.*
+*.pot
+*.pyc
+*.pyo
+db.sqlite3
+local_settings.py
+*.DS_Store
+
+# Virtual environment
+env/
+venv/
+ENV/
+
+# Django migration + cache
+**/migrations/
+*.pyc
+*.pyo
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# === NODE ===
 node_modules
+
+# === GENERAL GIT ===
+*.swp
+*.swo
+*.bak
+*.tmp
+*.orig
+
+# === IDEs ===
+.vscode/
+.idea/
+*.iml
