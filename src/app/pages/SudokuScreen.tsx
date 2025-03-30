@@ -21,9 +21,30 @@ const SudokuScreen = ({ navigation }) => {
   const [savedColor, setSavedColor] = useState('');
   const [cellColors, setCellColors] = useState(Array(81).fill('white'));
 
+  var allColors = [
+    'hotpink',
+    'red',
+    'coral',
+    'orange',
+    'yellow',
+    'lawngreen',
+    'aqua',
+    'deepskyblue',
+    'mediumorchid',
+    'mediumvioletred',
+    'magenta',
+  ];
+
   const handleTouch = (color: string) => {
     setSavedColor(color);
     console.log('Saved Color:', color);
+  };
+
+  const assignColor = () => {
+    var index = Math.floor(Math.random() * 11);
+    var color = allColors[index];
+    allColors.splice(index, 1);
+    return color + '';
   };
 
   const handleInputChange = (index, value) => {
@@ -112,20 +133,20 @@ const SudokuScreen = ({ navigation }) => {
         </View>
         <View style={styles.avatarsContainer}>
           <TouchableOpacity
-            style={[styles.avatarWrapper, { borderColor: 'red' }]}
-            onPress={() => handleTouch('red')}
+            style={[styles.avatarWrapper, { borderColor: assignColor() }]}
+            onPress={() => handleTouch(assignColor())}
           >
             <View style={styles.avatar} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.avatarWrapper, { borderColor: 'blue' }]}
-            onPress={() => handleTouch('blue')}
+            style={[styles.avatarWrapper, { borderColor: assignColor() }]}
+            onPress={() => handleTouch(assignColor())}
           >
             <View style={styles.avatar} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.avatarWrapper, { borderColor: 'yellow' }]}
-            onPress={() => handleTouch('yellow')}
+            style={[styles.avatarWrapper, { borderColor: assignColor() }]}
+            onPress={() => handleTouch(assignColor())}
           >
             <View style={styles.avatar} />
           </TouchableOpacity>
