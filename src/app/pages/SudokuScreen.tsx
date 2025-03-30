@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   ImageBackground,
@@ -15,36 +15,68 @@ const BORDER_WIDTH_THIN = 1;
 const BORDER_WIDTH_THICK = 3;
 const GRID_SIZE =
   CELL_SIZE * 9 + BORDER_WIDTH_THIN * 6 + BORDER_WIDTH_THICK * 2;
+var allColors = [
+  'hotpink',
+  'red',
+  'coral',
+  'orange',
+  'yellow',
+  'lawngreen',
+  'aqua',
+  'deepskyblue',
+  'mediumorchid',
+  'mediumvioletred',
+  'magenta',
+];
+
+const assignColor = () => {
+  var index = Math.floor(Math.random() * 11);
+  var color = allColors[index];
+  allColors.splice(index, 1);
+  return color + '';
+};
+
+const playerColors = [assignColor(), assignColor(), assignColor()];
 
 const SudokuScreen = ({ navigation }) => {
   const [grid, setGrid] = useState(Array(81).fill(''));
   const [savedColor, setSavedColor] = useState('');
   const [cellColors, setCellColors] = useState(Array(81).fill('white'));
-
-  var allColors = [
-    'hotpink',
-    'red',
-    'coral',
-    'orange',
-    'yellow',
-    'lawngreen',
-    'aqua',
-    'deepskyblue',
-    'mediumorchid',
-    'mediumvioletred',
-    'magenta',
-  ];
+  const [timeLeft, setTimeLeft] = useState(300);
 
   const handleTouch = (color: string) => {
     setSavedColor(color);
     console.log('Saved Color:', color);
   };
 
-  const assignColor = () => {
-    var index = Math.floor(Math.random() * 11);
-    var color = allColors[index];
-    allColors.splice(index, 1);
-    return color + '';
+  useEffect(() => {
+    if (timeLeft === 0) {
+      // Trigger popup when time runs out
+      Alert.alert(
+        "Time's Up!",
+        'You failed your team!',
+        [
+          {
+            text: 'Try Again',
+            onPress: () => setTimeLeft(300),
+          },
+        ],
+        { cancelable: false },
+      );
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      setTimeLeft((prevTime) => prevTime - 1);
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [timeLeft]);
+
+  const formatTime = (timeInSeconds) => {
+    const minutes = Math.floor(timeInSeconds / 60);
+    const seconds = timeInSeconds % 60;
+    return `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`;
   };
 
   const handleInputChange = (index, value) => {
@@ -86,7 +118,7 @@ const SudokuScreen = ({ navigation }) => {
           <Text style={styles.title}> Sudoku</Text>
           <View style={styles.timerContainer}>
             <Text style={styles.timerText}>Timer:</Text>
-            <Text style={styles.timerValue}>2:00</Text>
+            <Text style={styles.timerValue}>{formatTime(timeLeft)}</Text>
           </View>
         </View>
         <View style={styles.infoContainer}>
@@ -133,20 +165,20 @@ const SudokuScreen = ({ navigation }) => {
         </View>
         <View style={styles.avatarsContainer}>
           <TouchableOpacity
-            style={[styles.avatarWrapper, { borderColor: assignColor() }]}
-            onPress={() => handleTouch(assignColor())}
+            style={[styles.avatarWrapper, { borderColor: playerColors[0] }]}
+            onPress={() => handleTouch(playerColors[0] + '')}
           >
             <View style={styles.avatar} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.avatarWrapper, { borderColor: assignColor() }]}
-            onPress={() => handleTouch(assignColor())}
+            style={[styles.avatarWrapper, { borderColor: playerColors[1] }]}
+            onPress={() => handleTouch(playerColors[1] + '')}
           >
             <View style={styles.avatar} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.avatarWrapper, { borderColor: assignColor() }]}
-            onPress={() => handleTouch(assignColor())}
+            style={[styles.avatarWrapper, { borderColor: playerColors[2] }]}
+            onPress={() => handleTouch(playerColors[2] + '')}
           >
             <View style={styles.avatar} />
           </TouchableOpacity>
@@ -199,10 +231,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timerText: {
-    fontSize: 16,
+    color: 'white',
+    fontSize: 17,
+    fontWeight: 'bold',
   },
   timerValue: {
-    fontSize: 16,
+    color: 'white',
+    fontSize: 17,
     fontWeight: 'bold',
     marginLeft: 5,
   },
