@@ -18,12 +18,31 @@ const GRID_SIZE =
 
 const SudokuScreen = ({ navigation }) => {
   const [grid, setGrid] = useState(Array(81).fill(''));
+  const [savedColor, setSavedColor] = useState('');
+  const [cellColors, setCellColors] = useState(Array(81).fill('white'));
+
+  const handleTouch = (color: string) => {
+    setSavedColor(color);
+    console.log('Saved Color:', color);
+  };
 
   const handleInputChange = (index, value) => {
     if (value === '' || /^[1-9]$/.test(value)) {
-      const newGrid = [...grid];
-      newGrid[index] = value;
-      setGrid(newGrid);
+      if (cellColors[index] === 'white' || cellColors[index] === savedColor) {
+        const newGrid = [...grid];
+        const newColors = [...cellColors];
+
+        newGrid[index] = value;
+        newColors[index] = value ? savedColor : 'white';
+
+        setGrid(newGrid);
+        setCellColors(newColors);
+      } else {
+        Alert.alert(
+          'Cannot Edit',
+          'This square is locked by another player color.',
+        );
+      }
     } else {
       Alert.alert('Invalid Input', 'Please enter a number between 1 and 9.');
     }
@@ -72,6 +91,7 @@ const SudokuScreen = ({ navigation }) => {
                       key={index}
                       style={[
                         styles.cell,
+                        { backgroundColor: cellColors[index] },
                         rowIndex % 3 === 0 && rowIndex !== 0
                           ? styles.thickTopBorder
                           : {},
@@ -91,13 +111,22 @@ const SudokuScreen = ({ navigation }) => {
           </View>
         </View>
         <View style={styles.avatarsContainer}>
-          <TouchableOpacity style={styles.avatarWrapperRed}>
+          <TouchableOpacity
+            style={[styles.avatarWrapper, { borderColor: 'red' }]}
+            onPress={() => handleTouch('red')}
+          >
             <View style={styles.avatar} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.avatarWrapperBlue}>
+          <TouchableOpacity
+            style={[styles.avatarWrapper, { borderColor: 'blue' }]}
+            onPress={() => handleTouch('blue')}
+          >
             <View style={styles.avatar} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.avatarWrapperYellow}>
+          <TouchableOpacity
+            style={[styles.avatarWrapper, { borderColor: 'yellow' }]}
+            onPress={() => handleTouch('yellow')}
+          >
             <View style={styles.avatar} />
           </TouchableOpacity>
         </View>
@@ -209,23 +238,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginVertical: 10,
   },
-  avatarWrapperRed: {
+  avatarWrapper: {
     borderWidth: 3,
-    borderColor: 'red',
-    borderRadius: 50,
-    margin: 5,
-    padding: 10,
-  },
-  avatarWrapperBlue: {
-    borderWidth: 3,
-    borderColor: 'blue',
-    borderRadius: 50,
-    margin: 5,
-    padding: 10,
-  },
-  avatarWrapperYellow: {
-    borderWidth: 3,
-    borderColor: 'yellow',
+    borderColor: 'white',
     borderRadius: 50,
     margin: 5,
     padding: 10,
