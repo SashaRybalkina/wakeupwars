@@ -310,8 +310,11 @@ const styles = StyleSheet.create({
     borderWidth: BORDER_WIDTH_THIN,
     borderColor: 'black',
     textAlign: 'center',
+    textAlignVertical: 'center', // android-specific to vertically center the text in TextInput
     fontSize: 18,
     backgroundColor: 'white',
+    padding: 0,
+    includeFontPadding: false, // Android-specific to prevent extra padding in TextInput
   },
   thickTopBorder: {
     borderTopWidth: BORDER_WIDTH_THICK,
