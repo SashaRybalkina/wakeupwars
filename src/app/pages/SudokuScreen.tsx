@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { NavigationProp } from '@react-navigation/native';
+import { initialSudokuBoard } from './SudokuGameLogic'; // Adjust the import path as necessary
 
 const CELL_SIZE = 40;
 const BORDER_WIDTH_THIN = 1;
@@ -39,7 +40,16 @@ const assignColor = () => {
 const playerColors = [assignColor(), assignColor(), assignColor()];
 
 const SudokuScreen = ({ navigation }) => {
-  const [grid, setGrid] = useState(Array(81).fill(''));
+  // Initialize grid using preset puzzle
+  const [grid, setGrid] = useState(
+    initialSudokuBoard.map((num) => (num === 0 ? '' : num.toString())),
+  );
+
+  // Track fixed cells that should not be changed
+  const [initialCells, setInitialCells] = useState(
+    initialSudokuBoard.map((num) => num !== 0),
+  );  
+  
   const [savedColor, setSavedColor] = useState('');
   const [cellColors, setCellColors] = useState(Array(81).fill('white'));
   const [timeLeft, setTimeLeft] = useState(300);
@@ -60,7 +70,9 @@ const SudokuScreen = ({ navigation }) => {
             onPress: () => [
               setTimeLeft(300),
               setCellColors(Array(81).fill('white')),
-              setGrid(Array(81).fill('')),
+              // Reset grid and fixed cells
+              setGrid(initialSudokuBoard.map((num) => (num === 0 ? '' : num.toString()))),
+              setInitialCells(initialSudokuBoard.map((num) => num !== 0)),
             ],
           },
         ],
@@ -84,7 +96,11 @@ const SudokuScreen = ({ navigation }) => {
 
   const handleInputChange = (index, value) => {
     if (value === '' || /^[1-9]$/.test(value)) {
-      if (cellColors[index] === 'white' || cellColors[index] === savedColor) {
+      // Prevent editing fixed cells
+      if (
+        !initialCells[index] &&
+        (cellColors[index] === 'white' || cellColors[index] === savedColor)
+      ) {
         const newGrid = [...grid];
         const newColors = [...cellColors];
 
@@ -111,6 +127,7 @@ const SudokuScreen = ({ navigation }) => {
       resizeMode="cover"
     >
       <View style={styles.container}>
+        {/* Header with title and timer */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.exitButton}
@@ -124,6 +141,8 @@ const SudokuScreen = ({ navigation }) => {
             <Text style={styles.timerValue}>{formatTime(timeLeft)}</Text>
           </View>
         </View>
+
+        {/* color and hint */}
         <View style={styles.infoContainer}>
           <Text style={[styles.infoText, { marginRight: 10 }]}>
             You are color:
@@ -136,6 +155,8 @@ const SudokuScreen = ({ navigation }) => {
         >
           You can only work on squares that aren’t already being worked on
         </Text>
+
+        {/* Sudoku grid */}
         <View style={styles.outerContainer}>
           <View style={styles.gridContainer}>
             {Array.from({ length: 9 }).map((_, rowIndex) => (
@@ -155,6 +176,7 @@ const SudokuScreen = ({ navigation }) => {
                           ? styles.thickLeftBorder
                           : {},
                       ]}
+                      editable={!initialCells[index]} // Prevent editing fixed cells
                       value={grid[index]}
                       onChangeText={(value) => handleInputChange(index, value)}
                       keyboardType="numeric"
@@ -166,6 +188,8 @@ const SudokuScreen = ({ navigation }) => {
             ))}
           </View>
         </View>
+
+        {/* choose color */}
         <View style={styles.avatarsContainer}>
           <TouchableOpacity
             style={[styles.avatarWrapper, { borderColor: playerColors[0] }]}
@@ -186,6 +210,9 @@ const SudokuScreen = ({ navigation }) => {
             <View style={styles.avatar} />
           </TouchableOpacity>
         </View>
+
+          
+        {/* Message input */}
         <View style={styles.messageInput}>
           <TextInput placeholder="Type a message..." style={styles.input} />
         </View>
