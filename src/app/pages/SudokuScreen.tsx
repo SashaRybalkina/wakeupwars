@@ -57,7 +57,11 @@ const SudokuScreen = ({ navigation }) => {
         [
           {
             text: 'Try Again',
-            onPress: () => setTimeLeft(300),
+            onPress: () => [
+              setTimeLeft(300),
+              setCellColors(Array(81).fill('white')),
+              setGrid(Array(81).fill('')),
+            ],
           },
         ],
         { cancelable: false },
