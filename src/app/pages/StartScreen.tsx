@@ -17,16 +17,6 @@ const StartScreen: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('SignUp');
   };
 
-  React.useEffect(() => {
-    Font.loadAsync({
-      'Arvo-Regular': require('../fonts/Arvo-Regular.ttf'),
-      'Arvo-Bold': require('../fonts/Arvo-Bold.ttf'),
-      'Jua-Regular': require('../fonts/Jua-Regular.ttf'),
-      'Lato-Bold': require('../fonts/Lato-Bold.ttf'),
-      'Lato-SemiBold': require('../fonts/Lato-Semibold.ttf'),
-    });
-  }, []);
-
   interface TextWithStrokeProps {
     text: string;
     strokeColor: string;
@@ -123,7 +113,6 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#FFF',
-    fontFamily: 'Arvo-Regular',
     fontWeight: 'bold',
     textAlign: 'center',
   },
@@ -147,7 +136,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
-    fontFamily: 'Arvo-Bold',
     fontSize: 25,
     color: '#FFF',
   },

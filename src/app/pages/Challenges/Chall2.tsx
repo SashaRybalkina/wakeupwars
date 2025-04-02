@@ -31,13 +31,13 @@ const Chall2 = ({ navigation }) => {
     }));
   };
 
-  const onDateChange = (date) => {
+  const onDateChange = (event, date) => {
     if (date) {
       setSelectedDate(date);
     }
   };
 
-  const onTimeChange = (time) => {
+  const onTimeChange = (event, time) => {
     if (time) {
       setSelectedTime(time);
     }
