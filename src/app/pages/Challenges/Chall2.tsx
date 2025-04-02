@@ -103,22 +103,39 @@ const Chall2 = ({ navigation }) => {
         </View>
 
         <Text style={styles.sectionTitle}>Games:</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            navigation.navigate('Chall3', {
-              onGameSelected: (game: string, attr: string[]) => {
-                setCurGames((prevGames) => [
-                  ...prevGames,
-                  [game, attr[0] + '', attr[1] + ''],
-                ]);
-              },
-            });
-          }}
-        >
-          <Ionicons name="add-circle-outline" size={35} color={'#FFF'} />
-          <Text style={styles.addText}>Add new</Text>
-        </TouchableOpacity>
+        <View style={styles.gameWrapper}>
+          {curGames.map((game, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[styles.game]}
+              onPress={() =>
+                setCurGames((prevGames) =>
+                  prevGames.filter((_, i) => i !== index),
+                )
+              }
+            >
+              <Text style={styles.gameTitle}>{game[0]}</Text>
+              <Text style={styles.gameText}>{'Repeats: ' + game[1]}</Text>
+              <Text style={styles.gameText}>{'Minutes: ' + game[2]}</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => {
+              navigation.navigate('Chall3', {
+                onGameSelected: (game: string, attr: string[]) => {
+                  setCurGames((prevGames) => [
+                    ...prevGames,
+                    [game, attr[0] + '', attr[1] + ''],
+                  ]);
+                },
+              });
+            }}
+          >
+            <Ionicons name="add-circle-outline" size={35} color={'#FFF'} />
+            <Text style={styles.addText}>Add new</Text>
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.sectionTitle}>
           End date: {selectedDate.toDateString()}
@@ -245,6 +262,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 10,
     marginVertical: 15,
+    marginHorizontal: 5,
     padding: 10,
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
@@ -252,6 +270,35 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginLeft: 10,
     color: '#FFF',
+  },
+  gameWrapper: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  game: {
+    marginHorizontal: 5,
+    marginVertical: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    paddingLeft: -3,
+  },
+  gameTitle: {
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginLeft: 10,
+    color: '#FFF',
+  },
+  gameText: {
+    textAlign: 'center',
+    fontSize: 11.5,
+    marginLeft: 10,
+    color: '#DDD',
   },
   dateButton: {
     marginTop: 15,
@@ -274,7 +321,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.4)',
     fontSize: 20,
     width: 150,
-    color: '#990099',
+    color: '#FFF',
     fontWeight: 'bold',
   },
   buttons: {

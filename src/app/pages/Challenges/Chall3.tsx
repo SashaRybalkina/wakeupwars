@@ -16,7 +16,6 @@ const Chall3 = ({ navigation }) => {
 
   const selectGame = (game: String) => {
     if (onGameSelected) {
-      onGameSelected(game, ['', '']); // Call the function to update the state in Chall2
       navigation.navigate('Chall4', { game, onGameSelected });
     }
   };

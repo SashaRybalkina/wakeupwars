@@ -12,7 +12,7 @@ const Chall4 = ({ navigation }) => {
       // Ensure that digitValue and minuteValue are numbers, not strings
       onGameSelected(game, [digitValue + '', minuteValue + '']);
     }
-    navigation.goBack().goBack();
+    navigation.navigate('Chall2');
   };
 
   const [digitValue, setDigitValue] = useState(1);
@@ -27,7 +27,7 @@ const Chall4 = ({ navigation }) => {
       <Text style={styles.title}>{game}</Text>
 
       <View style={styles.container}>
-        <Text style={styles.pickerLabel}>Select Digit 1-10:</Text>
+        <Text style={styles.pickerLabel}>How many times?</Text>
         <View style={styles.pickerWrapper}>
           <Picker
             selectedValue={digitValue}
@@ -45,7 +45,7 @@ const Chall4 = ({ navigation }) => {
           </Picker>
         </View>
 
-        <Text style={styles.pickerLabel}>Select Minutes 1-10:</Text>
+        <Text style={styles.pickerLabel}>Time Gap?</Text>
         <View style={styles.pickerWrapper}>
           <Picker
             selectedValue={minuteValue}
