@@ -5,6 +5,8 @@ __pycache__/
 *.log
 .env
 .env.*
+*.env
+*.egg-info/
 *.pot
 *.pyc
 *.pyo
@@ -16,6 +18,7 @@ local_settings.py
 env/
 venv/
 ENV/
+env311/
 
 # Django migration + cache
 **/migrations/
