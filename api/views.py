@@ -3,6 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.hashers import make_password
 import json
+from .models import Group
 
 User = get_user_model()
 
@@ -68,5 +69,10 @@ def register_view(request):
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
+def group_list_view(request):
+    if request.method == 'GET':
+        groups = Group.objects.all().values('id', 'name')
+        return JsonResponse(list(groups), safe=False)
+    
 def hello_world(request):
     return JsonResponse({'message': 'Hello from Django!'})

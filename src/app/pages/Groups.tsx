@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import {
   ImageBackground,
   StyleSheet,
@@ -16,8 +17,23 @@ type Props = {
 };
 
 const Groups: React.FC<Props> = ({ navigation }) => {
-  const [groups, setGroups] = useState<string[]>(['A', 'B', 'C', 'D']);
+  const [groups, setGroups] = useState<string[]>([]);
 
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const response = await fetch('https://2c70-136-38-171-186.ngrok-free.app/api/groups/');
+        const data = await response.json();
+        const groupNames = data.map((group: { id: number; name: string }) => group.name);
+        setGroups(groupNames);
+      } catch (error) {
+        console.error('Failed to fetch groups:', error);
+      }
+    };
+  
+    fetchGroups();
+  }, []);
+  
   const goToPersonalChall = () => {
     //navigation.navigate('ChallPers');
   };
