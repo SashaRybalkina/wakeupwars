@@ -35,7 +35,7 @@ const SignUpScreen: React.FC<Props> = ({ navigation }) => {
     }
 
     try {
-      const response = await fetch('https://bd4c-155-98-131-2.ngrok-free.app/api/register/', {
+      const response = await fetch('https://2c70-136-38-171-186.ngrok-free.app/api/register/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -6,10 +6,6 @@ import json
 
 User = get_user_model()
 
-HARDCODED_USERS = [
-    {"username": "gloria", "password": "wakeUp123"},
-]
-
 @csrf_exempt
 def login_view(request):
     if request.method == 'POST':
@@ -17,14 +13,24 @@ def login_view(request):
         username = data.get('username')
         password = data.get('password')
 
-        for user in HARDCODED_USERS:
-            if user['username'] == username:
-                if user['password'] == password:
-                    return JsonResponse({'success': True, 'username': username})
-                else:
-                    return JsonResponse({'success': False, 'error': 'Incorrect password'}, status=401)
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Username does not exist'}, status=404)
 
-        return JsonResponse({'success': False, 'error': 'Username does not exist'}, status=404)
+        if not user.check_password(password):
+            return JsonResponse({'success': False, 'error': 'Incorrect password'}, status=401)
+
+        if not user.is_active:
+            return JsonResponse({'success': False, 'error': 'Account is inactive'}, status=403)
+
+        return JsonResponse({
+            'success': True,
+            'username': user.username,
+            'name': user.name,
+            'email': user.email,
+            'userId': user.id,
+        })
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
@@ -32,9 +38,14 @@ def login_view(request):
 def register_view(request):
     if request.method == 'POST':
         data = json.loads(request.body)
+
         username = data.get('username')
         password = data.get('password')
         name = data.get('name', 'Anonymous')
+        email = data.get('email', '')
+
+        if not username or not password:
+            return JsonResponse({'success': False, 'error': 'Username and password are required'}, status=400)
 
         if User.objects.filter(username=username).exists():
             return JsonResponse({'success': False, 'error': 'Username already exists'}, status=400)
@@ -42,10 +53,18 @@ def register_view(request):
         user = User.objects.create(
             username=username,
             name=name,
-            password=make_password(password)
+            email=email,
+            password=make_password(password),
+            is_active=True
         )
 
-        return JsonResponse({'success': True, 'username': user.username})
+        return JsonResponse({
+            'success': True,
+            'username': user.username,
+            'userId': user.id,
+            'name': user.name,
+            'email': user.email
+        })
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
