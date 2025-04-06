@@ -58,7 +58,10 @@ const Profile: React.FC<Props> = ({ navigation }) => {
             <Ionicons name="people" size={40} color={'#FFF'} />
             <Text style={styles.profileButtonText}>Friends</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.profileButton}>
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => navigation.navigate('PersChall1')}
+          >
             <Ionicons name="trophy" size={40} color={'#FFD700'} />
             <Text style={styles.profileButtonText}>Challenges</Text>
           </TouchableOpacity>

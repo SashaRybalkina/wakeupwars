@@ -15,48 +15,36 @@ type Props = {
   navigation: NavigationProp<any>;
 };
 
-const Chall1: React.FC<Props> = ({ navigation }) => {
+const Games: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { whichChall } = route.params as {
-    whichChall: string;
+  const { name, catType, onGameSelected } = route.params as {
+    name: String;
+    catType: string;
+    onGameSelected: (game: string, attr: string[]) => void;
   };
 
-  const [challs, setChalls] = useState<string[][]>([
-    ['NameA', 'fnucwncjkwnl'],
-    ['NameB', 'nfenvoencklk'],
-    ['NameC', 'cneoenclknck'],
-    ['NameD', 'qowfpwhnljnv'],
+  const [games, setGames] = useState<string[]>([
+    '2048',
+    'Sudoku',
+    'Times Tables',
   ]);
 
-  const goToNext = () => {
-    navigation.navigate('Chall2', { whichChall });
-  };
+  const goToChallenges = () => navigation.navigate('Challenges');
+  const goToGroups = () => navigation.navigate('Groups');
+  const goToMessages = () => navigation.navigate('Messages');
+  const goToProfile = () => navigation.navigate('Profile');
 
-  const goToMessages = () => {
-    navigation.navigate('Messages');
-  };
-
-  const goToGroups = () => {
-    navigation.navigate('Groups');
-  };
-
-  const goToProfile = () => {
-    navigation.navigate('Profile');
-  };
-
-  const Challenge: React.FC<{ name: string; text: string; index: number }> = ({
+  const Category: React.FC<{ name: string; index: number }> = ({
     name,
-    text,
     index,
   }) => (
     <TouchableOpacity
-      style={styles.navToChall}
-      onPress={() => {
-        setChalls((prevChall) => prevChall.filter((_, i) => i !== index));
-      }}
+      style={styles.navToCat}
+      onPress={() =>
+        navigation.navigate('GameExpanded', { name, catType, onGameSelected })
+      }
     >
-      <Text style={styles.navToChallName}>{name}</Text>
-      <Text style={styles.navToChallText}>{text}</Text>
+      <Text style={styles.navToCatName}>{name}</Text>
     </TouchableOpacity>
   );
 
@@ -67,31 +55,34 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
       resizeMode="cover"
     >
       <View style={styles.container}>
-        <Text style={styles.title}>My {whichChall} Challenges</Text>
+        <Text style={styles.title}>{name} Games</Text>
         <ScrollView style={styles.scrollViewContainer}>
-          {challs.map((challenge, index) => (
-            <Challenge
-              key={index}
-              name={challenge[0] + ''}
-              text={challenge[1] + ''}
-              index={index}
-            />
+          {games.map((challenge, index) => (
+            <Category key={index} name={challenge + ''} index={index} />
           ))}
         </ScrollView>
       </View>
 
       <View style={styles.buttons}>
-        <Button style={styles.button}>
-          <Ionicons name="star" size={40} color={'#FFF5CD'} />
+        <Button style={styles.button} onPress={goToChallenges}>
+          <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
         </Button>
         <Button style={styles.button} onPress={goToGroups}>
-          <Ionicons name="people-outline" size={40} color={'#FFF5CD'} />
+          <Ionicons
+            name={catType == 'Group' ? 'people' : 'people-outline'}
+            size={40}
+            color={'#FFF5CD'}
+          />
         </Button>
         <Button style={styles.button} onPress={goToMessages}>
           <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
         </Button>
         <Button style={styles.button} onPress={goToProfile}>
-          <Ionicons name="person-outline" size={40} color={'#FFF5CD'} />
+          <Ionicons
+            name={catType == 'Personal' ? 'person' : 'person-outline'}
+            size={40}
+            color={'#FFF5CD'}
+          />
         </Button>
       </View>
     </ImageBackground>
@@ -134,32 +125,41 @@ const styles = StyleSheet.create({
   underline: {
     textDecorationLine: 'underline',
   },
-  navToChall: {
+  navToCat: {
     width: '100%',
     height: 80,
     backgroundColor: 'rgba(0, 0, 0, 0.25)',
     borderRadius: 15,
-    marginVertical: 5,
+    marginVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  navToChallName: {
+  navToCatName: {
     color: '#fff',
-    fontSize: 22.5,
+    fontSize: 25,
     fontWeight: '600',
-    marginLeft: 5,
-    marginBottom: 10,
-  },
-  navToChallText: {
-    color: '#fff',
-    fontSize: 18,
-    marginLeft: 20,
   },
   scrollViewContainer: {
     width: '100%',
-    height: '70%',
+    height: '75%',
     marginBottom: 20,
-    marginTop: -10,
+    marginTop: -15,
+  },
+  addButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    width: '100%',
+    height: '10%',
+    borderRadius: 15,
+    marginTop: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    letterSpacing: 2,
+    marginLeft: 20,
   },
   buttons: {
     backgroundColor: '#211F26',
@@ -182,4 +182,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Chall1;
+export default Games;

@@ -7,6 +7,9 @@ import { NavigationContainer } from '@react-navigation/native';
 
 import Challenges from './pages/Challenges';
 import Chall1 from './pages/Challenges/Chall1';
+import Categories from './pages/Games/Categories';
+import GameExpanded from './pages/Games/GameExpanded';
+import Games from './pages/Games/Games';
 import GroupScreen from './pages/Groups';
 import GroupChall1 from './pages/Groups/GroupChall1';
 import GroupChall2 from './pages/Groups/GroupChall2';
@@ -17,6 +20,8 @@ import LoginScreen from './pages/Login';
 import InputOutput from './pages/mainPage';
 import Messages from './pages/Messages';
 import Profile from './pages/Profile';
+import PersChall1 from './pages/Profile/PersChall1';
+import PersChall2 from './pages/Profile/PersChall2';
 import SignUpScreen from './pages/SignUp';
 import StartScreen from './pages/StartScreen';
 import SudokuScreen from './pages/SudokuScreen';
@@ -27,9 +32,24 @@ function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Groups"
+        initialRouteName="Profile"
         screenOptions={{ animationEnabled: false }}
       >
+        <Stack.Screen
+          name="Categories"
+          component={Categories}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Games"
+          component={Games}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="GameExpanded"
+          component={GameExpanded}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="Challenges"
           component={Challenges}
@@ -83,6 +103,16 @@ function App() {
         <Stack.Screen
           name="Profile"
           component={Profile}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PersChall1"
+          component={PersChall1}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PersChall2"
+          component={PersChall2}
           options={{ headerShown: false }}
         />
         <Stack.Screen
