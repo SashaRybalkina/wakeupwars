@@ -15,7 +15,7 @@ import { Button } from 'tamagui';
 
 const DAYS = ['M', 'T', 'W', 'TH', 'F', 'S', 'SU'];
 
-const Chall2 = ({ navigation }) => {
+const GroupChall2 = ({ navigation }) => {
   const [selectedDays, setSelectedDays] = useState({});
   const [selectedTime, setSelectedTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -132,7 +132,7 @@ const Chall2 = ({ navigation }) => {
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => {
-              navigation.navigate('Categories', {
+              navigation.navigate('GroupChall3', {
                 catType: 'Group',
                 onGameSelected: (game: string, attr: string[]) => {
                   setCurGames((prevGames) => [
@@ -354,4 +354,4 @@ const styles = StyleSheet.create({
   button: { backgroundColor: 'transparent' },
 });
 
-export default Chall2;
+export default GroupChall2;

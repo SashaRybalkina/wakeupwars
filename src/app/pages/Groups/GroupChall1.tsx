@@ -24,8 +24,8 @@ const GroupChall1: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('GroupChall2', { groupName });
   };
 
-  const goToGroups = () => {
-    navigation.navigate('Groups');
+  const goToChallenges = () => {
+    navigation.navigate('Challenges');
   };
 
   const goToMessages = () => {
@@ -58,11 +58,11 @@ const GroupChall1: React.FC<Props> = ({ navigation }) => {
       </View>
 
       <View style={styles.buttons}>
-        <Button style={styles.button}>
-          <Ionicons name="star" size={40} color={'#FFF5CD'} />
+        <Button style={styles.button} onPress={goToChallenges}>
+          <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
         </Button>
-        <Button style={styles.button} onPress={goToGroups}>
-          <Ionicons name="people-outline" size={40} color={'#FFF5CD'} />
+        <Button style={styles.button}>
+          <Ionicons name="people" size={40} color={'#FFF5CD'} />
         </Button>
         <Button style={styles.button} onPress={goToMessages}>
           <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />

@@ -1,45 +1,89 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ImageBackground,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { NavigationProp, useRoute } from '@react-navigation/native';
+import { Button } from 'tamagui';
 
-const Chall3 = ({ navigation }) => {
+type Props = {
+  navigation: NavigationProp<any>;
+};
+
+const GroupChall3 = ({ navigation }) => {
   const route = useRoute();
-  const { onGameSelected } = route.params || {};
-
-  const selectGame = (game: String) => {
-    if (onGameSelected) {
-      navigation.navigate('GroupChall4', { game, onGameSelected });
-    }
+  const { catType, onGameSelected } = route.params as {
+    catType: string;
+    onGameSelected: (game: string, attr: string[]) => void;
   };
 
-  const gameList = ['Game 1', 'Game 2', 'Game 3', 'Game 4']; // Example list of games
+  const goToNext = (singOrMult: String) => {
+    navigation.navigate('Categories', {
+      catType,
+      singOrMult,
+      onGameSelected,
+    });
+  };
+
+  const goToChallenges = () => {
+    navigation.navigate('Challenges');
+  };
+
+  const goToMessages = () => {
+    navigation.navigate('Messages');
+  };
+
+  const goToProfile = () => {
+    navigation.navigate('Profile');
+  };
 
   return (
     <ImageBackground
-      source={require('../../images/tertiary.png')}
+      source={require('../../images/secondary.png')}
       style={styles.background}
       resizeMode="cover"
     >
-      <Text style={styles.title}>Select a Game</Text>
-      <ScrollView contentContainerStyle={styles.scrollViewContainer}>
-        {gameList.map((game, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.gameButton}
-            onPress={() => selectGame(game)}
-          >
-            <Text style={styles.gameButtonText}>{game}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.container}>
+        <Text style={styles.title}>Mode</Text>
+        <TouchableOpacity
+          style={styles.navToCat}
+          onPress={() => {
+            goToNext('Singleplayer');
+          }}
+        >
+          <Text style={styles.navToCatText}>Singleplayer</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.navToCat}
+          onPress={() => {
+            goToNext('Multiplayer');
+          }}
+        >
+          <Text style={styles.navToCatText}>Multiplayer</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.buttons}>
+        <Button style={styles.button} onPress={goToChallenges}>
+          <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
+        </Button>
+        <Button style={styles.button}>
+          <Ionicons name="people" size={40} color={'#FFF5CD'} />
+        </Button>
+        <Button style={styles.button} onPress={goToMessages}>
+          <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
+        </Button>
+        <Button style={styles.button} onPress={goToProfile}>
+          <Ionicons name="person-outline" size={40} color={'#FFF5CD'} />
+        </Button>
+      </View>
     </ImageBackground>
   );
 };
@@ -48,34 +92,54 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  scrollViewContainer: {
+  container: {
     flex: 1,
     alignItems: 'center',
+    maxWidth: 400,
+    width: '80%',
+    marginVertical: 80,
   },
   title: {
-    marginTop: 180,
-    fontSize: 35,
-    fontWeight: 'bold',
     color: '#fff',
+    fontSize: 40,
+    fontWeight: '700',
     marginBottom: 50,
+    marginVertical: 100,
   },
-  gameButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    paddingHorizontal: 20,
-    marginVertical: 15,
-    borderRadius: 10,
+  navToCat: {
+    width: '100%',
+    height: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    borderRadius: 15,
+    marginVertical: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    width: 250,
-    height: 75,
   },
-  gameButtonText: {
+  navToCatText: {
+    color: '#FFF',
     fontSize: 30,
-    color: '#fff',
     fontWeight: '500',
+  },
+  buttons: {
+    backgroundColor: '#211F26',
+    flexDirection: 'row',
+    height: 100,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  button: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    borderWidth: 0,
+    marginBottom: 15,
   },
 });
 
-export default Chall3;
+export default GroupChall3;

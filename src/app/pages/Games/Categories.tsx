@@ -17,8 +17,9 @@ type Props = {
 
 const Categories: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, onGameSelected } = route.params as {
+  const { catType, singOrMult, onGameSelected } = route.params as {
     catType: string;
+    singOrMult: string;
     onGameSelected: (game: string, attr: string[]) => void;
   };
 

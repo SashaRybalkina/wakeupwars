@@ -14,7 +14,8 @@ import GroupScreen from './pages/Groups';
 import GroupChall1 from './pages/Groups/GroupChall1';
 import GroupChall2 from './pages/Groups/GroupChall2';
 import GroupChall3 from './pages/Groups/GroupChall3';
-import GroupChall4 from './pages/Groups/GroupChall4';
+import GroupChall3Old from './pages/Groups/GroupChall3Old';
+import GroupChall4Old from './pages/Groups/GroupChall4Old';
 import GroupDetails from './pages/Groups/GroupDetails';
 import LoginScreen from './pages/Login';
 import InputOutput from './pages/mainPage';
@@ -61,21 +62,6 @@ function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="GroupChall2"
-          component={GroupChall2}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="GroupChall3"
-          component={GroupChall3}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="GroupChall4"
-          component={GroupChall4}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
           name="Sudoku"
           component={SudokuScreen}
           options={{ headerShown: false }}
@@ -98,6 +84,26 @@ function App() {
         <Stack.Screen
           name="GroupChall1"
           component={GroupChall1}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="GroupChall2"
+          component={GroupChall2}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="GroupChall3"
+          component={GroupChall3}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="GroupChall3Old"
+          component={GroupChall3Old}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="GroupChall4Old"
+          component={GroupChall4Old}
           options={{ headerShown: false }}
         />
         <Stack.Screen
