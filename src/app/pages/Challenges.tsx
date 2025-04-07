@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     marginVertical: 80,
   },
   title: {
-    color: '#fff',
+    color: '#FFF',
     fontSize: 40,
     fontWeight: '700',
     marginBottom: 50,
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   navToChall: {
     width: '100%',
     height: 100,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 15,
     marginVertical: 25,
     alignItems: 'center',

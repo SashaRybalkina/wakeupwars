@@ -127,9 +127,9 @@ const styles = StyleSheet.create({
   navToGroup: {
     width: '100%',
     height: 80,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 15,
-    marginVertical: 5,
+    marginVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },

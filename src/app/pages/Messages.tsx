@@ -85,6 +85,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
         <TextInput
           style={styles.input}
           placeholder="Seacrh messages"
+          placeholderTextColor="#B689BB"
         ></TextInput>
         <View style={[{ flexDirection: 'row' }]}>
           <TouchableOpacity onPress={() => setSelected('Friends')}>
@@ -192,35 +193,40 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 5,
     marginBottom: 30,
+    fontSize: 20,
+    paddingHorizontal: 10,
   },
   selection: {
     color: '#fff',
     fontSize: 22.5,
     fontWeight: '700',
     marginHorizontal: 25,
-    marginBottom: 20,
+    marginBottom: 30,
   },
   underline: {
     textDecorationLine: 'underline',
   },
   navToMess: {
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     width: '100%',
     height: 70,
-    marginVertical: 5,
+    marginVertical: 7.5,
     justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: 10,
   },
   navToMessName: {
-    color: '#ffcce6',
+    color: '#FFF455',
     fontSize: 22.5,
     fontWeight: '600',
     marginLeft: 5,
-    marginBottom: 10,
+    marginBottom: 5,
   },
   navToMessText: {
     color: '#fff',
     fontSize: 17.5,
     marginLeft: 20,
+    fontWeight: '600',
   },
   scrollViewContainer: {
     width: '100%',

@@ -52,7 +52,7 @@ const Categories: React.FC<Props> = ({ navigation }) => {
 
   return (
     <ImageBackground
-      source={require('../../images/secondary.png')}
+      source={require('../../images/tertiary.png')}
       style={styles.background}
       resizeMode="cover"
     >
