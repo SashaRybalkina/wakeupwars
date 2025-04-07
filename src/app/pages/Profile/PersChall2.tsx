@@ -49,157 +49,159 @@ const PersChall2 = ({ navigation }) => {
       style={styles.background}
       resizeMode="cover"
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.nameContainer}>
-          <Text style={styles.title}>Name:</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter name"
-            placeholderTextColor="pink"
-            value={name}
-            onChangeText={setName}
-          />
-        </View>
-
-        <TouchableOpacity
-          onPress={() => setShowTimePicker(true)}
-          style={styles.timePickerButton}
-        >
-          <Text style={styles.pickerText}>
-            {selectedTime.toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Text>
-        </TouchableOpacity>
-        {showTimePicker && (
-          <>
-            <DateTimePicker
-              value={selectedTime}
-              mode="time"
-              display="spinner"
-              onChange={onTimeChange}
-              textColor="#FFF"
+      <View style={styles.overlay}>
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <View style={styles.nameContainer}>
+            <Text style={styles.title}>Name:</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter name"
+              placeholderTextColor="white"
+              value={name}
+              onChangeText={setName}
             />
-            <Button
-              onPress={() => setShowTimePicker(false)}
-              style={styles.doneButton}
-            >
-              Done
-            </Button>
-          </>
-        )}
+          </View>
 
-        <View style={styles.daysContainer}>
-          {DAYS.map((day, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.day, selectedDays[day] && styles.daySelected]}
-              onPress={() => toggleDay(day)}
-            >
-              <Text style={styles.dayText}>{day}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={styles.sectionTitle}>Games:</Text>
-        <View style={styles.gameWrapper}>
-          {curGames.map((game, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.game]}
-              onPress={() =>
-                setCurGames((prevGames) =>
-                  prevGames.filter((_, i) => i !== index),
-                )
-              }
-            >
-              <Text style={styles.gameTitle}>{game[0]}</Text>
-              {game[0] != 'Sudoku' && (
-                <Text style={styles.gameText}>{'Repeats: ' + game[1]}</Text>
-              )}
-              {game[0] != 'Sudoku' && (
-                <Text style={styles.gameText}>{'Minutes: ' + game[2]}</Text>
-              )}
-              {game[0] == 'Sudoku' && (
-                <ImageBackground
-                  source={require('../../images/sudoku.png')}
-                  style={styles.sudoku}
-                ></ImageBackground>
-              )}
-            </TouchableOpacity>
-          ))}
           <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => {
-              navigation.navigate('Categories', {
-                catType: 'Personal',
-                onGameSelected: (game: string, attr: string[]) => {
-                  setCurGames((prevGames) => [
-                    ...prevGames,
-                    [game, attr[0] + '', attr[1] + ''],
-                  ]);
-                },
-              });
-            }}
+            onPress={() => setShowTimePicker(true)}
+            style={styles.timePickerButton}
           >
-            <Ionicons name="add-circle-outline" size={35} color={'#FFF'} />
-            <Text style={styles.addText}>Add new</Text>
+            <Text style={styles.pickerText}>
+              {selectedTime.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
           </TouchableOpacity>
-        </View>
+          {showTimePicker && (
+            <>
+              <DateTimePicker
+                value={selectedTime}
+                mode="time"
+                display="spinner"
+                onChange={onTimeChange}
+                textColor="#FFF"
+              />
+              <Button
+                onPress={() => setShowTimePicker(false)}
+                style={styles.doneButton}
+              >
+                Done
+              </Button>
+            </>
+          )}
 
-        <Text style={styles.sectionTitle}>
-          End date: {selectedDate.toDateString()}
-        </Text>
-        <Button
-          onPress={() => setShowDatePicker(true)}
-          style={styles.dateButton}
-        >
-          Select Date
-        </Button>
-        {showDatePicker && (
-          <>
-            <DateTimePicker
-              value={selectedDate}
-              mode="date"
-              display="spinner"
-              onChange={onDateChange}
-              textColor="#FFF"
-            />
-            <Button
-              onPress={() => setShowDatePicker(false)}
-              style={styles.doneButton}
+          <View style={styles.daysContainer}>
+            {DAYS.map((day, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[styles.day, selectedDays[day] && styles.daySelected]}
+                onPress={() => toggleDay(day)}
+              >
+                <Text style={styles.dayText}>{day}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.sectionTitle}>Games:</Text>
+          <View style={styles.gameWrapper}>
+            {curGames.map((game, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[styles.game]}
+                onPress={() =>
+                  setCurGames((prevGames) =>
+                    prevGames.filter((_, i) => i !== index),
+                  )
+                }
+              >
+                <Text style={styles.gameTitle}>{game[0]}</Text>
+                {game[0] != 'Sudoku' && (
+                  <Text style={styles.gameText}>{'Repeats: ' + game[1]}</Text>
+                )}
+                {game[0] != 'Sudoku' && (
+                  <Text style={styles.gameText}>{'Minutes: ' + game[2]}</Text>
+                )}
+                {game[0] == 'Sudoku' && (
+                  <ImageBackground
+                    source={require('../../images/sudoku.png')}
+                    style={styles.sudoku}
+                  ></ImageBackground>
+                )}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => {
+                navigation.navigate('Categories', {
+                  catType: 'Personal',
+                  onGameSelected: (game: string, attr: string[]) => {
+                    setCurGames((prevGames) => [
+                      ...prevGames,
+                      [game, attr[0] + '', attr[1] + ''],
+                    ]);
+                  },
+                });
+              }}
             >
-              Done
-            </Button>
-          </>
-        )}
+              <Ionicons name="add-circle-outline" size={35} color={'#FFF'} />
+              <Text style={styles.addText}>Add new</Text>
+            </TouchableOpacity>
+          </View>
 
-        <Button style={styles.finishButton}>Finish</Button>
-      </ScrollView>
+          <Text style={styles.sectionTitle}>
+            End date: {selectedDate.toDateString()}
+          </Text>
+          <Button
+            onPress={() => setShowDatePicker(true)}
+            style={styles.dateButton}
+          >
+            Select Date
+          </Button>
+          {showDatePicker && (
+            <>
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display="spinner"
+                onChange={onDateChange}
+                textColor="#FFF"
+              />
+              <Button
+                onPress={() => setShowDatePicker(false)}
+                style={styles.doneButton}
+              >
+                Done
+              </Button>
+            </>
+          )}
 
-      <View style={styles.buttons}>
-        <Button
-          style={styles.button}
-          onPress={() => navigation.navigate('Challenges')}
-        >
-          <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button
-          style={styles.button}
-          onPress={() => navigation.navigate('Groups')}
-        >
-          <Ionicons name="people-outline" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button
-          style={styles.button}
-          onPress={() => navigation.navigate('Messages')}
-        >
-          <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button style={styles.button}>
-          <Ionicons name="person" size={40} color={'#FFF5CD'} />
-        </Button>
+          <Button style={styles.finishButton}>Finish</Button>
+        </ScrollView>
+
+        <View style={styles.buttons}>
+          <Button
+            style={styles.button}
+            onPress={() => navigation.navigate('Challenges')}
+          >
+            <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
+          </Button>
+          <Button
+            style={styles.button}
+            onPress={() => navigation.navigate('Groups')}
+          >
+            <Ionicons name="people-outline" size={40} color={'#FFF5CD'} />
+          </Button>
+          <Button
+            style={styles.button}
+            onPress={() => navigation.navigate('Messages')}
+          >
+            <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
+          </Button>
+          <Button style={styles.button}>
+            <Ionicons name="person" size={40} color={'#FFF5CD'} />
+          </Button>
+        </View>
       </View>
     </ImageBackground>
   );
@@ -210,6 +212,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sudoku: {
     width: 50,

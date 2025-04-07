@@ -55,15 +55,15 @@ const Profile: React.FC<Props> = ({ navigation }) => {
         </View>
         <View style={styles.profileButtons}>
           <TouchableOpacity style={styles.profileButton}>
-            <Ionicons name="people" size={40} color={'#4075C5'} />
+            <Ionicons name="people" size={40} color={'#fff'} />
             <Text style={styles.profileButtonText}>Friends</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.profileButton}
             onPress={() => navigation.navigate('PersChall1')}
           >
-            <Ionicons name="trophy" size={40} color={'#8D4C94'} />
-            <Text style={[styles.profileButtonText, { color: '#8D4C94' }]}>
+            <Ionicons name="trophy" size={40} color={'#FFD700'} />
+            <Text style={[styles.profileButtonText, { color: '#FF0' }]}>
               Challenges
             </Text>
           </TouchableOpacity>
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     marginTop: 30,
     borderRadius: 60,
     borderWidth: 3,
-    borderColor: '#8D4C94',
+    borderColor: '#FFD700',
   },
   profileName: {
     fontSize: 26,
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   profileLink: {
-    color: '#295699',
+    color: '#EEE',
     fontSize: 16,
     marginBottom: 10,
     fontWeight: '600',
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
   profileButtonText: {
-    color: '#0066FF',
+    color: '#FFF',
     fontSize: 16,
     fontWeight: '700',
   },

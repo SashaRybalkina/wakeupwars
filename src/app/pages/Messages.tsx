@@ -85,7 +85,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
         <TextInput
           style={styles.input}
           placeholder="Seacrh messages"
-          placeholderTextColor="#B689BB"
+          placeholderTextColor="#AAA"
         ></TextInput>
         <View style={[{ flexDirection: 'row' }]}>
           <TouchableOpacity onPress={() => setSelected('Friends')}>
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 5,
     marginBottom: 30,
-    fontSize: 20,
+    fontSize: 18,
     paddingHorizontal: 10,
   },
   selection: {

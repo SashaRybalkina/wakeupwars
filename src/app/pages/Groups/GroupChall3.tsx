@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   navToCat: {
     width: '100%',
     height: 100,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 15,
     marginVertical: 25,
     alignItems: 'center',

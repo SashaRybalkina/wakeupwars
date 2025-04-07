@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   navToChall: {
     width: '100%',
     height: 100,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
     borderRadius: 15,
     marginVertical: 25,
     alignItems: 'center',

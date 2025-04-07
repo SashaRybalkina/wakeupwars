@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     marginVertical: 80,
   },
   title: {
-    color: '#fff',
+    color: '#FFF500',
     fontSize: 40,
     fontWeight: '700',
     marginBottom: 50,
@@ -137,15 +137,15 @@ const styles = StyleSheet.create({
   navToChall: {
     width: '100%',
     height: 80,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 15,
-    marginVertical: 5,
+    marginVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   navToChallName: {
     color: '#fff',
-    fontSize: 22.5,
+    fontSize: 23,
     fontWeight: '600',
     marginLeft: 5,
     marginBottom: 10,
@@ -154,6 +154,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     marginLeft: 20,
+    fontWeight: '600',
   },
   scrollViewContainer: {
     width: '100%',
