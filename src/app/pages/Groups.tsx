@@ -59,7 +59,8 @@ const Groups: React.FC<Props> = ({ navigation }) => {
       <TouchableOpacity
         style={styles.navToGroup}
         onPress={() => {
-          setGroups((prevGroups) => prevGroups.filter((_, i) => i !== index));
+          // setGroups((prevGroups) => prevGroups.filter((_, i) => i !== index));
+          navigation.navigate('GroupDetails', { groupName: name });
         }}
       >
         <Text style={styles.navToGroupText}>{name}</Text>
@@ -84,7 +85,7 @@ const Groups: React.FC<Props> = ({ navigation }) => {
         <ScrollView style={styles.scrollViewContainer}>
           {groups.map((group, index) => {
             var colIndex = index % 4;
-            return Group(groups[index] + '' + '', index);
+            return Group(groups[index] + '', index);
           })}
         </ScrollView>
       </View>
@@ -142,9 +143,9 @@ const styles = StyleSheet.create({
   navToGroup: {
     width: '100%',
     height: 80,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 15,
-    marginVertical: 5,
+    marginVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },

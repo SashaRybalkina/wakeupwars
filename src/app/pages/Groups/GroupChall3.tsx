@@ -1,26 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ImageBackground,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { NavigationProp } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { NavigationProp, useRoute } from '@react-navigation/native';
 import { Button } from 'tamagui';
 
 type Props = {
   navigation: NavigationProp<any>;
 };
 
-const Challenges: React.FC<Props> = ({ navigation }) => {
-  const goToChall1 = (whichChall: String) => {
-    navigation.navigate('Chall1', { whichChall });
+const GroupChall3 = ({ navigation }) => {
+  const route = useRoute();
+  const { catType, onGameSelected } = route.params as {
+    catType: string;
+    onGameSelected: (game: string, attr: string[]) => void;
   };
 
-  const goToGroups = () => {
-    navigation.navigate('Groups');
+  const goToNext = (singOrMult: String) => {
+    navigation.navigate('Categories', {
+      catType,
+      singOrMult,
+      onGameSelected,
+    });
+  };
+
+  const goToChallenges = () => {
+    navigation.navigate('Challenges');
   };
 
   const goToMessages = () => {
@@ -33,36 +46,36 @@ const Challenges: React.FC<Props> = ({ navigation }) => {
 
   return (
     <ImageBackground
-      source={require('../images/cgpt.png')}
+      source={require('../../images/tertiary.png')}
       style={styles.background}
       resizeMode="cover"
     >
       <View style={styles.container}>
-        <Text style={styles.title}>My Challenges</Text>
+        <Text style={styles.title}>Mode</Text>
         <TouchableOpacity
-          style={styles.navToChall}
+          style={styles.navToCat}
           onPress={() => {
-            goToChall1('Personal');
+            goToNext('Singleplayer');
           }}
         >
-          <Text style={styles.navToChallText}>Personal</Text>
+          <Text style={styles.navToCatText}>Singleplayer</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.navToChall}
+          style={styles.navToCat}
           onPress={() => {
-            goToChall1('Group');
+            goToNext('Multiplayer');
           }}
         >
-          <Text style={styles.navToChallText}>Group</Text>
+          <Text style={styles.navToCatText}>Multiplayer</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.buttons}>
-        <Button style={styles.button}>
-          <Ionicons name="star" size={40} color={'#FFF5CD'} />
+        <Button style={styles.button} onPress={goToChallenges}>
+          <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
         </Button>
-        <Button style={styles.button} onPress={goToGroups}>
-          <Ionicons name="people-outline" size={40} color={'#FFF5CD'} />
+        <Button style={styles.button}>
+          <Ionicons name="people" size={40} color={'#FFF5CD'} />
         </Button>
         <Button style={styles.button} onPress={goToMessages}>
           <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
@@ -88,13 +101,13 @@ const styles = StyleSheet.create({
     marginVertical: 80,
   },
   title: {
-    color: '#FFF',
+    color: '#fff',
     fontSize: 40,
     fontWeight: '700',
     marginBottom: 50,
     marginVertical: 100,
   },
-  navToChall: {
+  navToCat: {
     width: '100%',
     height: 100,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
@@ -103,10 +116,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  navToChallText: {
+  navToCatText: {
     color: '#FFF',
     fontSize: 30,
-    fontWeight: '900',
+    fontWeight: '500',
   },
   buttons: {
     backgroundColor: '#211F26',
@@ -129,4 +142,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Challenges;
+export default GroupChall3;

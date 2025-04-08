@@ -16,7 +16,7 @@ const Chall3 = ({ navigation }) => {
 
   const selectGame = (game: String) => {
     if (onGameSelected) {
-      navigation.navigate('Chall4', { game, onGameSelected });
+      navigation.navigate('GroupChall4Old', { game, onGameSelected });
     }
   };
 

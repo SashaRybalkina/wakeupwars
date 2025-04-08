@@ -12,7 +12,7 @@ const Chall4 = ({ navigation }) => {
       // Ensure that digitValue and minuteValue are numbers, not strings
       onGameSelected(game, [digitValue + '', minuteValue + '']);
     }
-    navigation.navigate('Chall2');
+    navigation.navigate('GroupChall2');
   };
 
   const [digitValue, setDigitValue] = useState(1);

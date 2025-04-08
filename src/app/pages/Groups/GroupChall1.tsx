@@ -7,20 +7,25 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { NavigationProp } from '@react-navigation/native';
+import { NavigationProp, useRoute } from '@react-navigation/native';
 import { Button } from 'tamagui';
 
 type Props = {
   navigation: NavigationProp<any>;
 };
 
-const Challenges: React.FC<Props> = ({ navigation }) => {
-  const goToChall1 = (whichChall: String) => {
-    navigation.navigate('Chall1', { whichChall });
+const GroupChall1: React.FC<Props> = ({ navigation }) => {
+  const route = useRoute();
+  const { groupName } = route.params as {
+    groupName: string;
   };
 
-  const goToGroups = () => {
-    navigation.navigate('Groups');
+  const goToManual = (groupName: String) => {
+    navigation.navigate('GroupChall2', { groupName });
+  };
+
+  const goToChallenges = () => {
+    navigation.navigate('Challenges');
   };
 
   const goToMessages = () => {
@@ -33,36 +38,31 @@ const Challenges: React.FC<Props> = ({ navigation }) => {
 
   return (
     <ImageBackground
-      source={require('../images/cgpt.png')}
+      source={require('../../images/tertiary.png')}
       style={styles.background}
       resizeMode="cover"
     >
       <View style={styles.container}>
-        <Text style={styles.title}>My Challenges</Text>
+        <Text style={styles.title}>Set Up...</Text>
         <TouchableOpacity
           style={styles.navToChall}
           onPress={() => {
-            goToChall1('Personal');
+            goToManual(groupName);
           }}
         >
-          <Text style={styles.navToChallText}>Personal</Text>
+          <Text style={styles.navToChallText}>Manually</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.navToChall}
-          onPress={() => {
-            goToChall1('Group');
-          }}
-        >
-          <Text style={styles.navToChallText}>Group</Text>
+        <TouchableOpacity style={styles.navToChall}>
+          <Text style={styles.navToChallText}>Collaberatively</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.buttons}>
-        <Button style={styles.button}>
-          <Ionicons name="star" size={40} color={'#FFF5CD'} />
+        <Button style={styles.button} onPress={goToChallenges}>
+          <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
         </Button>
-        <Button style={styles.button} onPress={goToGroups}>
-          <Ionicons name="people-outline" size={40} color={'#FFF5CD'} />
+        <Button style={styles.button}>
+          <Ionicons name="people" size={40} color={'#FFF5CD'} />
         </Button>
         <Button style={styles.button} onPress={goToMessages}>
           <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     marginVertical: 80,
   },
   title: {
-    color: '#FFF',
+    color: '#fff',
     fontSize: 40,
     fontWeight: '700',
     marginBottom: 50,
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   navToChall: {
     width: '100%',
     height: 100,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
     borderRadius: 15,
     marginVertical: 25,
     alignItems: 'center',
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   navToChallText: {
     color: '#FFF',
     fontSize: 30,
-    fontWeight: '900',
+    fontWeight: '500',
   },
   buttons: {
     backgroundColor: '#211F26',
@@ -129,4 +129,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Challenges;
+export default GroupChall1;

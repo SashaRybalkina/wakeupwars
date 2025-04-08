@@ -15,11 +15,11 @@ type Props = {
   navigation: NavigationProp<any>;
 };
 
-const Chall1: React.FC<Props> = ({ navigation }) => {
-  const route = useRoute();
-  const { whichChall } = route.params as {
-    whichChall: string;
-  };
+const PersChall1: React.FC<Props> = ({ navigation }) => {
+  //   const route = useRoute();
+  //   const { whichChall } = route.params as {
+  //     whichChall: string;
+  //   };
 
   const [challs, setChalls] = useState<string[][]>([
     ['NameA', 'fnucwncjkwnl'],
@@ -29,20 +29,12 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
   ]);
 
   const goToNext = () => {
-    navigation.navigate('Chall2', { whichChall });
+    navigation.navigate('PersChall2');
   };
 
-  const goToMessages = () => {
-    navigation.navigate('Messages');
-  };
-
-  const goToGroups = () => {
-    navigation.navigate('Groups');
-  };
-
-  const goToProfile = () => {
-    navigation.navigate('Profile');
-  };
+  const goToChallenges = () => navigation.navigate('Challenges');
+  const goToGroups = () => navigation.navigate('Groups');
+  const goToMessages = () => navigation.navigate('Messages');
 
   const Challenge: React.FC<{ name: string; text: string; index: number }> = ({
     name,
@@ -67,7 +59,7 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
       resizeMode="cover"
     >
       <View style={styles.container}>
-        <Text style={styles.title}>My {whichChall} Challenges</Text>
+        <Text style={styles.title}>My Personal Challenges</Text>
         <ScrollView style={styles.scrollViewContainer}>
           {challs.map((challenge, index) => (
             <Challenge
@@ -78,11 +70,25 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
             />
           ))}
         </ScrollView>
+
+        <Button
+          style={styles.addButton}
+          onPress={() => {
+            setChalls((prevChall) => [
+              ...prevChall,
+              ['test', 'befpvblwebvwbjvda'],
+            ]);
+            goToNext();
+          }}
+        >
+          <Ionicons name="add-circle-outline" size={35} color={'#FFF'} />
+          <Text style={styles.addText}>Add New</Text>
+        </Button>
       </View>
 
       <View style={styles.buttons}>
-        <Button style={styles.button}>
-          <Ionicons name="star" size={40} color={'#FFF5CD'} />
+        <Button style={styles.button} onPress={goToChallenges}>
+          <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
         </Button>
         <Button style={styles.button} onPress={goToGroups}>
           <Ionicons name="people-outline" size={40} color={'#FFF5CD'} />
@@ -90,8 +96,8 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
         <Button style={styles.button} onPress={goToMessages}>
           <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
         </Button>
-        <Button style={styles.button} onPress={goToProfile}>
-          <Ionicons name="person-outline" size={40} color={'#FFF5CD'} />
+        <Button style={styles.button}>
+          <Ionicons name="person" size={40} color={'#FFF5CD'} />
         </Button>
       </View>
     </ImageBackground>
@@ -110,7 +116,7 @@ const styles = StyleSheet.create({
     marginVertical: 80,
   },
   title: {
-    color: '#FFF500',
+    color: '#fff',
     fontSize: 40,
     fontWeight: '700',
     marginBottom: 50,
@@ -137,15 +143,15 @@ const styles = StyleSheet.create({
   navToChall: {
     width: '100%',
     height: 80,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
     borderRadius: 15,
-    marginVertical: 10,
+    marginVertical: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   navToChallName: {
     color: '#fff',
-    fontSize: 23,
+    fontSize: 22.5,
     fontWeight: '600',
     marginLeft: 5,
     marginBottom: 10,
@@ -154,13 +160,28 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     marginLeft: 20,
-    fontWeight: '600',
   },
   scrollViewContainer: {
     width: '100%',
-    height: '70%',
+    height: '50%',
     marginBottom: 20,
     marginTop: -10,
+  },
+  addButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    width: '100%',
+    height: '10%',
+    borderRadius: 15,
+    marginTop: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    letterSpacing: 2,
+    marginLeft: 20,
   },
   buttons: {
     backgroundColor: '#211F26',
@@ -183,4 +204,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Chall1;
+export default PersChall1;

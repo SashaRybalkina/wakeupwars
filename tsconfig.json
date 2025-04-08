@@ -4,6 +4,7 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "isolatedModules": true,
-    "jsx": "react-native"
+    "jsx": "react-native",
+    "esModuleInterop": true
   }
 }
