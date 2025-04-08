@@ -27,7 +27,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch(' https://5c49-2601-681-5400-4f70-9165-8221-1dfe-2c7b.ngrok-free.app/api/login/', {
+      const response = await fetch('https://6735-136-38-171-186.ngrok-free.app/api/login/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

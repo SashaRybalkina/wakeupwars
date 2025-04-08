@@ -22,7 +22,7 @@ const Groups: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     const fetchGroups = async () => {
       try {
-        const response = await fetch('https://2c70-136-38-171-186.ngrok-free.app/api/groups/');
+        const response = await fetch('https://6735-136-38-171-186.ngrok-free.app/api/groups/');
         const data = await response.json();
         const groupNames = data.map((group: { id: number; name: string }) => group.name);
         setGroups(groupNames);
