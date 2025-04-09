@@ -21,7 +21,7 @@ ENV/
 env311/
 
 # Django migration + cache
-**/migrations/
+**/migrations/__pycache__/
 *.pyc
 *.pyo
 
