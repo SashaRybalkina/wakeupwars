@@ -79,7 +79,7 @@ DATABASES = {
         'NAME': 'wake_up_wars_db',  # Name of the database (e.g., 'myappdb')
         'USER': 'wuw',  # RDS username (e.g., 'admin')
         'PASSWORD': 'AlarmsYay!',  # RDS password
-        'HOST': 'wake-up-wars-db.c9g0sskiwu2u.us-east-1.rds.amazonaws.com',  # RDS endpoint (e.g., 'mydatabase-instance.cxj4jf84x6y.us-west-2.rds.amazonaws.com')
+        'HOST': 'wake-up-wars-db.c9g0sskiwu2u.us-east-1.rds.amazonaws.com',  # RDS endpoint 
         'PORT': '3306',  # Default MySQL port
     }
 }

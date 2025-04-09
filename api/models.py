@@ -94,10 +94,11 @@ class Notification(models.Model):
 # Game Categories: Different categories of games
 class GameCategory(models.Model):
     categoryName = models.CharField(max_length=255, unique=True)
-    isMultiplayer = models.BooleanField()
+    isMultiplayer = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'GameCategories'
+        unique_together = ('categoryName', 'isMultiplayer')
 
     def __str__(self):
         return self.categoryName
@@ -119,10 +120,12 @@ class Game(models.Model):
 # scheduled on the same day through code instead of the db, it gets weird with the personal and group challenge cases
 class Challenge(models.Model):
     groupID = models.ForeignKey(Group, null=True, blank=True, on_delete=models.CASCADE) # null if personal challenge
-    uID = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE) # null if group challenge
     startDate = models.DateField()
     endDate = models.DateField()
     name = models.CharField(max_length=255, default='Challenge')
+    isCompleted = models.BooleanField(default=False)
+    daysCompleted = models.IntegerField(default=0)
+    # will be able to calculate total days from the start and end dates
 
     class Meta:
         db_table = 'Challenges'
@@ -235,7 +238,6 @@ class SudokuGameState(models.Model):
       challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE, related_name='games')
       puzzle = models.JSONField()
       solution = models.JSONField()
-      players = models.ManyToManyField(User, through='SudokuGamePlayer', related_name='sudoku_games')
 
       class Meta:
         db_table = 'SudokuGameStates'
