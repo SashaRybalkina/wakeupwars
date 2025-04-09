@@ -13,15 +13,20 @@ import { Button } from 'tamagui';
 
 type Props = {
   navigation: NavigationProp<any>;
-  route: { params: { id: number; name?: string } };
-  
+  route: {
+    params?: {
+      id: number;
+      name?: string;
+    };
+  };
 };
+
 
 const Profile: React.FC<Props> = ({ navigation, route }) => {
   const goToChallenges = () => navigation.navigate('Challenges');
   const goToGroups = () => navigation.navigate('Groups');
   const goToMessages = () => navigation.navigate('Messages');
-  const { id, name } = route.params;
+  const { id, name } = route.params || {};
   const [profileData, setProfileData] = useState<any>(null);
 
   useEffect(() => {
@@ -54,26 +59,20 @@ const Profile: React.FC<Props> = ({ navigation, route }) => {
         <Text style={styles.profileName}>{profileData?.name || 'Loading...'}</Text>
         <Text style={styles.profileLink}>View My Profile {'>'}</Text>
         <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.stat}>
-              Problem Solving <Text style={styles.statValue}>4.1 Points</Text>
-            </Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.stat}>
-              Puzzle <Text style={styles.statValue}>1.3 Points</Text>
-            </Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.stat}>
-              Physical <Text style={styles.statValue}>3.3 Points</Text>
-            </Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.stat}>
-              Memory/Pattern <Text style={styles.statValue}>0.5 Points</Text>
-            </Text>
-          </View>
+          {profileData?.skill_levels?.map((skill: any, index: number) => {
+            const skillLevel =
+              skill.totalPossible === 0
+                ? 0
+                : ((skill.totalEarned / skill.totalPossible) * 10).toFixed(1);
+            return (
+              <View style={styles.statCard} key={index}>
+                <Text style={styles.stat}>
+                  {skill.category.categoryName}{' '}
+                  <Text style={styles.statValue}>{skillLevel} Points</Text>
+                </Text>
+              </View>
+            );
+          })}
         </View>
         <View style={styles.profileButtons}>
           <TouchableOpacity style={styles.profileButton}>
