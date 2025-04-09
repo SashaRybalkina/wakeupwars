@@ -58,6 +58,11 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
       style={styles.background}
       resizeMode="cover"
     >
+      <View style={styles.backButtonContainer}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={30} color="#FFF" />
+        </TouchableOpacity>
+      </View>
       <View style={styles.container}>
         <Text style={styles.title}>My Personal Challenges</Text>
         <ScrollView style={styles.scrollViewContainer}>
@@ -108,6 +113,12 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
     alignItems: 'center',
+  },
+  backButtonContainer: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 10,
   },
   container: {
     alignItems: 'center',

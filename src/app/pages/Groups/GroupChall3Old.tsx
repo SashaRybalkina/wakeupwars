@@ -28,6 +28,11 @@ const Chall3 = ({ navigation }) => {
       style={styles.background}
       resizeMode="cover"
     >
+      <View style={styles.backButtonContainer}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={30} color="#FFF" />
+        </TouchableOpacity>
+      </View>
       <Text style={styles.title}>Select a Game</Text>
       <ScrollView contentContainerStyle={styles.scrollViewContainer}>
         {gameList.map((game, index) => (
@@ -49,6 +54,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  backButtonContainer: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 10,
   },
   scrollViewContainer: {
     flex: 1,

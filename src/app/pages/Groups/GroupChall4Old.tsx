@@ -24,6 +24,11 @@ const Chall4 = ({ navigation }) => {
       style={styles.background}
       resizeMode="cover"
     >
+      <View style={styles.backButtonContainer}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={30} color="#FFF" />
+        </TouchableOpacity>
+      </View>
       <Text style={styles.title}>{game}</Text>
 
       <View style={styles.container}>
@@ -75,6 +80,12 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
     alignItems: 'center',
+  },
+  backButtonContainer: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 10,
   },
   title: {
     fontSize: 35,
