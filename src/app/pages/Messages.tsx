@@ -28,7 +28,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
       if (!user?.id) return;
 
       try {
-        const response = await fetch(`https://3068-136-38-171-186.ngrok-free.app/api/messages/${user.id}/`);
+        const response = await fetch(`https://29f7-136-38-171-186.ngrok-free.app/api/messages/${user.id}/`);
         const data = await response.json();
 
         const friends = data.filter((msg: any) => msg.recipient !== null);
