@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { endpoints } from '../api';
 import { useUser } from '../context/UserContext';
 import {
   ImageBackground,
@@ -28,7 +29,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
       if (!user?.id) return;
 
       try {
-        const response = await fetch(`https://6ff8-136-38-171-186.ngrok-free.app/api/messages/${user.id}/`);
+        const response = await fetch(endpoints.messages(user.id));
         const data = await response.json();
 
         const friends = data.filter((msg: any) => msg.recipient !== null);

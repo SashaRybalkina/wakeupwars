@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { endpoints } from '../api';
 import { useUser } from '../context/UserContext';
 import {
   Alert,
@@ -28,7 +29,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch('https://6ff8-136-38-171-186.ngrok-free.app/api/login/', {
+      const response = await fetch(endpoints.login, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

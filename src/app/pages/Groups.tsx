@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { endpoints } from '../api';
 import { useEffect } from 'react';
 import {
   ImageBackground,
@@ -22,7 +23,7 @@ const Groups: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     const fetchGroups = async () => {
       try {
-        const response = await fetch('https://6ff8-136-38-171-186.ngrok-free.app/api/groups/');
+        const response = await fetch(endpoints.groups);
         const data = await response.json();
         const groupNames = data.map((group: { id: number; name: string }) => group.name);
         setGroups(groupNames);
