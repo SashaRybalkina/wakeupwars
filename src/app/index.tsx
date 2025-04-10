@@ -21,6 +21,8 @@ import LoginScreen from './pages/Login';
 import InputOutput from './pages/mainPage';
 import Messages from './pages/Messages';
 import Profile from './pages/Profile';
+import AcceptFInvite from './pages/Profile/AcceptFInvite';
+import AcceptGInvite from './pages/Profile/AcceptGInvite';
 import Friends1 from './pages/Profile/Friends1';
 import Friends2 from './pages/Profile/Friends2';
 import Friends3 from './pages/Profile/Friends3';
@@ -37,7 +39,7 @@ function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Profile"
+        initialRouteName="AcceptGInvite"
         screenOptions={{ animationEnabled: false }}
       >
         <Stack.Screen
@@ -123,6 +125,16 @@ function App() {
         <Stack.Screen
           name="PersChall2"
           component={PersChall2}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AcceptFInvite"
+          component={AcceptFInvite}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AcceptGInvite"
+          component={AcceptGInvite}
           options={{ headerShown: false }}
         />
         <Stack.Screen

@@ -42,7 +42,7 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
           source={require('../../images/game.jpeg')}
           style={styles.avatar}
         />
-        <Text style={styles.profileName}>User's Name</Text>
+        <Text style={styles.profileName}>{friendName}</Text>
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Text style={styles.stat}>
