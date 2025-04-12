@@ -2,9 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate, get_user_model
-from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer
-from .models import Group, User
-from .models import Message
+from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer
+from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership
 
 User = get_user_model()
 
@@ -37,13 +36,6 @@ class RegisterView(APIView):
         return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class GroupListView(APIView):
-    def get(self, request):
-        groups = Group.objects.all()
-        serializer = GroupSerializer(groups, many=True)
-        return Response(serializer.data)
-
-
 class HelloWorldView(APIView):
     def get(self, request):
         return Response({'message': 'Hello from Django REST Framework!'})
@@ -59,9 +51,41 @@ class UserProfileView(APIView):
         serializer = UserProfileSerializer(user)
         return Response(serializer.data)
     
+
 class UserMessagesView(APIView):
     def get(self, request, user_id):
         messages = Message.objects.filter(recipient_id=user_id) | Message.objects.filter(sender_id=user_id)
         messages = messages.order_by('-id')
         serializer = MessageSerializer(messages, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class GroupListView(APIView):
+    def get(self, request):
+        groups = Group.objects.all()
+        serializer = GroupSerializer(groups, many=True)
+        return Response(serializer.data)
+
+
+class GroupDetailsView(APIView):
+    def get(self, request, group_id):
+        try:
+            group = Group.objects.get(id=group_id)
+        except Group.DoesNotExist:
+            return Response({'error': 'Group not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get all challenges for the group
+        challenges = Challenge.objects.filter(groupID=group)
+
+        # Use ChallengeSummarySerializer to include `daysCompleted` etc.
+        serializer = ChallengeSummarySerializer(challenges, many=True, context={'user': request.user})
+
+        memberships = GroupMembership.objects.filter(groupID=group)
+        members = [{'id': m.uID.id, 'name': m.uID.name} for m in memberships]
+
+        return Response({
+            'id': group.id,
+            'name': group.name,
+            'challenges': serializer.data,
+            'members': members
+        }, status=status.HTTP_200_OK)

@@ -18,15 +18,19 @@ type Props = {
 };
 
 const Groups: React.FC<Props> = ({ navigation }) => {
-  const [groups, setGroups] = useState<string[]>([]);
+  // const [groups, setGroups] = useState<string[]>([]);
+  const [groups, setGroups] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
     const fetchGroups = async () => {
       try {
+        // const response = await fetch(endpoints.groups);
+        // const data = await response.json();
+        // const groupNames = data.map((group: { id: number; name: string }) => group.name);
+        // setGroups(groupNames);
         const response = await fetch(endpoints.groups);
         const data = await response.json();
-        const groupNames = data.map((group: { id: number; name: string }) => group.name);
-        setGroups(groupNames);
+        setGroups(data); // Don't reduce it to just names
       } catch (error) {
         console.error('Failed to fetch groups:', error);
       }
@@ -55,20 +59,6 @@ const Groups: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('Profile');
   };
 
-  const Group = (name: String, index: Int32) => {
-    return (
-      <TouchableOpacity
-        style={styles.navToGroup}
-        onPress={() => {
-          // setGroups((prevGroups) => prevGroups.filter((_, i) => i !== index));
-          navigation.navigate('GroupDetails', { groupName: name });
-        }}
-      >
-        <Text style={styles.navToGroupText}>{name}</Text>
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <ImageBackground
       source={require('../images/cgpt.png')}
@@ -76,18 +66,17 @@ const Groups: React.FC<Props> = ({ navigation }) => {
       resizeMode="cover"
     >
       <View style={styles.container}>
-        <Button
-          style={styles.addButton}
-          onPress={() => setGroups((prevGroups) => [...prevGroups, 'test'])}
-        >
-          <Ionicons name="add-circle-outline" size={45} color={'#fff'} />
-        </Button>
         <Text style={styles.title}>My Groups</Text>
         <ScrollView style={styles.scrollViewContainer}>
-          {groups.map((group, index) => {
-            var colIndex = index % 4;
-            return Group(groups[index] + '', index);
-          })}
+        {groups.map((group, index) => (
+          <TouchableOpacity
+            key={group.id}
+            style={styles.navToGroup}
+            onPress={() => navigation.navigate('GroupDetails', { groupId: group.id })}
+          >
+            <Text style={styles.navToGroupText}>{group.name}</Text>
+          </TouchableOpacity>
+        ))}
         </ScrollView>
       </View>
 

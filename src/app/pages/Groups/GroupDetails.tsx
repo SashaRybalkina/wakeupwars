@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { endpoints } from '../../api';
 import {
   Image,
   ImageBackground,
@@ -16,27 +17,62 @@ type Props = {
   navigation: NavigationProp<any>;
 };
 
+type Challenge = {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isGroupChallenge: boolean;
+  daysOfWeek: number[];
+  daysCompleted: number;
+};
+
+type GroupData = {
+  id: number;
+  name: string;
+  challenges: Challenge[];
+  members: { id: number; name: string }[];
+};
+
+
 const GroupDetails: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { groupName } = route.params as {
-    groupName: string;
-  };
+  const { groupId } = route.params as { groupId: number };
 
-  const [currentChallenges, setCurrentChallenges] = useState<string[]>([
-    'Challenge 1',
-    'Challenge 2',
-  ]);
+  const [groupData, setGroupData] = useState<GroupData | null>(null);
+
+  useEffect(() => {
+    const fetchGroupData = async () => {
+      try {
+        console.log("Fetching from:", endpoints.groupProfile(groupId));
+        const response = await fetch(endpoints.groupProfile(groupId));
+        const data = await response.json();
+        setGroupData(data);
+      } catch (error) {
+        console.error('Failed to fetch group details:', error);
+      }
+    };
+
+    fetchGroupData();
+  }, [groupId]);
+
+
+
+
+  const currentChallenges = groupData?.challenges?.filter((c: any) => !c.isCompleted) ?? [];
+  const pastChallenges = groupData?.challenges?.filter((c: any) => c.isCompleted) ?? [];
+
 
   // Placeholder for group profile picture
   const groupImage = require('../../images/game.jpeg');
 
   // List of member profile pictures
-  const memberImages = [
-    require('../../images/game.jpeg'),
-    require('../../images/game.jpeg'),
-    require('../../images/game.jpeg'),
-    require('../../images/game.jpeg'),
-  ];
+  // const memberImages = [
+  //   require('../../images/game.jpeg'),
+  //   require('../../images/game.jpeg'),
+  //   require('../../images/game.jpeg'),
+  //   require('../../images/game.jpeg'),
+  // ];
 
   return (
     <ImageBackground
@@ -46,6 +82,9 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
+          {!groupData ? (
+            <Text style={{ color: '#fff', marginTop: 50 }}>Loading...</Text>
+          ) : (
           <ScrollView
             style={[
               {
@@ -55,9 +94,7 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
             ]}
             contentContainerStyle={[{ alignItems: 'center' }]}
           >
-            <Text style={styles.groupTitle}>
-              {groupName ?? 'Unnamed Group'}
-            </Text>
+            <Text style={styles.groupTitle}>{groupData.name}</Text>
 
             <Image source={groupImage} style={styles.groupImage} />
 
@@ -66,38 +103,48 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
               showsHorizontalScrollIndicator={false}
               style={styles.membersContainer}
             >
-              {memberImages.map((image, index) => (
-                <Image key={index} source={image} style={styles.memberImage} />
+              {groupData?.members.map((member: any, index: number) => (
+                <View key={index} style={styles.memberImage}>
+                  <Text style={{ color: 'white', fontWeight: 'bold' }}>
+                    {member.name}
+                  </Text>
+                </View>
               ))}
             </ScrollView>
 
             <Text style={styles.sectionTitle}>Current Challenges</Text>
             <TouchableOpacity
               style={styles.addChallenge}
-              onPress={() => navigation.navigate('GroupChall1', { groupName })}
+              onPress={() => navigation.navigate('GroupChall1', { groupName: groupData?.name })} //going to want to pass whole group
             >
               <Ionicons name="add-circle-outline" size={35} color={'#fff'} />
             </TouchableOpacity>
             <ScrollView style={styles.challs}>
-              {currentChallenges.map((challenge, index) => (
-                <View key={index} style={styles.challenge}>
-                  <Text style={styles.challengeText}>{challenge}</Text>
-                </View>
+              {currentChallenges.map((challenge: Challenge, index: number) => (
+              <View key={index} style={styles.challenge}>
+                <Text style={styles.challengeText}>{challenge.name}</Text>
+                <View style={styles.completionBadge}>
+                    <Text style={styles.completionText}>{challenge.daysCompleted}</Text>
+                    <Text style={styles.completionLabel}>Days Complete</Text>
+                  </View>
+              </View>
               ))}
             </ScrollView>
 
             <Text style={styles.sectionTitle}>Past Challenges</Text>
             <ScrollView style={styles.challs}>
-              <View style={styles.challenge}>
-                <Ionicons name="book-outline" size={30} color={'#FFF'} />
-                <Text style={styles.challengeText}>School :(</Text>
-                <View style={styles.completionBadge}>
-                  <Text style={styles.completionText}>30/30</Text>
-                  <Text style={styles.completionLabel}>Days Complete</Text>
+              {pastChallenges.map((challenge: Challenge, index: number) => (
+                <View key={index} style={styles.challenge}>
+                  <Text style={styles.challengeText}>{challenge.name}</Text>
+                  <View style={styles.completionBadge}>
+                    <Text style={styles.completionText}>{challenge.daysCompleted}</Text>
+                    <Text style={styles.completionLabel}>Days Complete</Text>
+                  </View>
                 </View>
-              </View>
+                ))}
             </ScrollView>
           </ScrollView>
+          )}
         </View>
 
         <View style={styles.buttons}>

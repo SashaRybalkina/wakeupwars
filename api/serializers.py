@@ -38,14 +38,22 @@ class SkillLevelSerializer(serializers.ModelSerializer):
         model = SkillLevel
         fields = ['category', 'totalEarned', 'totalPossible']
 
+
 class ChallengeSummarySerializer(serializers.ModelSerializer):
     isGroupChallenge = serializers.SerializerMethodField()
     daysOfWeek = serializers.SerializerMethodField()
-    daysCompleted = serializers.SerializerMethodField()
 
     class Meta:
         model = Challenge
-        fields = ['id', 'name', 'startDate', 'endDate', 'isGroupChallenge', 'daysOfWeek', 'daysCompleted']
+        fields = [
+            'id',
+            'name',
+            'startDate',
+            'endDate',
+            'isGroupChallenge',
+            'daysOfWeek',
+            'daysCompleted'
+        ]
 
     def get_isGroupChallenge(self, obj):
         return obj.groupID is not None
@@ -53,9 +61,6 @@ class ChallengeSummarySerializer(serializers.ModelSerializer):
     def get_daysOfWeek(self, obj):
         return list(obj.gameschedule_set.values_list('dayOfWeek', flat=True))
 
-    def get_daysCompleted(self, obj):
-        user = self.context.get('user')
-        return list(GamePerformance.objects.filter(challenge=obj, user=user).values_list('date', flat=True))
 
 class UserProfileSerializer(serializers.ModelSerializer):
     skill_levels = SkillLevelSerializer(source='skilllevel_set', many=True)
