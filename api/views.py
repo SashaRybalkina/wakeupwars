@@ -2,8 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate, get_user_model
-from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer
-from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership
+from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer, CatSerializer
+from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory
 
 User = get_user_model()
 
@@ -64,6 +64,13 @@ class GroupListView(APIView):
     def get(self, request):
         groups = Group.objects.all()
         serializer = GroupSerializer(groups, many=True)
+        return Response(serializer.data)
+
+class CatListView(APIView):
+    def get(self, request, sing_or_mult):
+        is_multiplayer = sing_or_mult == 'Multiplayer'
+        cats = GameCategory.objects.filter(isMultiplayer=is_multiplayer)
+        serializer = CatSerializer(cats, many=True)
         return Response(serializer.data)
 
 

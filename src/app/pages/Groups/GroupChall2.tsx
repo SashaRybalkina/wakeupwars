@@ -80,15 +80,24 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
     setShowTimePicker(false);
   };
 
-  const handleGameAdd = (game: string, attr: string[]) => {
+  // const handleGameAdd = (game: string, attr: string[]) => {
+  //   const updated = { ...gamesByDay };
+  //   selectedDays.forEach((day) => {
+  //     if (!updated[day]) updated[day] = [];
+  //     updated[day].push([game, attr[0] ?? '', attr[1] ?? '']);
+  //   });
+  //   setGamesByDay(updated);
+  //   // Do NOT clear selectedDays
+  // };
+  const handleGameAdd = (game: { id: number; name: string }) => {
     const updated = { ...gamesByDay };
     selectedDays.forEach((day) => {
       if (!updated[day]) updated[day] = [];
-      updated[day].push([game, attr[0] ?? '', attr[1] ?? '']);
+      updated[day].push([game.id.toString(), game.name]); // keep it consistent
     });
     setGamesByDay(updated);
-    // Do NOT clear selectedDays
   };
+  
 
   const handleGameRemove = (day: string, index: number) => {
     const updated = { ...gamesByDay };
@@ -192,8 +201,8 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
                           groupId,
                           groupMembers,
                           catType: 'Group',
-                          onGameSelected: (game: string, attr: string[]) => {
-                            handleGameAdd(game, attr);
+                          onGameSelected: (game: { id: number; name: string }) => {
+                            handleGameAdd(game);
                           },
                         });
                       }}
@@ -226,15 +235,51 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
             </>
           )}
   
-          <Button
+          {/* <Button
             style={styles.finishButton}
             onPress={() => {
-              console.log({ name, selectedDate, dayTimeMapping, gamesByDay });
-              navigation.navigate('Challenges');
+              const payload = {
+                name,
+                group_id: groupId,
+                start_date: new Date().toISOString().split('T')[0], // or a selected start date
+                end_date: selectedDate.toISOString().split('T')[0],
+                alarm_schedule: Object.entries(dayTimeMapping).map(([day, time]) => ({
+                  day,
+                  time,
+                })),
+                games_schedule: Object.entries(gamesByDay).map(([day, games]) => ({
+                  day,
+                  games: games.map(([name, repeats, minutes]) => ({
+                    name,
+                    repeats: repeats || null,
+                    minutes: minutes || null,
+                  })),
+                })),
+              };
+              fetch(`${API_BASE_URL}/api/group-challenges/`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  // add auth header if needed
+                },
+                body: JSON.stringify(payload),
+              })
+                .then((res) => {
+                  if (!res.ok) throw new Error('Failed to create challenge');
+                  return res.json();
+                })
+                .then((data) => {
+                  console.log('Challenge created:', data);
+                  navigation.navigate('Challenges');
+                })
+                .catch((err) => {
+                  Alert.alert('Error', err.message);
+                });
+              
             }}
           >
             Finish
-          </Button>
+          </Button> */}
         </ScrollView>
       </View>
     </ImageBackground>

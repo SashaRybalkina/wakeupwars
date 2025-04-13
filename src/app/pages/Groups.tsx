@@ -24,10 +24,6 @@ const Groups: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     const fetchGroups = async () => {
       try {
-        // const response = await fetch(endpoints.groups);
-        // const data = await response.json();
-        // const groupNames = data.map((group: { id: number; name: string }) => group.name);
-        // setGroups(groupNames);
         const response = await fetch(endpoints.groups);
         const data = await response.json();
         setGroups(data); // Don't reduce it to just names

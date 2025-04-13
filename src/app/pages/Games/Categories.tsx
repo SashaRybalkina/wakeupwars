@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ImageBackground,
   ScrollView,
@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useRoute } from '@react-navigation/native';
 import { Button } from 'tamagui';
+import { endpoints } from '../../api';
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -25,32 +26,49 @@ const Categories: React.FC<Props> = ({ navigation }) => {
     onGameSelected: (game: string, attr: string[]) => void;
   };
 
-  const [cats, setCats] = useState<string[]>([
-    'Math',
-    'Typing',
-    'Word Games',
-    'Memory',
-    'Physical',
-  ]);
+  // const [cats, setCats] = useState<string[]>([
+  //   'Math',
+  //   'Typing',
+  //   'Word Games',
+  //   'Memory',
+  //   'Physical',
+  // ]);
+
+  const [cats, setCats] = useState<{ id: number; categoryName: string }[]>([]);
+  
+    useEffect(() => {
+      const fetchCats = async () => {
+        try {
+          // fetch the categories for multiplayer/singleplayer (whatever was selected)
+          const response = await fetch(endpoints.cats(singOrMult));
+          const data = await response.json();
+          setCats(data); 
+        } catch (error) {
+          console.error('Failed to fetch categories:', error);
+        }
+      };
+    
+      fetchCats();
+    }, []);
 
   const goToChallenges = () => navigation.navigate('Challenges');
   const goToGroups = () => navigation.navigate('Groups');
   const goToMessages = () => navigation.navigate('Messages');
   const goToProfile = () => navigation.navigate('Profile');
 
-  const Category: React.FC<{ name: string; index: number }> = ({
-    name,
-    index,
-  }) => (
-    <TouchableOpacity
-      style={styles.navToCat}
-      onPress={() =>
-        navigation.navigate('Games', { name, catType, onGameSelected })
-      }
-    >
-      <Text style={styles.navToCatName}>{name}</Text>
-    </TouchableOpacity>
-  );
+  // const Category: React.FC<{ name: string; index: number }> = ({
+  //   name,
+  //   index,
+  // }) => (
+  //   <TouchableOpacity
+  //     style={styles.navToCat}
+  //     onPress={() =>
+  //       navigation.navigate('Games', { name, catType, onGameSelected })
+  //     }
+  //   >
+  //     <Text style={styles.navToCatName}>{name}</Text>
+  //   </TouchableOpacity>
+  // );
 
   return (
     <ImageBackground
@@ -62,9 +80,15 @@ const Categories: React.FC<Props> = ({ navigation }) => {
         <Text style={styles.title}>Categories</Text>
         <ScrollView style={styles.scrollViewContainer}>
           {cats.map((cat, index) => (
-            <Category key={index} name={cat + ''} index={index} />
+            <TouchableOpacity
+              key={cat.id}
+              style={styles.navToCat}
+              onPress={() => navigation.navigate('Games', { catName: cat.categoryName, onGameSelected })}
+            >
+              <Text style={styles.navToCatName}>{cat.categoryName}</Text>
+            </TouchableOpacity>
           ))}
-        </ScrollView>
+          </ScrollView>
       </View>
 
       <View style={styles.buttons}>

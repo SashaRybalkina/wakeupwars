@@ -27,13 +27,13 @@ class GroupSerializer(serializers.ModelSerializer):
         model = Group
         fields = ['id', 'name']
 
-class GameCategorySerializer(serializers.ModelSerializer):
+class CatSerializer(serializers.ModelSerializer):
     class Meta:
         model = GameCategory
         fields = ['id', 'categoryName', 'isMultiplayer']
 
 class SkillLevelSerializer(serializers.ModelSerializer):
-    category = GameCategorySerializer()
+    category = CatSerializer()
 
     class Meta:
         model = SkillLevel
