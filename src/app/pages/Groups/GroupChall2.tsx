@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   ImageBackground,
   ScrollView,
   StyleSheet,
@@ -10,38 +11,96 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { NavigationProp, useRoute } from '@react-navigation/native';
+import { NavigationProp, RouteProp, useRoute } from '@react-navigation/native';
 import { Button } from 'tamagui';
+
+type Props = {
+  navigation: NavigationProp<any>;
+};
 
 const DAYS = ['M', 'T', 'W', 'TH', 'F', 'S', 'SU'];
 
-const GroupChall2 = ({ navigation }) => {
-  const [selectedDays, setSelectedDays] = useState({});
-  const [selectedTime, setSelectedTime] = useState(new Date());
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [curGames, setCurGames] = useState<string[][]>([]);
+const GroupChall2: React.FC<Props> = ({ navigation }) => {
+  const route = useRoute();
+  const { groupId, groupMembers } = route.params as {
+    groupId: number;
+    groupMembers: { id: number; name: string }[];
+  };
+
   const [name, setName] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const toggleDay = (day) => {
-    setSelectedDays((prev) => ({
-      ...prev,
-      [day]: !prev[day],
-    }));
-  };
+  const [tempTime, setTempTime] = useState<Date | null>(null);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
-  const onDateChange = (event, date) => {
-    if (date) {
-      setSelectedDate(date);
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [dayTimeMapping, setDayTimeMapping] = useState<Record<string, string>>({});
+  const [gamesByDay, setGamesByDay] = useState<Record<string, string[][]>>({});
+
+  const toggleDay = (day: string) => {
+    // If the day is already selected, deselect it
+    if (selectedDays.includes(day)) {
+      setSelectedDays(prev => prev.filter(d => d !== day));
+    } else {
+      // If there are already selected days (after game selection), switch to single-select behavior
+      if (selectedDays.length > 0) {
+        setSelectedDays([day]);
+      } else {
+        // First selection (multi-select phase for games or times)
+        setSelectedDays(prev => [...prev, day]);
+      }
     }
   };
+  
 
-  const onTimeChange = (event, time) => {
-    if (time) {
-      setSelectedTime(time);
-    }
+  const onDateChange = (_: any, date?: Date) => {
+    if (date) setSelectedDate(date);
   };
+
+  const onTimeChange = (_: any, time?: Date) => {
+    if (time) setTempTime(time);
+  };
+
+  const handleSetTime = () => {
+    if (!tempTime) return;
+    const formattedTime = tempTime.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const updatedMapping = { ...dayTimeMapping };
+    selectedDays.forEach((day) => {
+      updatedMapping[day] = formattedTime;
+    });
+
+    setDayTimeMapping(updatedMapping);
+    setTempTime(null);
+    setSelectedDays([]);
+    setShowTimePicker(false);
+  };
+
+  const handleGameAdd = (game: string, attr: string[]) => {
+    const updated = { ...gamesByDay };
+    selectedDays.forEach((day) => {
+      if (!updated[day]) updated[day] = [];
+      updated[day].push([game, attr[0] ?? '', attr[1] ?? '']);
+    });
+    setGamesByDay(updated);
+    // Do NOT clear selectedDays
+  };
+
+  const handleGameRemove = (day: string, index: number) => {
+    const updated = { ...gamesByDay };
+    const games = updated[day];
+  
+    if (!games) return; // No games to remove
+  
+    updated[day] = games.filter((_, i) => i !== index);
+    if (updated[day].length === 0) delete updated[day];
+    setGamesByDay(updated);
+  };
+  
 
   return (
     <ImageBackground
@@ -61,101 +120,96 @@ const GroupChall2 = ({ navigation }) => {
               onChangeText={setName}
             />
           </View>
-
-          <TouchableOpacity
-            onPress={() => setShowTimePicker(true)}
-            style={styles.timePickerButton}
-          >
-            <Text style={styles.pickerText}>
-              {selectedTime.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
-          </TouchableOpacity>
+  
+          <Text style={styles.sectionTitle}>Select Days:</Text>
+          <ScrollView horizontal style={styles.dayTimeContainer}>
+            {DAYS.map((day, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.dayTimeItem,
+                  selectedDays.includes(day) && styles.daySelected,
+                ]}
+                onPress={() => toggleDay(day)}
+              >
+                <Text style={styles.dayTimeText}>
+                  {day} {dayTimeMapping[day] ? `• ${dayTimeMapping[day]}` : ''}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+  
+          <Button onPress={() => setShowTimePicker(true)} style={styles.dateButton}>
+            Set Alarm Time
+          </Button>
+  
           {showTimePicker && (
             <>
               <DateTimePicker
-                value={selectedTime}
+                value={tempTime || new Date()}
                 mode="time"
                 display="spinner"
                 onChange={onTimeChange}
-                textColor="#FFF"
               />
-              <Button
-                onPress={() => setShowTimePicker(false)}
-                style={styles.doneButton}
-              >
+              <Button onPress={handleSetTime} style={styles.doneButton}>
                 Done
               </Button>
             </>
           )}
-
-          <View style={styles.daysContainer}>
-            {DAYS.map((day, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.day, selectedDays[day] && styles.daySelected]}
-                onPress={() => toggleDay(day)}
-              >
-                <Text style={styles.dayText}>{day}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.sectionTitle}>Games:</Text>
-          <View style={styles.gameWrapper}>
-            {curGames.map((game, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.game]}
-                onPress={() =>
-                  setCurGames((prevGames) =>
-                    prevGames.filter((_, i) => i !== index),
-                  )
-                }
-              >
-                <Text style={styles.gameTitle}>{game[0]}</Text>
-                {game[0] != 'Sudoku' && (
-                  <Text style={styles.gameText}>{'Repeats: ' + game[1]}</Text>
-                )}
-                {game[0] != 'Sudoku' && (
-                  <Text style={styles.gameText}>{'Minutes: ' + game[2]}</Text>
-                )}
-                {game[0] == 'Sudoku' && (
-                  <ImageBackground
-                    source={require('../../images/sudoku.png')}
-                    style={styles.sudoku}
-                  ></ImageBackground>
-                )}
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => {
-                navigation.navigate('GroupChall3', {
-                  catType: 'Group',
-                  onGameSelected: (game: string, attr: string[]) => {
-                    setCurGames((prevGames) => [
-                      ...prevGames,
-                      [game, attr[0] + '', attr[1] + ''],
-                    ]);
-                  },
-                });
-              }}
-            >
-              <Ionicons name="add-circle-outline" size={35} color={'#FFF'} />
-              <Text style={styles.addText}>Add new</Text>
-            </TouchableOpacity>
-          </View>
-
+  
+          {selectedDays.length === 1 &&
+            (() => {
+              const selectedDay = selectedDays[0]!;
+              return (
+                <>
+                  <Text style={styles.sectionTitle}>Games for {selectedDay}:</Text>
+                  <View style={styles.gameWrapper}>
+                    {(gamesByDay[selectedDay] || []).map((game, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.game}
+                        onPress={() => handleGameRemove(selectedDay, index)}
+                      >
+                        <Text style={styles.gameTitle}>{game[0]}</Text>
+                        {game[0] !== 'Sudoku' ? (
+                          <>
+                            <Text style={styles.gameText}>{'Repeats: ' + game[1]}</Text>
+                            <Text style={styles.gameText}>{'Minutes: ' + game[2]}</Text>
+                          </>
+                        ) : (
+                          <ImageBackground
+                            source={require('../../images/sudoku.png')}
+                            style={styles.sudoku}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+  
+                    <TouchableOpacity
+                      style={styles.addButton}
+                      onPress={() => {
+                        navigation.navigate('GroupChall3', {
+                          groupId,
+                          groupMembers,
+                          catType: 'Group',
+                          onGameSelected: (game: string, attr: string[]) => {
+                            handleGameAdd(game, attr);
+                          },
+                        });
+                      }}
+                    >
+                      <Ionicons name="add-circle-outline" size={35} color={'#FFF'} />
+                      <Text style={styles.addText}>Add new</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              );
+            })()}
+  
           <Text style={styles.sectionTitle}>
             End date: {selectedDate.toDateString()}
           </Text>
-          <Button
-            onPress={() => setShowDatePicker(true)}
-            style={styles.dateButton}
-          >
+          <Button onPress={() => setShowDatePicker(true)} style={styles.dateButton}>
             Select Date
           </Button>
           {showDatePicker && (
@@ -165,46 +219,29 @@ const GroupChall2 = ({ navigation }) => {
                 mode="date"
                 display="spinner"
                 onChange={onDateChange}
-                textColor="#FFF"
               />
-              <Button
-                onPress={() => setShowDatePicker(false)}
-                style={styles.doneButton}
-              >
+              <Button onPress={() => setShowDatePicker(false)} style={styles.doneButton}>
                 Done
               </Button>
             </>
           )}
-
-          <Button style={styles.finishButton}>Finish</Button>
+  
+          <Button
+            style={styles.finishButton}
+            onPress={() => {
+              console.log({ name, selectedDate, dayTimeMapping, gamesByDay });
+              navigation.navigate('Challenges');
+            }}
+          >
+            Finish
+          </Button>
         </ScrollView>
-
-        <View style={styles.buttons}>
-          <Button
-            style={styles.button}
-            onPress={() => navigation.navigate('Challenges')}
-          >
-            <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
-          </Button>
-          <Button style={styles.button}>
-            <Ionicons name="people" size={40} color={'#FFF5CD'} />
-          </Button>
-          <Button
-            style={styles.button}
-            onPress={() => navigation.navigate('Messages')}
-          >
-            <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
-          </Button>
-          <Button
-            style={styles.button}
-            onPress={() => navigation.navigate('Profile')}
-          >
-            <Ionicons name="person-outline" size={40} color={'#FFF5CD'} />
-          </Button>
-        </View>
       </View>
     </ImageBackground>
   );
+  
+  
+  
 };
 
 const styles = StyleSheet.create({
@@ -362,6 +399,43 @@ const styles = StyleSheet.create({
     backgroundColor: '#211F26',
   },
   button: { backgroundColor: 'transparent' },
+  timeText: {
+    fontSize: 12,
+    color: '#FFF',
+    marginTop: 4,
+  },  
+  daysScrollContainer: {
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dayTimeContainer: {
+    flexDirection: 'row',
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    maxHeight: 50,
+  },
+  
+  dayTimeItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dayTimeItemSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    borderColor: '#FFF',
+  },  
+  dayTimeText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  
 });
 
 export default GroupChall2;

@@ -17,16 +17,20 @@ type Props = {
   navigation: NavigationProp<any>;
 };
 
-const GroupChall3 = ({ navigation }) => {
+const GroupChall3: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, onGameSelected } = route.params as {
+  const { catType, groupId, groupMembers, onGameSelected } = route.params as {
     catType: string;
+    groupId: number;
+    groupMembers: { id: number; name: string }[];
     onGameSelected: (game: string, attr: string[]) => void;
   };
 
   const goToNext = (singOrMult: String) => {
     navigation.navigate('Categories', {
       catType,
+      groupId,
+      groupMembers,
       singOrMult,
       onGameSelected,
     });

@@ -17,9 +17,11 @@ type Props = {
 
 const GameExpanded: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { name, catType, onGameSelected } = route.params as {
+  const { name, catType, groupId, groupMembers, onGameSelected } = route.params as {
     name: string;
     catType: string;
+    groupId: number;
+    groupMembers: { id: number; name: string }[];
     onGameSelected: (game: string, attr: string[]) => void;
   };
 
@@ -34,7 +36,7 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
       onGameSelected(name, ['', '']);
     }
     if (catType == 'Personal') navigation.navigate('PersChall2');
-    else navigation.navigate('GroupChall2');
+    else navigation.navigate('GroupChall2', { groupId, groupMembers });
   };
 
   return (

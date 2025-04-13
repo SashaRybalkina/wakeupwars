@@ -14,14 +14,16 @@ type Props = {
   navigation: NavigationProp<any>;
 };
 
+// got here from GroupDetails page, navigation.navigate('GroupChall1', { groupId: groupData?.id, groupMembers:groupData?.members })}
 const GroupChall1: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { groupName } = route.params as {
-    groupName: string;
+  const { groupId, groupMembers } = route.params as {
+    groupId: number;
+    groupMembers: { id: number; name: string }[];
   };
 
-  const goToManual = (groupName: String) => {
-    navigation.navigate('GroupChall2', { groupName });
+  const goToManual = (groupId: number, groupMembers: { id: number; name: string }[]) => {
+    navigation.navigate('GroupChall2', { groupId, groupMembers });
   };
 
   const goToChallenges = () => {
@@ -47,7 +49,7 @@ const GroupChall1: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity
           style={styles.navToChall}
           onPress={() => {
-            goToManual(groupName);
+            goToManual(groupId, groupMembers);
           }}
         >
           <Text style={styles.navToChallText}>Manually</Text>

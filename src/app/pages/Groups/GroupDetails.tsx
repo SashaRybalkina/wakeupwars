@@ -115,7 +115,7 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.sectionTitle}>Current Challenges</Text>
             <TouchableOpacity
               style={styles.addChallenge}
-              onPress={() => navigation.navigate('GroupChall1', { groupName: groupData?.name })} //going to want to pass whole group
+              onPress={() => navigation.navigate('GroupChall1', { groupId: groupData?.id, groupMembers:groupData?.members })}
             >
               <Ionicons name="add-circle-outline" size={35} color={'#fff'} />
             </TouchableOpacity>
