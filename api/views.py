@@ -3,10 +3,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework import status
 from django.contrib.auth import authenticate, get_user_model
 from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer, CatSerializer, GameSerializer
-from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game
+from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule, GameScheduleGameAssociation, ChallengeAlarmSchedule, AlarmSchedule
 
 User = get_user_model()
 
@@ -152,3 +153,24 @@ class ChallengeDetailView(APIView):
             'members': members,
             'totalDays': (challenge.endDate - challenge.startDate).days + 1,
         })
+        
+        
+class ChallengeGameScheduleView(APIView):
+    def get(self, request, chall_id):
+        schedules = GameSchedule.objects.filter(challenge_id=chall_id).order_by('dayOfWeek')
+
+        result = []
+        for schedule in schedules:
+            games = GameScheduleGameAssociation.objects.filter(game_schedule=schedule).order_by('game_order')
+            result.append({
+                'dayOfWeek': schedule.dayOfWeek,
+                'games': [{
+                    'name': g.game.name,
+                    'order': g.game_order
+                } for g in games]
+            })
+
+        return Response(result, status=status.HTTP_200_OK)
+    
+    
+    

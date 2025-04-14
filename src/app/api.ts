@@ -11,4 +11,5 @@ export const endpoints = {
   groupProfile: (groupId: number) => `${BASE_URL}/api/groups/${groupId}/`,
   challengeDetail: (challId: number) => `${BASE_URL}/api/challenge-detail/${challId}/`,
   challengeList: (userId: number, whichChall: string) => `${BASE_URL}/api/challenges/${userId}/${whichChall}/`,
+  challengeSchedule: (challId: number) => `${BASE_URL}/api/challenge-schedule/${challId}/`,
 };

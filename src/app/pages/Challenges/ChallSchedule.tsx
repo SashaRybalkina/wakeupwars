@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ImageBackground,
   ScrollView,
@@ -12,15 +12,18 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { NavigationProp, useRoute } from '@react-navigation/native';
 import { Button } from 'tamagui';
+import axios from 'axios';
+import { endpoints } from '../../api';
 
 const DAYS = ['M', 'T', 'W', 'TH', 'F', 'S', 'SU'];
 
 const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const route = useRoute();
-  const { challName, whichChall } = route.params as {
+  const { challId, challName, whichChall } = route.params as {
+    challId: number;
     challName: string;
     whichChall: string;
-  };
+  };  
 
   const [selectedDays, setSelectedDays] = useState<Record<string, boolean>>({});
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -29,7 +32,38 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const [selectedEndDate, setSelectedEndDate] = useState(new Date());
   const [curGames, setCurGames] = useState<string[][]>([]);
   const [name, setName] = useState('');
+  const [alarmSchedule, setAlarmSchedule] = useState<
+    { dayOfWeek: number; alarmTime: string; userName: string }[]
+  >([]);
 
+
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      try {
+        const res = await axios.get(endpoints.challengeSchedule(challId));
+        const data = res.data;
+  
+        // Mark selected days
+        const parsedDays: Record<string, boolean> = {};
+        data.forEach((day: any) => {
+          const label = DAYS[day.dayOfWeek % 7];
+          if (label) parsedDays[label] = true;
+        });
+        setSelectedDays(parsedDays);
+  
+        // Show flat list of games
+        const allGames: string[][] = data.flatMap((day: any) =>
+          day.games.map((g: any) => [g.name, '-', '-']) // dummy values for now
+        );
+        setCurGames(allGames);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+  
+    fetchSchedule();
+  }, []);  
+  
   const toggleDay = (day: string) => {
     setSelectedDays((prev) => ({
       ...prev,

@@ -24,7 +24,7 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
     challId: number;
     challName: string;
     whichChall: string;
-  };
+  };  
   
   const [daysComplete, setDaysComplete] = useState(0);
   const [totalDays, setTotalDays] = useState(0);
@@ -97,7 +97,7 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
           <TouchableOpacity
             style={styles.scheduleBtn}
             onPress={() =>
-              navigation.navigate('ChallSchedule', { challName, whichChall })
+              navigation.navigate('ChallSchedule', { challId, challName, whichChall })
             }
           >
             <Text style={styles.scheduleBtnText}>View Schedule</Text>
