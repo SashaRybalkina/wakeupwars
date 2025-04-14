@@ -71,6 +71,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
         <TextInput
           style={styles.input}
           placeholder="Search messages"
+          placeholder="Search messages"
           placeholderTextColor="#AAA"
         />
         <View style={{ flexDirection: 'row' }}>

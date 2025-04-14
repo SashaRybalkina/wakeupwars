@@ -15,12 +15,18 @@ import { Button } from 'tamagui';
 
 const DAYS = ['M', 'T', 'W', 'TH', 'F', 'S', 'SU'];
 
-const PersChall2 = ({ navigation }) => {
+const ChallSchedule = ({ navigation }) => {
+  const route = useRoute();
+  const { challName, whichChall } = route.params as {
+    challName: string;
+    whichChall: string;
+  };
+
   const [selectedDays, setSelectedDays] = useState({});
-  const [selectedTime, setSelectedTime] = useState(new Date());
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [selectedStartDate, setSelectedStartDate] = useState(new Date());
+  const [selectedEndDate, setSelectedEndDate] = useState(new Date());
   const [curGames, setCurGames] = useState<string[][]>([]);
   const [name, setName] = useState('');
 
@@ -31,15 +37,15 @@ const PersChall2 = ({ navigation }) => {
     }));
   };
 
-  const onDateChange = (event, date) => {
+  const onStartDateChange = (event, date) => {
     if (date) {
-      setSelectedDate(date);
+      setSelectedStartDate(date);
     }
   };
 
-  const onTimeChange = (event, time) => {
-    if (time) {
-      setSelectedTime(time);
+  const onEndDateChange = (event, date) => {
+    if (date) {
+      setSelectedEndDate(date);
     }
   };
 
@@ -56,39 +62,55 @@ const PersChall2 = ({ navigation }) => {
       </View>
       <View style={styles.overlay}>
         <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <View style={styles.nameContainer}>
-            <Text style={styles.title}>Name:</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter name"
-              placeholderTextColor="white"
-              value={name}
-              onChangeText={setName}
-            />
-          </View>
+          <Text style={styles.title}>{challName}</Text>
 
-          <TouchableOpacity
-            onPress={() => setShowTimePicker(true)}
-            style={styles.timePickerButton}
+          <Text style={styles.sectionTitle}>
+            Start date: {selectedStartDate.toDateString()}
+          </Text>
+          <Button
+            onPress={() => setShowStartDatePicker(true)}
+            style={styles.dateButton}
           >
-            <Text style={styles.pickerText}>
-              {selectedTime.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
-          </TouchableOpacity>
-          {showTimePicker && (
+            Edit Start Date
+          </Button>
+          {showStartDatePicker && (
             <>
               <DateTimePicker
-                value={selectedTime}
-                mode="time"
+                value={selectedStartDate}
+                mode="date"
                 display="spinner"
-                onChange={onTimeChange}
+                onChange={onStartDateChange}
                 textColor="#FFF"
               />
               <Button
-                onPress={() => setShowTimePicker(false)}
+                onPress={() => setShowStartDatePicker(false)}
+                style={styles.doneButton}
+              >
+                Done
+              </Button>
+            </>
+          )}
+
+          <Text style={styles.sectionTitle}>
+            End date: {selectedEndDate.toDateString()}
+          </Text>
+          <Button
+            onPress={() => setShowEndDatePicker(true)}
+            style={styles.dateButton}
+          >
+            Edit End Date
+          </Button>
+          {showEndDatePicker && (
+            <>
+              <DateTimePicker
+                value={selectedEndDate}
+                mode="date"
+                display="spinner"
+                onChange={onEndDateChange}
+                textColor="#FFF"
+              />
+              <Button
+                onPress={() => setShowEndDatePicker(false)}
                 style={styles.doneButton}
               >
                 Done
@@ -138,8 +160,8 @@ const PersChall2 = ({ navigation }) => {
             <TouchableOpacity
               style={styles.addButton}
               onPress={() => {
-                navigation.navigate('Categories', {
-                  catType: 'Personal',
+                navigation.navigate('GroupChall3', {
+                  catType: 'Group',
                   onGameSelected: (game: string, attr: string[]) => {
                     setCurGames((prevGames) => [
                       ...prevGames,
@@ -153,35 +175,6 @@ const PersChall2 = ({ navigation }) => {
               <Text style={styles.addText}>Add new</Text>
             </TouchableOpacity>
           </View>
-
-          <Text style={styles.sectionTitle}>
-            End date: {selectedDate.toDateString()}
-          </Text>
-          <Button
-            onPress={() => setShowDatePicker(true)}
-            style={styles.dateButton}
-          >
-            Select Date
-          </Button>
-          {showDatePicker && (
-            <>
-              <DateTimePicker
-                value={selectedDate}
-                mode="date"
-                display="spinner"
-                onChange={onDateChange}
-                textColor="#FFF"
-              />
-              <Button
-                onPress={() => setShowDatePicker(false)}
-                style={styles.doneButton}
-              >
-                Done
-              </Button>
-            </>
-          )}
-
-          <Button style={styles.finishButton}>Finish</Button>
         </ScrollView>
 
         <View style={styles.buttons}>
@@ -191,11 +184,8 @@ const PersChall2 = ({ navigation }) => {
           >
             <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
           </Button>
-          <Button
-            style={styles.button}
-            onPress={() => navigation.navigate('Groups')}
-          >
-            <Ionicons name="people-outline" size={40} color={'#FFF5CD'} />
+          <Button style={styles.button}>
+            <Ionicons name="people" size={40} color={'#FFF5CD'} />
           </Button>
           <Button
             style={styles.button}
@@ -203,8 +193,11 @@ const PersChall2 = ({ navigation }) => {
           >
             <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
           </Button>
-          <Button style={styles.button}>
-            <Ionicons name="person" size={40} color={'#FFF5CD'} />
+          <Button
+            style={styles.button}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Ionicons name="person-outline" size={40} color={'#FFF5CD'} />
           </Button>
         </View>
       </View>
@@ -214,9 +207,8 @@ const PersChall2 = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   background: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   backButtonContainer: {
     position: 'absolute',
@@ -236,8 +228,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   scrollContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
     width: '100%',
     paddingVertical: 150,
   },
@@ -251,6 +241,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFF',
     marginRight: 10,
+    marginBottom: 25,
+    marginTop: -30,
   },
   input: {
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
@@ -271,10 +263,11 @@ const styles = StyleSheet.create({
   pickerText: {
     color: '#FFF',
     fontSize: 18,
+    fontWeight: '600',
   },
   daysContainer: {
     flexDirection: 'row',
-    marginTop: 20,
+    marginTop: 50,
   },
   day: {
     padding: 10,
@@ -337,6 +330,7 @@ const styles = StyleSheet.create({
   },
   dateButton: {
     marginTop: 15,
+    marginBottom: 30,
     padding: 10,
     fontSize: 15,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
@@ -373,4 +367,4 @@ const styles = StyleSheet.create({
   button: { backgroundColor: 'transparent' },
 });
 
-export default PersChall2;
+export default ChallSchedule;

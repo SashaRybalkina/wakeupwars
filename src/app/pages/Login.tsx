@@ -26,7 +26,6 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const goToSignUp = () => {
     navigation.navigate('SignUp');
   };
-
   const handleLogin = async () => {
     try {
       const response = await fetch(endpoints.login, {
@@ -38,7 +37,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       });
   
       const data = await response.json();
-  
+
       if (response.ok && data.success) {
         setUser({
           id: data.id,
@@ -55,7 +54,6 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       Alert.alert('Error', 'Network error or server is down.');
     }
   };
-  
 
   interface TextWithStrokeProps {
     text: string;

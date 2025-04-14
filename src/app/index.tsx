@@ -7,6 +7,8 @@ import { NavigationContainer } from '@react-navigation/native';
 
 import Challenges from './pages/Challenges';
 import Chall1 from './pages/Challenges/Chall1';
+import ChallDetails from './pages/Challenges/ChallDetails';
+import ChallSchedule from './pages/Challenges/ChallSchedule';
 import Categories from './pages/Games/Categories';
 import GameExpanded from './pages/Games/GameExpanded';
 import Games from './pages/Games/Games';
@@ -21,6 +23,12 @@ import LoginScreen from './pages/Login';
 import InputOutput from './pages/mainPage';
 import Messages from './pages/Messages';
 import Profile from './pages/Profile';
+import AcceptFInvite from './pages/Profile/AcceptFInvite';
+import AcceptGInvite from './pages/Profile/AcceptGInvite';
+import Friends1 from './pages/Profile/Friends1';
+import Friends2 from './pages/Profile/Friends2';
+import Friends3 from './pages/Profile/Friends3';
+import Friends4 from './pages/Profile/Friends4';
 import PersChall1 from './pages/Profile/PersChall1';
 import PersChall2 from './pages/Profile/PersChall2';
 import SignUpScreen from './pages/SignUp';
@@ -33,7 +41,7 @@ function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Login"
+        initialRouteName="Challenges"
         screenOptions={{ animationEnabled: false }}
       >
         <Stack.Screen
@@ -59,6 +67,16 @@ function App() {
         <Stack.Screen
           name="Chall1"
           component={Chall1}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ChallDetails"
+          component={ChallDetails}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ChallSchedule"
+          component={ChallSchedule}
           options={{ headerShown: false }}
         />
         <Stack.Screen
@@ -119,6 +137,36 @@ function App() {
         <Stack.Screen
           name="PersChall2"
           component={PersChall2}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AcceptFInvite"
+          component={AcceptFInvite}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AcceptGInvite"
+          component={AcceptGInvite}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Friends1"
+          component={Friends1}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Friends2"
+          component={Friends2}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Friends3"
+          component={Friends3}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Friends4"
+          component={Friends4}
           options={{ headerShown: false }}
         />
         <Stack.Screen

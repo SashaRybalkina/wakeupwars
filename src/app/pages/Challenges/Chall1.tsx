@@ -28,10 +28,6 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
     ['NameD', 'qowfpwhnljnv'],
   ]);
 
-  const goToNext = () => {
-    navigation.navigate('Chall2', { whichChall });
-  };
-
   const goToMessages = () => {
     navigation.navigate('Messages');
   };
@@ -52,7 +48,8 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
     <TouchableOpacity
       style={styles.navToChall}
       onPress={() => {
-        setChalls((prevChall) => prevChall.filter((_, i) => i !== index));
+        // setChalls((prevChall) => prevChall.filter((_, i) => i !== index));
+        navigation.navigate('ChallDetails', { challName: name, whichChall });
       }}
     >
       <Text style={styles.navToChallName}>{name}</Text>
@@ -66,6 +63,11 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
       style={styles.background}
       resizeMode="cover"
     >
+      <View style={styles.backButtonContainer}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={30} color="#FFF" />
+        </TouchableOpacity>
+      </View>
       <View style={styles.container}>
         <Text style={styles.title}>My {whichChall} Challenges</Text>
         <ScrollView style={styles.scrollViewContainer}>
@@ -102,6 +104,12 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
     alignItems: 'center',
+  },
+  backButtonContainer: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 10,
   },
   container: {
     alignItems: 'center',
