@@ -2,8 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate, get_user_model
-from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer, CatSerializer
-from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory
+from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer, CatSerializer, GameSerializer
+from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game
 
 User = get_user_model()
 
@@ -60,9 +60,17 @@ class UserMessagesView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+# class GroupListView(APIView):
+#     def get(self, request, user_id):
+#         groups = Group.objects.filter()
+#         serializer = GroupSerializer(groups, many=True)
+#         return Response(serializer.data)
+
 class GroupListView(APIView):
-    def get(self, request):
-        groups = Group.objects.all()
+    def get(self, request, user_id):
+        memberships = GroupMembership.objects.filter(uID=user_id)
+        group_ids = memberships.values_list('groupID', flat=True)
+        groups = Group.objects.filter(id__in=group_ids)
         serializer = GroupSerializer(groups, many=True)
         return Response(serializer.data)
 
@@ -71,6 +79,12 @@ class CatListView(APIView):
         is_multiplayer = sing_or_mult == 'Multiplayer'
         cats = GameCategory.objects.filter(isMultiplayer=is_multiplayer)
         serializer = CatSerializer(cats, many=True)
+        return Response(serializer.data)
+
+class GameListView(APIView):
+    def get(self, request, cat_id):
+        games = Game.objects.filter(category=cat_id)
+        serializer = GameSerializer(games, many=True)
         return Response(serializer.data)
 
 

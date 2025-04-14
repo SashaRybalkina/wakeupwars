@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ImageBackground,
   ScrollView,
@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useRoute } from '@react-navigation/native';
 import { Button } from 'tamagui';
+import { endpoints } from '../../api';
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -17,36 +18,53 @@ type Props = {
 
 const Games: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { name, catType, onGameSelected } = route.params as {
-    name: String;
-    catType: string;
-    onGameSelected: (game: string, attr: string[]) => void;
+  const { catType, catId, catName, onGameSelected } = route.params as {
+    catType: string
+    catId: number;
+    catName: string;
+    onGameSelected: (game: { id: number; name: string }) => void;
   };
 
-  const [games, setGames] = useState<string[]>([
-    '2048',
-    'Sudoku',
-    'Times Tables',
-  ]);
+  // const [games, setGames] = useState<string[]>([
+  //   '2048',
+  //   'Sudoku',
+  //   'Times Tables',
+  // ]);
+  const [games, setGames] = useState<{ id: number; name: String }[]>([]);
+
+  useEffect(() => {
+    const fetchGames = async () => {
+      try {
+        // fetch the games in whatever category was selected
+        const response = await fetch(endpoints.games(catId));
+        const data = await response.json();
+        setGames(data); 
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      }
+    };
+  
+    fetchGames();
+  }, []);
 
   const goToChallenges = () => navigation.navigate('Challenges');
   const goToGroups = () => navigation.navigate('Groups');
   const goToMessages = () => navigation.navigate('Messages');
   const goToProfile = () => navigation.navigate('Profile');
 
-  const Category: React.FC<{ name: string; index: number }> = ({
-    name,
-    index,
-  }) => (
-    <TouchableOpacity
-      style={styles.navToCat}
-      onPress={() =>
-        navigation.navigate('GameExpanded', { name, catType, onGameSelected })
-      }
-    >
-      <Text style={styles.navToCatName}>{name}</Text>
-    </TouchableOpacity>
-  );
+  // const Category: React.FC<{ name: string; index: number }> = ({
+  //   name,
+  //   index,
+  // }) => (
+  //   <TouchableOpacity
+  //     style={styles.navToCat}
+  //     onPress={() =>
+  //       navigation.navigate('GameExpanded', { name, catType, onGameSelected })
+  //     }
+  //   >
+  //     <Text style={styles.navToCatName}>{name}</Text>
+  //   </TouchableOpacity>
+  // );
 
   return (
     <ImageBackground
@@ -55,12 +73,18 @@ const Games: React.FC<Props> = ({ navigation }) => {
       resizeMode="cover"
     >
       <View style={styles.container}>
-        <Text style={styles.title}>{name} Games</Text>
+        <Text style={styles.title}>{catName} Games</Text>
         <ScrollView style={styles.scrollViewContainer}>
-          {games.map((challenge, index) => (
-            <Category key={index} name={challenge + ''} index={index} />
+          {games.map((game, index) => (
+            <TouchableOpacity
+              key={game.id}
+              style={styles.navToCat}
+              onPress={() => navigation.navigate('GameExpanded', { catType, gameId: game.id, gameName: game.name, onGameSelected })}
+            >
+              <Text style={styles.navToCatName}>{game.name}</Text>
+            </TouchableOpacity>
           ))}
-        </ScrollView>
+          </ScrollView>
       </View>
 
       <View style={styles.buttons}>

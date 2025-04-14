@@ -23,7 +23,7 @@ const Categories: React.FC<Props> = ({ navigation }) => {
     groupId: number;
     groupMembers: { id: number; name: string }[];
     singOrMult: string;
-    onGameSelected: (game: string, attr: string[]) => void;
+    onGameSelected: (game: { id: number; name: string }) => void;
   };
 
   // const [cats, setCats] = useState<string[]>([
@@ -36,20 +36,20 @@ const Categories: React.FC<Props> = ({ navigation }) => {
 
   const [cats, setCats] = useState<{ id: number; categoryName: string }[]>([]);
   
-    useEffect(() => {
-      const fetchCats = async () => {
-        try {
-          // fetch the categories for multiplayer/singleplayer (whatever was selected)
-          const response = await fetch(endpoints.cats(singOrMult));
-          const data = await response.json();
-          setCats(data); 
-        } catch (error) {
-          console.error('Failed to fetch categories:', error);
-        }
-      };
-    
-      fetchCats();
-    }, []);
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        // fetch the categories for multiplayer/singleplayer (whatever was selected)
+        const response = await fetch(endpoints.cats(singOrMult));
+        const data = await response.json();
+        setCats(data); 
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      }
+    };
+  
+    fetchCats();
+  }, []);
 
   const goToChallenges = () => navigation.navigate('Challenges');
   const goToGroups = () => navigation.navigate('Groups');
@@ -83,7 +83,7 @@ const Categories: React.FC<Props> = ({ navigation }) => {
             <TouchableOpacity
               key={cat.id}
               style={styles.navToCat}
-              onPress={() => navigation.navigate('Games', { catName: cat.categoryName, onGameSelected })}
+              onPress={() => navigation.navigate('Games', { catType, catId: cat.id, catName: cat.categoryName, onGameSelected })}
             >
               <Text style={styles.navToCatName}>{cat.categoryName}</Text>
             </TouchableOpacity>

@@ -179,18 +179,11 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
                         style={styles.game}
                         onPress={() => handleGameRemove(selectedDay, index)}
                       >
-                        <Text style={styles.gameTitle}>{game[0]}</Text>
-                        {game[0] !== 'Sudoku' ? (
-                          <>
-                            <Text style={styles.gameText}>{'Repeats: ' + game[1]}</Text>
-                            <Text style={styles.gameText}>{'Minutes: ' + game[2]}</Text>
-                          </>
-                        ) : (
-                          <ImageBackground
-                            source={require('../../images/sudoku.png')}
-                            style={styles.sudoku}
-                          />
-                        )}
+                        <Text style={styles.gameTitle}>{game[1]}</Text>
+                        <ImageBackground
+                          source={require('../../images/sudoku.png')}
+                          style={styles.sudoku}
+                        />
                       </TouchableOpacity>
                     ))}
   

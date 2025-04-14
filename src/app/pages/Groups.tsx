@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp } from '@react-navigation/native';
 import { Int32 } from 'react-native/Libraries/Types/CodegenTypes';
 import { Button, ScrollView } from 'tamagui';
+import { useUser } from '../context/UserContext';
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -19,12 +20,18 @@ type Props = {
 
 const Groups: React.FC<Props> = ({ navigation }) => {
   // const [groups, setGroups] = useState<string[]>([]);
+  const { user } = useUser();
+
   const [groups, setGroups] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
+    if (!user?.id) {
+      console.error('userId is missing!');
+      return;
+    }
     const fetchGroups = async () => {
       try {
-        const response = await fetch(endpoints.groups);
+        const response = await fetch(endpoints.groups(user.id));
         const data = await response.json();
         setGroups(data); // Don't reduce it to just names
       } catch (error) {

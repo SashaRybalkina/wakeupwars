@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Group, User, SkillLevel, GameCategory, Challenge, GamePerformance, GameSchedule, Message, ChallengeMembership
+from .models import Group, User, SkillLevel, GameCategory, Challenge, GamePerformance, GameSchedule, Message, ChallengeMembership, Game
 from django.contrib.auth.hashers import make_password
 import calendar
 
@@ -31,6 +31,11 @@ class CatSerializer(serializers.ModelSerializer):
     class Meta:
         model = GameCategory
         fields = ['id', 'categoryName', 'isMultiplayer']
+
+class GameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Game
+        fields = ['id', 'name', 'category']
 
 class SkillLevelSerializer(serializers.ModelSerializer):
     category = CatSerializer()

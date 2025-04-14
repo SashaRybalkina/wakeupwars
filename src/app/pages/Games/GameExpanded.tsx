@@ -17,12 +17,13 @@ type Props = {
 
 const GameExpanded: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { name, catType, groupId, groupMembers, onGameSelected } = route.params as {
-    name: string;
+  const { catType, gameId, gameName, groupId, groupMembers, onGameSelected } = route.params as {
     catType: string;
+    gameId: number;
+    gameName: string;
     groupId: number;
     groupMembers: { id: number; name: string }[];
-    onGameSelected: (game: string, attr: string[]) => void;
+    onGameSelected: (game: { id: number; name: string }) => void;
   };
 
   const goToChallenges = () => navigation.navigate('Challenges');
@@ -33,7 +34,7 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
   const selectPressed = () => {
     if (onGameSelected) {
       // Ensure that digitValue and minuteValue are numbers, not strings
-      onGameSelected(name, ['', '']);
+      onGameSelected({ id: gameId, name: gameName });
     }
     if (catType == 'Personal') navigation.navigate('PersChall2');
     else navigation.navigate('GroupChall2', { groupId, groupMembers });
@@ -46,7 +47,7 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
       resizeMode="cover"
     >
       <View style={styles.container}>
-        <Text style={styles.title}>{name}</Text>
+        <Text style={styles.title}>{gameName}</Text>
         <ImageBackground
           source={require('../../images/sudoku.png')}
           style={styles.gameImg}
