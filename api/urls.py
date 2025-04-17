@@ -1,10 +1,11 @@
 from django.urls import path
-from .views import LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView, UserMessagesView, GroupDetailsView, CatListView, GameListView, ChallengeListView, ChallengeDetailView, ChallengeGameScheduleView, CreateGroupChallengeView
+from .views import LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView, UserMessagesView, GroupDetailsView, CatListView, GameListView, ChallengeListView, ChallengeDetailView, ChallengeGameScheduleView, CreateGroupChallengeView, FriendListView
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('register/', RegisterView.as_view(), name='register'),
     path('user-groups/<int:user_id>/', GroupListView.as_view(), name='group-list'),
+    path('user-friends/<int:user_id>/', FriendListView.as_view(), name='friend-list'),
     path('cats/<str:sing_or_mult>/', CatListView.as_view(), name='cat-list'),
     path('games/<int:cat_id>/', GameListView.as_view(), name='game-list'),
     path('hello/', HelloWorldView.as_view(), name='hello'),

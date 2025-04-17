@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp } from '@react-navigation/native';
 import { Button } from 'tamagui';
+import UserProfileCard from './Components/UserProfileCard';
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -49,44 +50,28 @@ const Profile: React.FC<Props> = ({ navigation }) => {
       resizeMode="cover"
     >
       {/* Profile Section */}
-      <View style={styles.profileContainer}>
-        <Image source={require('../images/game.jpeg')} style={styles.avatar} />
-        <Text style={styles.profileName}>{profileData?.name || 'Loading...'}</Text>
-        <Text style={styles.profileLink}>View My Profile {'>'}</Text>
-        <View style={styles.statsContainer}>
-          {profileData?.skill_levels?.map((skill: any, index: number) => {
-            const skillLevel =
-              skill.totalPossible === 0
-                ? 0
-                : ((skill.totalEarned / skill.totalPossible) * 10).toFixed(1);
-            return (
-              <View style={styles.statCard} key={index}>
-                <Text style={styles.stat}>
-                  {skill.category.categoryName}{' '}
-                  <Text style={styles.statValue}>{skillLevel} Points</Text>
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-        <View style={styles.profileButtons}>
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => navigation.navigate('Friends1')}
-          >
-            <Ionicons name="people" size={40} color={'#fff'} />
-            <Text style={styles.profileButtonText}>Friends</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => navigation.navigate('PersChall1')}
-          >
-            <Ionicons name="trophy" size={40} color={'#FFD700'} />
-            <Text style={[styles.profileButtonText, { color: '#FF0' }]}>
-              Challenges
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <UserProfileCard
+        name={profileData?.name || 'Loading...'}
+        skillLevels={profileData?.skill_levels || []}
+      />
+
+      <View style={styles.profileButtons}>
+        <TouchableOpacity
+          style={styles.profileButton}
+          onPress={() => navigation.navigate('Friends1')}
+        >
+          <Ionicons name="people" size={40} color={'#fff'} />
+          <Text style={styles.profileButtonText}>Friends</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.profileButton}
+          onPress={() => navigation.navigate('PersChall1')}
+        >
+          <Ionicons name="trophy" size={40} color={'#FFD700'} />
+          <Text style={[styles.profileButtonText, { color: '#FF0' }]}>
+            Challenges
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.menu}>

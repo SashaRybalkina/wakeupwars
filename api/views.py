@@ -7,9 +7,11 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework import status
 from django.db import transaction
 from datetime import time
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate, get_user_model
-from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer, CatSerializer, GameSerializer
-from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule, AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation
+from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer, CatSerializer, GameSerializer, FriendSerializer
+from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule, AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship
 
 User = get_user_model()
 
@@ -84,6 +86,21 @@ class GroupListView(APIView):
         group_ids = memberships.values_list('groupID', flat=True)
         groups = Group.objects.filter(id__in=group_ids)
         serializer = GroupSerializer(groups, many=True)
+        return Response(serializer.data)
+
+class FriendListView(APIView):
+    def get(self, request, user_id):
+        user = get_object_or_404(User, id=user_id)  # Retrieve the User object by ID
+        friendships = Friendship.objects.filter(Q(uID1=user) | Q(uID2=user))
+        friend_ids = []
+        for friendship in friendships:
+            if friendship.uID1 == user:
+                friend_ids.append(friendship.uID2.id)
+            else:
+                friend_ids.append(friendship.uID1.id)
+
+        friends = User.objects.filter(id__in=friend_ids)
+        serializer = FriendSerializer(friends, many=True)
         return Response(serializer.data)
 
 class CatListView(APIView):

@@ -27,6 +27,11 @@ class GroupSerializer(serializers.ModelSerializer):
         model = Group
         fields = ['id', 'name']
 
+class FriendSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'name']
+
 class CatSerializer(serializers.ModelSerializer):
     class Meta:
         model = GameCategory

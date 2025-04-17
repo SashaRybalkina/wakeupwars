@@ -7,40 +7,39 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { NavigationProp } from '@react-navigation/native';
+import { NavigationProp, useRoute } from '@react-navigation/native';
 import { Int32 } from 'react-native/Libraries/Types/CodegenTypes';
 import { Button, ScrollView } from 'tamagui';
+import { useUser } from '../../context/UserContext';
+import { endpoints } from '../../api';
 
 type Props = {
   navigation: NavigationProp<any>;
 };
 
 const Friends1: React.FC<Props> = ({ navigation }) => {
-  const [friends, setFriends] = useState<string[]>([
-    'friend 1',
-    'friend 2',
-    'friend 3',
-    'friend 4',
-  ]);
+  const { user } = useUser();
+
+  const [friends, setFriends] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
+    if (!user?.id) {
+      console.error('userId is missing!');
+      return;
+    }
     const fetchFriends = async () => {
       try {
-        const response = await fetch(
-          'https://f36f-155-98-131-4.ngrok-free.app/api/friends/',
-        );
+        console.log(user.id);
+        const response = await fetch(endpoints.friends(user.id));
         const data = await response.json();
-        const friendNames = data.map(
-          (friend: { id: number; name: string }) => friend.name,
-        );
-        setFriends(friendNames);
+        setFriends(data); // Don't reduce it to just names
       } catch (error) {
         console.error('Failed to fetch friends:', error);
       }
     };
-
     fetchFriends();
   }, []);
+
 
   const goToChallenges = () => {
     navigation.navigate('Challenges');
@@ -54,62 +53,48 @@ const Friends1: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('Groups');
   };
 
-  const Friend = (name: String, index: Int32) => {
-    return (
-      <TouchableOpacity
-        style={styles.navToFriend}
-        onPress={() => {
-          navigation.navigate('Friends3', { friendName: name });
-        }}
-      >
-        <View style={styles.profile}></View>
-        <Text style={styles.navToFriendText}>{name}</Text>
-      </TouchableOpacity>
-    );
+  const goToProfile = () => {
+    navigation.navigate('Profile');
   };
 
   return (
     <ImageBackground
-      source={require('../../images/secondary.png')}
-      style={styles.background}
-      resizeMode="cover"
-    >
-      <View style={styles.backButtonContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={30} color="#FFF" />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.container}>
-        <Button
-          style={styles.addButton}
-          onPress={() => navigation.navigate('Friends2')}
+          source={require('../../images/cgpt.png')}
+          style={styles.background}
+          resizeMode="cover"
         >
-          <Ionicons name="add-circle-outline" size={45} color={'#fff'} />
-        </Button>
-        <Text style={styles.title}>My Friends</Text>
-        <ScrollView style={styles.scrollViewContainer}>
-          {friends.map((friend, index) => {
-            return Friend(friends[index] + '', index);
-          })}
-        </ScrollView>
-      </View>
-
-      <View style={styles.buttons}>
-        <Button style={styles.button} onPress={goToChallenges}>
-          <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button style={styles.button} onPress={goToGroups}>
-          <Ionicons name="people-outline" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button style={styles.button} onPress={goToMessages}>
-          <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button style={styles.button}>
-          <Ionicons name="person" size={40} color={'#FFF5CD'} />
-        </Button>
-      </View>
-    </ImageBackground>
-  );
+          <View style={styles.container}>
+            <Text style={styles.title}>My Groups</Text>
+            <ScrollView style={styles.scrollViewContainer}>
+            {friends.map((friend, index) => (
+              <TouchableOpacity
+                key={friend.id}
+                style={styles.navToFriend}
+                onPress={() => navigation.navigate('Friends3', { friendId: friend.id })}
+                // onPress={() => navigation.navigate('GroupDetails', { groupId: group.id })}
+              >
+                <Text style={styles.navToFriendText}>{friend.name}</Text>
+              </TouchableOpacity>
+            ))}
+            </ScrollView>
+          </View>
+    
+          <View style={styles.buttons}>
+            <Button style={styles.button} onPress={goToChallenges}>
+              <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
+            </Button>
+            <Button style={styles.button} onPress={goToGroups}>
+              <Ionicons name="people-outline" size={40} color={'#FFF5CD'} />
+            </Button>
+            <Button style={styles.button} onPress={goToMessages}>
+              <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
+            </Button>
+            <Button style={styles.button} onPress={goToProfile}>
+              <Ionicons name="person-outline" size={40} color={'#FFF5CD'} />
+            </Button>
+          </View>
+        </ImageBackground>
+      );
 };
 
 const styles = StyleSheet.create({
@@ -117,12 +102,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backButtonContainer: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    zIndex: 10,
   },
   container: {
     alignItems: 'center',
@@ -153,18 +132,11 @@ const styles = StyleSheet.create({
   navToFriend: {
     width: '100%',
     height: 80,
-    flexDirection: 'row',
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 15,
     marginVertical: 10,
     alignItems: 'center',
-  },
-  profile: {
-    width: 60,
-    height: 60,
-    borderRadius: 100,
-    backgroundColor: 'purple',
-    marginHorizontal: 20,
+    justifyContent: 'center',
   },
   navToFriendText: {
     color: '#FFF',

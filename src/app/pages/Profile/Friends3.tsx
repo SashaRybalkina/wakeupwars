@@ -17,9 +17,12 @@ type Props = {
 
 const Friends3: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { friendName } = route.params as {
-    friendName: string;
-  };
+  const { groupId } = route.params as { groupId: number };
+
+  // const route = useRoute();
+  // const { friendName } = route.params as {
+  //   friendName: string;
+  // };
 
   const goToChallenges = () => navigation.navigate('Challenges');
   const goToGroups = () => navigation.navigate('Groups');
@@ -37,7 +40,7 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
       {/* Profile Section */}
-      <View style={styles.profileContainer}>
+      {/* <View style={styles.profileContainer}>
         <Image
           source={require('../../images/game.jpeg')}
           style={styles.avatar}
@@ -71,7 +74,7 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
         >
           <Text style={styles.addText}>Add to Group</Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       {/* Navigation Bar */}
       <View style={styles.buttons}>
