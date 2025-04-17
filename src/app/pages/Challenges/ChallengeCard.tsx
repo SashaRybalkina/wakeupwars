@@ -11,10 +11,8 @@ interface ChallengeCardProps {
 }
 
 const ChallengeCard: React.FC<ChallengeCardProps> = ({ title, icon, daysComplete, totalDays, daysOfWeek }) => {
-  // Map of day abbreviations
   const dayMap = ["M", "T", "W", "TH", "F", "S", "S"]
 
-  // Calculate progress percentage
   const progressPercentage = (daysComplete / totalDays) * 100
 
   return (
@@ -97,7 +95,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   activeDayCircle: {
-    backgroundColor: "#8A2BE2",
+    backgroundColor: "#aaaaff",
   },
   dayText: {
     fontSize: 12,

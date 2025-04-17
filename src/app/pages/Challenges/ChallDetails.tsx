@@ -1,138 +1,137 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Image,
-  ImageBackground,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { NavigationProp, useRoute } from '@react-navigation/native';
-import { Button } from 'tamagui';
-import { ProgressBar } from 'react-native-paper';
-import axios from 'axios';
-import { endpoints } from '../../api';
+import type React from "react"
+import { useState, useEffect } from "react"
+import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { Ionicons } from "@expo/vector-icons"
+import { type NavigationProp, useRoute } from "@react-navigation/native"
+import axios from "axios"
+import { endpoints } from "../../api"
 
 type Props = {
-  navigation: NavigationProp<any>;
-};
+  navigation: NavigationProp<any>
+}
 
 const ChallDetails: React.FC<Props> = ({ navigation }) => {
-  const route = useRoute();
+  const route = useRoute()
   const { challId, challName, whichChall } = route.params as {
-    challId: number;
-    challName: string;
-    whichChall: string;
-  };  
-  
-  const [daysComplete, setDaysComplete] = useState(0);
-  const [totalDays, setTotalDays] = useState(0);
-  const [members, setMembers] = useState<{ name: string }[]>([]);
-  const [daysOfWeek, setDaysOfWeek] = useState<string[]>([]); // optional
+    challId: number
+    challName: string
+    whichChall: string
+  }
+
+  const [daysComplete, setDaysComplete] = useState(0)
+  const [totalDays, setTotalDays] = useState(0)
+  const [members, setMembers] = useState<{ name: string }[]>([])
+  const [daysOfWeek, setDaysOfWeek] = useState<string[]>([]) // optional
 
   const getDayLabel = (dayOfWeek: number): string => {
-    const labels = ['M', 'T', 'W', 'TH', 'F', 'S', 'SU'];
-    return labels[dayOfWeek] || ''; // 1 = Monday, 7 = Sunday
-  };
-  
+    const labels = ["M", "T", "W", "TH", "F", "S", "SU"]
+    return labels[dayOfWeek] || "" // 1 = Monday, 7 = Sunday
+  }
+
   useEffect(() => {
     const fetchChallengeDetails = async () => {
       try {
-        const res = await axios.get(endpoints.challengeDetail(challId));
-        const data = res.data;
-        setDaysComplete(data.daysCompleted);
-        setTotalDays(data.totalDays);
-        setMembers(data.members);
-        setDaysOfWeek(data.daysOfWeek); // optional
+        const res = await axios.get(endpoints.challengeDetail(challId))
+        const data = res.data
+        setDaysComplete(data.daysCompleted)
+        setTotalDays(data.totalDays)
+        setMembers(data.members)
+        setDaysOfWeek(data.daysOfWeek) // optional
       } catch (err) {
-        console.error(err);
+        console.error(err)
       }
-    };
-  
-    fetchChallengeDetails();
-  }, []);
+    }
+
+    fetchChallengeDetails()
+  }, [])
 
   const leaderboard = [
-    { name: 'Pers1', points: 928, emoji: '👑' },
-    { name: 'Pers2', points: 800, emoji: '🥈' },
-    { name: 'Pers3', points: 700, emoji: '🥉' },
-    { name: 'Pers4', points: 0, emoji: '50.' },
-  ];
+    { name: "Pers1", points: 928, emoji: "👑" },
+    { name: "Pers2", points: 800, emoji: "🥈" },
+    { name: "Pers3", points: 700, emoji: "🥉" },
+    { name: "Pers4", points: 0, emoji: "50." },
+  ]
 
-  const goToMessages = () => navigation.navigate('Messages');
-  const goToGroups = () => navigation.navigate('Groups');
-  const goToProfile = () => navigation.navigate('Profile');
+  const goToMessages = () => navigation.navigate("Messages")
+  const goToGroups = () => navigation.navigate("Groups")
+  const goToProfile = () => navigation.navigate("Profile")
 
-  const enrolledMembers = [
-    require('../../images/game.jpeg'),
-    require('../../images/game.jpeg'),
-    require('../../images/game.jpeg'),
-  ];
+  // Calculate progress percentage
+  const progressPercentage = (daysComplete / totalDays) * 100
 
   return (
-    <ImageBackground
-      source={require('../../images/tertiary.png')}
-      style={styles.background}
-      resizeMode="cover"
-    >
-      <View style={styles.backButtonContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={30} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+    <ImageBackground source={require("../../images/cgpt.png")} style={styles.background} resizeMode="cover">
       <View style={styles.container}>
-        <Text style={styles.title}>{challName}</Text>
-        <Ionicons name="star" size={50} color="white" style={styles.bookIcon} />
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={28} color="#FFF" />
+        </TouchableOpacity>
 
-        <Text style={styles.enrolledLabel}>Enrolled Members:</Text>
-        <View style={styles.avatarsRow}>
-          {members.map((m, index) => (
-            <View key={index} style={styles.memberNameBox}>
-              <Text style={styles.memberNameText}>{m.name}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.progressBox}>
-        <View style={styles.selectedDaysRow}>
-          {daysOfWeek.map((day, idx) => (
-            <View key={idx} style={styles.selectedDay}>
-              <Text style={styles.selectedDayText}>{day}</Text>
-            </View>
-          ))}
-        </View>
-          <Text style={styles.daysComplete}>
-            {daysComplete}/{totalDays} Days Complete
-          </Text>
-          <TouchableOpacity
-            style={styles.scheduleBtn}
-            onPress={() =>
-              navigation.navigate('ChallSchedule', { challId, challName, whichChall })
-            }
-          >
-            <Text style={styles.scheduleBtnText}>View Schedule</Text>
+        <View style={styles.headerSection}>
+          <Text style={styles.title}>{challName}</Text>
+          <TouchableOpacity style={styles.favoriteButton}>
+            <Ionicons name="star" size={32} color="#FFD700" />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.leaderboard}>
-          <Text style={styles.rankTitle}>RANKING</Text>
-          <ScrollView style={styles.rankList} nestedScrollEnabled={true}>
+        <ScrollView
+          style={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View style={styles.membersSection}>
+            <Text style={styles.sectionTitle}>Enrolled Members:</Text>
+            <View style={styles.membersContainer}>
+              {members.map((m, index) => (
+                <View key={index} style={styles.memberBadge}>
+                  <Text style={styles.memberName}>{m.name}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.daysSection}>
+            <View style={styles.daysRow}>
+              {daysOfWeek.map((day, idx) => (
+                <View key={idx} style={styles.dayBadge}>
+                  <Text style={styles.dayText}>{day}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.progressSection}>
+              <Text style={styles.progressText}>
+                {daysComplete}/{totalDays} Days Complete
+              </Text>
+
+              <View style={styles.progressBarContainer}>
+                <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
+              </View>
+
+              <TouchableOpacity
+                style={styles.scheduleButton}
+                onPress={() => navigation.navigate("ChallSchedule", { challId, challName, whichChall })}
+              >
+                <Text style={styles.scheduleButtonText}>View Schedule</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.leaderboardSection}>
+            <Text style={styles.leaderboardTitle}>RANKING</Text>
+
             {leaderboard.map((person, index) => (
               <View key={index} style={styles.rankItem}>
-                <Text style={styles.rankText}>
-                  {person.emoji} {person.name} - {person.points} pts
-                </Text>
+                <Text style={styles.rankPosition}>{person.emoji}</Text>
+                <Text style={styles.rankName}>{person.name}</Text>
+                <Text style={styles.rankPoints}>{person.points} pts</Text>
               </View>
             ))}
-          </ScrollView>
-          <TouchableOpacity style={styles.leaderboardBtn}>
-            <Text style={styles.leaderboardBtnText}>
-              View leader board details
-            </Text>
-          </TouchableOpacity>
-        </View>
+
+            <TouchableOpacity style={styles.leaderboardButton}>
+              <Text style={styles.leaderboardButtonText}>View leader board details</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
 
       <View style={styles.navBar}>
@@ -157,163 +156,209 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
     </ImageBackground>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    alignItems: 'center',
   },
   container: {
-    marginTop: 80,
-    alignItems: 'center',
-    width: '90%',
+    flex: 1,
+    paddingTop: 50,
   },
-  backButtonContainer: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    zIndex: 10,
-  },
-  title: {
-    fontSize: 35,
-    fontWeight: '600',
-    color: 'white',
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 20,
     marginBottom: 10,
   },
-  bookIcon: {
+  headerSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
     marginBottom: 20,
   },
-  enrolledLabel: {
-    fontSize: 25,
-    color: 'white',
-    marginBottom: 15,
+  title: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#FFF",
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+    flex: 1,
   },
-  avatarsRow: {
-    flexDirection: 'row',
-    marginBottom: 20,
-  },
-  avatarImage: {
+  favoriteButton: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    marginHorizontal: 5,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  progressBox: {
-    alignItems: 'center',
-    marginBottom: 30,
+  scrollContainer: {
+    flex: 1,
   },
-  weekdays: {
-    fontSize: 25,
-    color: 'white',
-    letterSpacing: 10,
-    marginBottom: 15,
+  scrollContent: {
+    paddingBottom: 100,
   },
-  daysComplete: {
+  sectionTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#FFF455',
+    fontWeight: "600",
+    color: "#FFF",
     marginBottom: 15,
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  scheduleBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    paddingHorizontal: 15,
-    paddingVertical: 6,
-    borderRadius: 10,
-    marginBottom: -10,
+  membersSection: {
+    paddingHorizontal: 20,
+    marginBottom: 25,
   },
-  scheduleBtnText: {
-    fontSize: 15,
-    color: 'black',
-    fontWeight: '600',
+  membersContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
   },
-  leaderboard: {
-    width: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 110,
-  },
-  rankTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 15,
-    color: '#FFD700',
-  },
-  rankItem: {
-    marginVertical: 6,
-  },
-  rankText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFF455',
-  },
-  leaderboardBtn: {
-    marginTop: 17.5,
-    paddingVertical: 10,
-    backgroundColor: '#FFD700',
-    borderRadius: 8,
-  },
-  leaderboardBtnText: {
-    textAlign: 'center',
-    fontWeight: '800',
-    fontSize: 18,
-    color: '#c46c14',
-  },
-  rankList: {
-    maxHeight: 250,
-  },
-  buttons: {
-    backgroundColor: '#211F26',
-    flexDirection: 'row',
-    height: 100,
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  button: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderRadius: 0,
-    borderWidth: 0,
-    marginBottom: 15,
-  },
-  memberNameBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 15,
-    marginHorizontal: 5,
-  },
-  memberNameText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  selectedDaysRow: {
-    flexDirection: 'row',
-    marginBottom: 15,
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-  },
-  selectedDay: {
-    backgroundColor: '#FFF455',
+  memberBadge: {
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 20,
-    marginHorizontal: 5,
-    marginVertical: 5,
+    marginRight: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
   },
-  selectedDayText: {
+  memberName: {
+    color: "#FFF",
+    fontWeight: "600",
     fontSize: 16,
-    fontWeight: '700',
-    color: '#000',
-  },  
+  },
+  daysSection: {
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: 20,
+    marginBottom: 25,
+  },
+  daysRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginBottom: 15,
+  },
+  dayBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFD700",
+    justifyContent: "center",
+    alignItems: "center",
+    marginHorizontal: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  dayText: {
+    color: "#000",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  progressSection: {
+    alignItems: "center",
+  },
+  progressText: {
+    color: "#FFD700",
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
+  progressBarContainer: {
+    height: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderRadius: 5,
+    width: "100%",
+    marginBottom: 15,
+    overflow: "hidden",
+  },
+  progressBar: {
+    height: "100%",
+    backgroundColor: "#FFD700",
+    borderRadius: 5,
+  },
+  scheduleButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  scheduleButtonText: {
+    color: "#FFF",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  leaderboardSection: {
+    backgroundColor: "rgba(50, 50, 60, 0.7)",
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: 20,
+  },
+  leaderboardTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#FFD700",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  rankItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  },
+  rankPosition: {
+    width: 40,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFD700",
+  },
+  rankName: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#FFF",
+  },
+  rankPoints: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFD700",
+  },
+  leaderboardButton: {
+    backgroundColor: "#FFD700",
+    paddingVertical: 12,
+    borderRadius: 20,
+    marginTop: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  leaderboardButtonText: {
+    color: "#333",
+    fontWeight: "700",
+    fontSize: 16,
+    textAlign: "center",
+  },
   navBar: {
     backgroundColor: "#211F26",
     flexDirection: "row",
@@ -321,6 +366,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
     paddingBottom: 15,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   navButton: {
     justifyContent: "center",
@@ -338,6 +387,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: "600",
   },
-});
+})
 
-export default ChallDetails;
+export default ChallDetails
