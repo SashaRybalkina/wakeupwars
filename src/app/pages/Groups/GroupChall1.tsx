@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   ImageBackground,
   StyleSheet,
@@ -21,6 +21,10 @@ const GroupChall1: React.FC<Props> = ({ navigation }) => {
     groupId: number;
     groupMembers: { id: number; name: string }[];
   };
+
+  useEffect(() => {
+    console.log("GroupChall1 Group Members:", groupMembers);
+  }, []);
 
   const goToManual = (groupId: number, groupMembers: { id: number; name: string }[]) => {
     navigation.navigate('GroupChall2', { groupId, groupMembers });
@@ -54,6 +58,7 @@ const GroupChall1: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity
           style={styles.navToChall}
           onPress={() => {
+            console.log("Navigating to GroupChall2 with members:", groupMembers);
             goToManual(groupId, groupMembers);
           }}
         >

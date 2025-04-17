@@ -18,18 +18,15 @@ type Props = {
 
 const Games: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, catId, catName, onGameSelected } = route.params as {
+  const { catType, catId, catName, groupId, groupMembers, onGameSelected } = route.params as {
     catType: string
     catId: number;
     catName: string;
+    groupId: number;
+    groupMembers: { id: number; name: string }[];
     onGameSelected: (game: { id: number; name: string }) => void;
   };
 
-  // const [games, setGames] = useState<string[]>([
-  //   '2048',
-  //   'Sudoku',
-  //   'Times Tables',
-  // ]);
   const [games, setGames] = useState<{ id: number; name: String }[]>([]);
 
   useEffect(() => {
@@ -84,7 +81,7 @@ const Games: React.FC<Props> = ({ navigation }) => {
             <TouchableOpacity
               key={game.id}
               style={styles.navToCat}
-              onPress={() => navigation.navigate('GameExpanded', { catType, gameId: game.id, gameName: game.name, onGameSelected })}
+              onPress={() => navigation.navigate('GameExpanded', { catType, gameId: game.id, gameName: game.name, groupId, groupMembers, onGameSelected })}
             >
               <Text style={styles.navToCatName}>{game.name}</Text>
             </TouchableOpacity>
