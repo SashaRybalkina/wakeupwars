@@ -4,6 +4,7 @@ export const endpoints = {
   login: `${BASE_URL}/api/login/`,
   register: `${BASE_URL}/api/register/`,
   groups: (userId: number) => `${BASE_URL}/api/user-groups/${userId}/`,
+  friends: (userId: number) => `${BASE_URL}/api/user-friends/${userId}/`,
   cats: (singOrMult: string) => `${BASE_URL}/api/cats/${singOrMult}/`,
   games: (catId: number) => `${BASE_URL}/api/games/${catId}/`,
   messages: (userId: number) => `${BASE_URL}/api/messages/${userId}/`,
@@ -12,4 +13,5 @@ export const endpoints = {
   challengeDetail: (challId: number) => `${BASE_URL}/api/challenge-detail/${challId}/`,
   challengeList: (userId: number, whichChall: string) => `${BASE_URL}/api/challenges/${userId}/${whichChall}/`,
   challengeSchedule: (challId: number) => `${BASE_URL}/api/challenge-schedule/${challId}/`,
+  createGroupChallenge: `${BASE_URL}/api/create-group-challenge/`,
 };

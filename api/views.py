@@ -5,9 +5,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework import status
+from django.db import transaction
+from datetime import time
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate, get_user_model
-from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer, CatSerializer, GameSerializer
-from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule, GameScheduleGameAssociation, ChallengeAlarmSchedule, AlarmSchedule
+from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer, CatSerializer, GameSerializer, FriendSerializer
+from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule, AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship
 
 User = get_user_model()
 
@@ -82,6 +86,21 @@ class GroupListView(APIView):
         group_ids = memberships.values_list('groupID', flat=True)
         groups = Group.objects.filter(id__in=group_ids)
         serializer = GroupSerializer(groups, many=True)
+        return Response(serializer.data)
+
+class FriendListView(APIView):
+    def get(self, request, user_id):
+        user = get_object_or_404(User, id=user_id)  # Retrieve the User object by ID
+        friendships = Friendship.objects.filter(Q(uID1=user) | Q(uID2=user))
+        friend_ids = []
+        for friendship in friendships:
+            if friendship.uID1 == user:
+                friend_ids.append(friendship.uID2.id)
+            else:
+                friend_ids.append(friendship.uID1.id)
+
+        friends = User.objects.filter(id__in=friend_ids)
+        serializer = FriendSerializer(friends, many=True)
         return Response(serializer.data)
 
 class CatListView(APIView):
@@ -179,6 +198,72 @@ class ChallengeGameScheduleView(APIView):
 
         return Response(result, status=status.HTTP_200_OK)
 
+
+class CreateGroupChallengeView(APIView):
+    @transaction.atomic
+    def post(self, request):
+        data = request.data
+        try:
+            # 🔍 STEP 1: Check for alarm conflicts
+            conflicting = []
+            for user_id in data['members']:
+                for sched in data['alarm_schedule']:
+                    day = sched['dayOfWeek']
+                    if AlarmSchedule.objects.filter(uID_id=user_id, dayOfWeek=day).exists():
+                        user = User.objects.get(id=user_id)
+                        conflicting.append((user.username, day))
+
+            if conflicting:
+                return Response({
+                    'error': 'Alarm conflict detected for group members.',
+                    'conflicts': conflicting  # Return which users and days are in conflict
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # if No conflicts, continue to create challenge
+            challenge = Challenge.objects.create(
+                name=data['name'],
+                groupID_id=data['group_id'],
+                startDate=data['start_date'],
+                endDate=data['end_date']
+            )
+
+            # Add members
+            for user_id in data['members']:
+                ChallengeMembership.objects.create(
+                    challengeID=challenge,
+                    uID_id=user_id
+                )
+
+            # Create alarms
+            for sched in data['alarm_schedule']:
+                for user_id in data['members']:
+                    alarm = AlarmSchedule.objects.create(
+                        uID_id=user_id,
+                        dayOfWeek=sched['dayOfWeek'],
+                        alarmTime=sched['time']
+                    )
+                    ChallengeAlarmSchedule.objects.create(
+                        challenge=challenge,
+                        alarm_schedule=alarm
+                    )
+
+            # Game schedules
+            for g_sched in data['game_schedules']:
+                game_schedule = GameSchedule.objects.create(
+                    challenge=challenge,
+                    dayOfWeek=g_sched['dayOfWeek']
+                )
+                for game in g_sched['games']:
+                    GameScheduleGameAssociation.objects.create(
+                        game_schedule=game_schedule,
+                        game_id=game['id'],
+                        game_order=game['order']
+                    )
+
+            return Response({'message': 'Challenge created successfully', 'challenge_id': challenge.id}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     
     

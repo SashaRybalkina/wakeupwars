@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   ImageBackground,
@@ -10,6 +10,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useRoute } from '@react-navigation/native';
 import { Button } from 'tamagui';
+import UserProfileCard from '../Components/UserProfileCard';
+import { endpoints } from '../../api';
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -17,9 +19,26 @@ type Props = {
 
 const Friends3: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { friendName } = route.params as {
-    friendName: string;
-  };
+  const { friendId } = route.params as { friendId: number };
+
+  const [profileData, setProfileData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        console.log(friendId);
+        const response = await fetch(endpoints.profile(friendId));
+        const data = await response.json();
+        console.log(data);
+        setProfileData(data);
+        console.log(profileData);
+      } catch (error) {
+        console.error('Failed to load profile:', error);
+      }
+    };
+  
+    fetchProfile();
+  }, [friendId]);
 
   const goToChallenges = () => navigation.navigate('Challenges');
   const goToGroups = () => navigation.navigate('Groups');
@@ -37,7 +56,14 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
       {/* Profile Section */}
-      <View style={styles.profileContainer}>
+      {profileData && (
+        <UserProfileCard
+          name={profileData.name}
+          skillLevels={profileData.skill_levels}
+        />
+      )}
+
+      {/* <View style={styles.profileContainer}>
         <Image
           source={require('../../images/game.jpeg')}
           style={styles.avatar}
@@ -71,7 +97,7 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
         >
           <Text style={styles.addText}>Add to Group</Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       {/* Navigation Bar */}
       <View style={styles.buttons}>

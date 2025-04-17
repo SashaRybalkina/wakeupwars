@@ -120,10 +120,17 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.sectionTitle}>Current Challenges</Text>
             <TouchableOpacity
               style={styles.addChallenge}
-              onPress={() => navigation.navigate('GroupChall1', { groupId: groupData?.id, groupMembers:groupData?.members })}
+              onPress={() => {
+                console.log(groupData.members);
+                navigation.navigate('GroupChall1', {
+                  groupId: groupData.id,
+                  groupMembers: groupData.members,
+                })
+              }}
             >
               <Ionicons name="add-circle-outline" size={35} color={'#fff'} />
             </TouchableOpacity>
+
             <ScrollView style={styles.challs}>
               {currentChallenges.map((challenge: Challenge, index: number) => (
               <View key={index} style={styles.challenge}>

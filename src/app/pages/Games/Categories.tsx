@@ -88,7 +88,7 @@ const Categories: React.FC<Props> = ({ navigation }) => {
             <TouchableOpacity
               key={cat.id}
               style={styles.navToCat}
-              onPress={() => navigation.navigate('Games', { catType, catId: cat.id, catName: cat.categoryName, onGameSelected })}
+              onPress={() => navigation.navigate('Games', { catType, catId: cat.id, catName: cat.categoryName, groupId, groupMembers, onGameSelected })}
             >
               <Text style={styles.navToCatName}>{cat.categoryName}</Text>
             </TouchableOpacity>

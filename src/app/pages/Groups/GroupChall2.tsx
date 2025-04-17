@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   ImageBackground,
@@ -28,6 +28,10 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
     groupMembers: { id: number; name: string }[];
   };
 
+  useEffect(() => {
+    console.log("GroupChall2 Group Members:", groupMembers);
+  }, []);
+
   const [name, setName] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -37,7 +41,20 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
 
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [dayTimeMapping, setDayTimeMapping] = useState<Record<string, string>>({});
-  const [gamesByDay, setGamesByDay] = useState<Record<string, string[][]>>({});
+                                                // Day: array of [gameID: string, gameName: string] tuples
+  const [gamesByDay, setGamesByDay] = useState<Record<string, [string, string][]>>({});
+
+
+  const dayToInt: Record<string, number> = {
+    M: 1,
+    T: 2,
+    W: 3,
+    TH: 4,
+    F: 5,
+    S: 6,
+    SU: 7,
+  };  
+
 
   const toggleDay = (day: string) => {
     // If the day is already selected, deselect it
@@ -63,33 +80,35 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
     if (time) setTempTime(time);
   };
 
-  const handleSetTime = () => {
-    if (!tempTime) return;
-    const formattedTime = tempTime.toLocaleTimeString([], {
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
+      hour12: false, // Make sure it’s in 24-hour format
     });
+  };
 
+  const cleanTime = (time: string) => {
+    return time.replace(/\u202f/g, '').trim();  // Remove any non-breaking space and trim any extra whitespace
+  };
+  
+  const handleSetTime = () => {
+    if (!tempTime) return;
+    let formattedTime = formatTime(tempTime);
+    formattedTime = cleanTime(formattedTime);  // Clean the time string
+  
     const updatedMapping = { ...dayTimeMapping };
     selectedDays.forEach((day) => {
       updatedMapping[day] = formattedTime;
     });
-
+  
     setDayTimeMapping(updatedMapping);
     setTempTime(null);
     setSelectedDays([]);
     setShowTimePicker(false);
   };
+  
 
-  // const handleGameAdd = (game: string, attr: string[]) => {
-  //   const updated = { ...gamesByDay };
-  //   selectedDays.forEach((day) => {
-  //     if (!updated[day]) updated[day] = [];
-  //     updated[day].push([game, attr[0] ?? '', attr[1] ?? '']);
-  //   });
-  //   setGamesByDay(updated);
-  //   // Do NOT clear selectedDays
-  // };
   const handleGameAdd = (game: { id: number; name: string }) => {
     const updated = { ...gamesByDay };
     selectedDays.forEach((day) => {
@@ -175,6 +194,9 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
           {selectedDays.length === 1 &&
             (() => {
               const selectedDay = selectedDays[0]!;
+              console.log("selectedDay:", selectedDay);
+              console.log("gamesByDay[selectedDay]:", gamesByDay[selectedDay]);
+
               return (
                 <>
                   <Text style={styles.sectionTitle}>Games for {selectedDay}:</Text>
@@ -237,44 +259,134 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
           <Button
             style={styles.finishButton}
             onPress={() => {
+              console.log("Day-Time Mapping:", dayTimeMapping);
+              console.log("Games By Day:", JSON.stringify(gamesByDay, null, 2));
+              
+              const alarmSchedule = Object.entries(dayTimeMapping)
+              .filter(([day, time]) => time && dayToInt[day]) // Ensure time exists and day is valid
+              .map(([day, time]) => ({
+                dayOfWeek: dayToInt[day],
+                time,
+              }));
+              console.log("Filtered Alarm Schedule:", alarmSchedule);
+
+              // const gameSchedules = Object.entries(gamesByDay || {})
+              // .filter(([day, games]) => Array.isArray(games) && games.length > 0 && dayToInt[day]) // Ensure games exist and day is valid
+              // .map(([day, games]) => ({
+              //   dayOfWeek: dayToInt[day],
+              //   games: games.map((game, index) => {
+              //     console.log(`Processing game for day ${day}:`, game);
+              //     if (!Array.isArray(game) || game.length < 2) {
+              //       console.error(`Malformed game entry for day ${day}:`, game);
+              //       return null; // Skip invalid entries
+              //     }
+              //     return {
+              //       id: parseInt(game[0], 10) || 0, // Fallback to 0 for invalid ID
+              //       order: index + 1,
+              //     };
+              //   }).filter(Boolean), // Remove invalid entries
+              // }));
+              // console.log("Processed Game Schedules:", JSON.stringify(gameSchedules, null, 2));
+
+              const gameSchedules = Object.entries(gamesByDay || {})
+              .filter(([day, games]) => {
+                const isValid = Array.isArray(games) && games.length > 0 && dayToInt[day];
+                if (!isValid) {
+                  console.warn(`Skipping invalid entry for day: ${day}`, games);
+                }
+                return isValid;
+              })
+              .map(([day, games]) => {
+                try {
+                  return {
+                    dayOfWeek: dayToInt[day],
+                    games: games.map((game, index) => {
+                      console.log(`Processing game for day ${day}:`, game);
+                      if (!Array.isArray(game) || game.length < 2) {
+                        console.error(`Malformed game entry for day ${day}:`, game);
+                        return null;
+                      }
+                      return {
+                        id: parseInt(game[0], 10) || 0,
+                        order: index + 1,
+                      };
+                    }).filter(Boolean),
+                  };
+                } catch (e) {
+                  console.error(`Failed to process games for day ${day}`, e);
+                  return null;
+                }
+              })
+              .filter(Boolean);
+
+              console.log("Group Members:", groupMembers);
+
               const payload = {
                 name,
                 group_id: groupId,
-                start_date: new Date().toISOString().split('T')[0], // or a selected start date
+                start_date: new Date().toISOString().split('T')[0],
                 end_date: selectedDate.toISOString().split('T')[0],
-                alarm_schedule: Object.entries(dayTimeMapping).map(([day, time]) => ({
-                  day,
-                  time,
-                })),
-                games_schedule: Object.entries(gamesByDay).map(([day, games]) => ({
-                  day,
-                  games: games.map(([name, repeats, minutes]) => ({
-                    name,
-                    repeats: repeats || null,
-                    minutes: minutes || null,
-                  })),
-                })),
+                members: groupMembers.map(member => member.id),
+                alarm_schedule: alarmSchedule,
+                game_schedules: gameSchedules,
               };
-              fetch(`$https://29f4-136-38-171-186.ngrok-free.app/api/group-challenges/`, {
+              console.log(payload);
+              // example payload:
+              // {
+              //   name: "Morning Wake Up",
+              //   group_id: 1,
+              //   start_date: "2025-04-16",
+              //   end_date: "2025-04-30",
+              //   members: [
+              //     member: 1,
+              //     member: 2
+              //   ],
+              //   alarm_schedule: [
+              //     { dayOfWeek: 1, time: "07:30" },
+              //     { dayOfWeek: 3, time: "07:30" }
+              //   ],
+              //   game_schedules: [
+              //     {
+              //       dayOfWeek: 1,
+              //       games: [
+              //         { id: 4, order: 1 },
+              //         { id: 7, order: 2 }
+              //       ]
+              //     },
+              //     {
+              //       dayOfWeek: 3,
+              //       games: [
+              //         { id: 4, order: 1 }
+              //       ]
+              //     }
+              //   ]
+              // }
+              
+              
+              fetch(endpoints.createGroupChallenge, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  // add auth header if needed
                 },
                 body: JSON.stringify(payload),
+              })              
+              .then((res) => {
+                if (!res.ok) {
+                  return res.json().then((error) => {
+                    console.error('Error from server:', error); // This will log the error response
+                    throw new Error(error.message || 'Failed to create challenge');
+                  });
+                }
+                return res.json();
               })
-                .then((res) => {
-                  if (!res.ok) throw new Error('Failed to create challenge');
-                  return res.json();
-                })
-                .then((data) => {
-                  console.log('Challenge created:', data);
-                  navigation.navigate('Challenges');
-                })
-                .catch((err) => {
-                  Alert.alert('Error', err.message);
-                });
-              
+              .then((data) => {
+                console.log('Challenge created:', data);
+                Alert.alert('Challenge created');
+                // navigation.navigate('Challenges');
+              })
+              .catch((err) => {
+                Alert.alert('Error', err.message);
+              });
             }}
           >
             Finish
