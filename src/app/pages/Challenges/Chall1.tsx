@@ -1,219 +1,281 @@
-import React, { useState, useEffect } from 'react';
-import {
-  ImageBackground,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { NavigationProp, useRoute } from '@react-navigation/native';
-import { Button } from 'tamagui';
-import axios from 'axios';
-import { endpoints } from '../../api';
-import { useUser } from '../../context/UserContext';
+import type React from "react"
+import { useState, useEffect } from "react"
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, StatusBar, ImageBackground } from "react-native"
+import { Ionicons } from "@expo/vector-icons"
+import { type NavigationProp, useRoute } from "@react-navigation/native"
+import axios from "axios"
+import { endpoints } from "../../api"
+import { useUser } from "../../context/UserContext"
+import ChallengeCard from "./ChallengeCard"
 
 type Props = {
-  navigation: NavigationProp<any>;
-};
+  navigation: NavigationProp<any>
+}
 
 const Chall1: React.FC<Props> = ({ navigation }) => {
-  const route = useRoute();
+  const route = useRoute()
   const { whichChall } = route.params as {
-    whichChall: string;
-  };
-  const { user } = useUser();
-  const [challs, setChalls] = useState<{ id: number; name: string; text: string }[]>([]);
-  
+    whichChall: string
+  }
+  const { user } = useUser()
+  const [challs, setChalls] = useState<
+    {
+      id: number
+      name: string
+      daysCompleted: number
+      startDate: string
+      totalDays: number
+      daysOfWeek: string[]
+    }[]
+  >([])
+
   useEffect(() => {
-    if (!user) return; 
-  
+    if (!user) return
+
     const fetchChallenges = async () => {
       try {
-        const response = await axios.get(endpoints.challengeList(user.id, whichChall));
+        const response = await axios.get(endpoints.challengeList(user.id, whichChall))
         const data = response.data.map((c: any) => ({
           id: c.id,
           name: c.name,
-          text: `${c.daysCompleted} days done from ${c.startDate}`,
-        }));
-        setChalls(data);
+          daysCompleted: c.daysCompleted,
+          startDate: c.startDate,
+          totalDays: c.totalDays ?? 30,
+          daysOfWeek: c.daysOfWeek ?? [],
+        }))
+        setChalls(data)
       } catch (error) {
-        console.error(error);
+        console.error(error)
       }
-    };
-  
-    fetchChallenges();
-  }, [user]);
-  
+    }
+
+    fetchChallenges()
+  }, [user])
+
   const goToMessages = () => {
-    navigation.navigate('Messages');
-  };
+    navigation.navigate("Messages")
+  }
 
   const goToGroups = () => {
-    navigation.navigate('Groups');
-  };
+    navigation.navigate("Groups")
+  }
 
   const goToProfile = () => {
-    navigation.navigate('Profile');
-  };
+    navigation.navigate("Profile")
+  }
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toISOString().split("T")[0] // Returns YYYY-MM-DD format
   }
-  const Challenge: React.FC<{ id: number; name: string; text: string }> = ({
-    id,
-    name,
-    text,
-  }) => (
+
+  const Challenge: React.FC<{
+    id: number
+    name: string
+    daysCompleted: number
+    startDate: string
+    totalDays: number
+    daysOfWeek: string[]
+  }> = ({ id, name, daysCompleted, startDate, totalDays, daysOfWeek }) => (
     <TouchableOpacity
-      style={styles.navToChall}
-      onPress={() => {
-        navigation.navigate('ChallDetails', {
+      onPress={() =>
+        navigation.navigate("ChallDetails", {
           challId: id,
           challName: name,
           whichChall,
-        });
-      }}
+        })
+      }
+      style={styles.challengeContainer}
     >
-      <Text style={styles.navToChallName}>{name}</Text>
-      <Text style={styles.navToChallText}>{text}</Text>
+      <ChallengeCard
+        title={name}
+        icon={require("../../images/school.png")}
+        daysComplete={daysCompleted}
+        totalDays={totalDays}
+        daysOfWeek={daysOfWeek}
+      />
     </TouchableOpacity>
-  );  
+  )
 
   return (
-    <ImageBackground
-      source={require('../../images/secondary.png')}
-      style={styles.background}
-      resizeMode="cover"
-    >
-      <View style={styles.backButtonContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={30} color="#FFF" />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <ImageBackground source={require("../../images/cgpt.png")} style={styles.background} resizeMode="cover">
+        <View style={styles.headerContainer}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={28} color="#FFF" />
+          </TouchableOpacity>
+
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>My {whichChall}</Text>
+            <Text style={styles.titleSecondary}>Challenges</Text>
+
+            <View style={styles.decorativeLine} />
+          </View>
+        </View>
+
+        {challs.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="flag-outline" size={70} color="rgba(255,255,255,0.7)" />
+            <Text style={styles.emptyStateText}>No challenges yet</Text>
+            <Text style={styles.emptyStateSubText}>Join a challenge to get started</Text>
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.scrollViewContainer}
+            contentContainerStyle={styles.scrollViewContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {challs.map((challenge) => (
+              <Challenge
+                key={challenge.id}
+                id={challenge.id}
+                name={challenge.name}
+                daysCompleted={challenge.daysCompleted}
+                startDate={challenge.startDate}
+                totalDays={challenge.totalDays}
+                daysOfWeek={challenge.daysOfWeek}
+              />
+            ))}
+          </ScrollView>
+        )}
+      </ImageBackground>
+
+      <View style={styles.navBar}>
+        <TouchableOpacity style={styles.navButton}>
+          <Ionicons name="star" size={28} color="#FFD700" />
+          <Text style={styles.activeNavText}>Challenges</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navButton} onPress={goToGroups}>
+          <Ionicons name="people-outline" size={28} color="#FFF" />
+          <Text style={styles.navText}>Groups</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navButton} onPress={goToMessages}>
+          <Ionicons name="mail-outline" size={28} color="#FFF" />
+          <Text style={styles.navText}>Messages</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navButton} onPress={goToProfile}>
+          <Ionicons name="person-outline" size={28} color="#FFF" />
+          <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>
-      <View style={styles.container}>
-        <Text style={styles.title}>My {whichChall} Challenges</Text>
-        <ScrollView style={styles.scrollViewContainer}>
-          {challs.map((challenge) => (
-            <Challenge
-              key={challenge.id}
-              id={challenge.id}
-              name={challenge.name}
-              text={challenge.text}
-            />
-          ))}
-        </ScrollView>
-      </View>
-
-      <View style={styles.buttons}>
-        <Button style={styles.button}>
-          <Ionicons name="star" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button style={styles.button} onPress={goToGroups}>
-          <Ionicons name="people-outline" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button style={styles.button} onPress={goToMessages}>
-          <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button style={styles.button} onPress={goToProfile}>
-          <Ionicons name="person-outline" size={40} color={'#FFF5CD'} />
-        </Button>
-      </View>
-    </ImageBackground>
-  );
-};
+    </View>
+  )
+}
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   background: {
     flex: 1,
-    alignItems: 'center',
+    paddingTop: 50,
   },
-  backButtonContainer: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    zIndex: 10,
+  headerContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-  container: {
-    alignItems: 'center',
-    maxWidth: 400,
-    width: '80%',
-    marginVertical: 80,
-  },
-  title: {
-    color: '#FFF500',
-    fontSize: 40,
-    fontWeight: '700',
-    marginBottom: 50,
-    marginTop: 40,
-    textAlign: 'center',
-  },
-  input: {
-    backgroundColor: '#fff',
-    width: 280,
+  backButton: {
+    width: 40,
     height: 40,
-    borderRadius: 5,
-    marginBottom: 30,
-  },
-  selection: {
-    color: '#fff',
-    fontSize: 22.5,
-    fontWeight: '700',
-    marginHorizontal: 25,
-    marginBottom: 20,
-  },
-  underline: {
-    textDecorationLine: 'underline',
-  },
-  navToChall: {
-    width: '100%',
-    height: 80,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 15,
-    marginVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navToChallName: {
-    color: '#fff',
-    fontSize: 23,
-    fontWeight: '600',
-    marginLeft: 5,
-    marginBottom: 10,
-  },
-  navToChallText: {
-    color: '#fff',
-    fontSize: 18,
-    marginLeft: 20,
-    fontWeight: '600',
-  },
-  scrollViewContainer: {
-    width: '100%',
-    height: '70%',
-    marginBottom: 20,
-    marginTop: -10,
-  },
-  buttons: {
-    backgroundColor: '#211F26',
-    flexDirection: 'row',
-    height: 100,
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  button: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderRadius: 0,
-    borderWidth: 0,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 15,
   },
-});
+  titleContainer: {
+    marginTop: 10,
+    paddingLeft: 10,
+  },
+  title: {
+    color: "#FFF",
+    fontSize: 38,
+    fontWeight: "800",
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  titleSecondary: {
+    color: "#FFF",
+    fontSize: 38,
+    fontWeight: "800",
+    marginTop: -5,
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  decorativeLine: {
+    width: 60,
+    height: 4,
+    backgroundColor: "#FFD700",
+    borderRadius: 2,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  scrollViewContainer: {
+    flex: 1,
+    paddingHorizontal: 30,
+  },
+  scrollViewContent: {
+    paddingBottom: 100,
+  },
+  challengeContainer: {
+    marginBottom: 15,
+    borderRadius: 16,
+    overflow: "hidden",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    width: "100%",
+    alignSelf: "center",
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingBottom: 100,
+  },
+  emptyStateText: {
+    color: "#FFF",
+    fontSize: 24,
+    fontWeight: "600",
+    marginTop: 20,
+  },
+  emptyStateSubText: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 16,
+    marginTop: 10,
+  },
+  navBar: {
+    backgroundColor: "#211F26",
+    flexDirection: "row",
+    height: 80,
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingBottom: 15,
+  },
+  navButton: {
+    justifyContent: "center",
+    alignItems: "center",
+    flex: 1,
+  },
+  navText: {
+    color: "#999",
+    fontSize: 12,
+    marginTop: 4,
+  },
+  activeNavText: {
+    color: "#FFD700",
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+})
 
-export default Chall1;
+export default Chall1

@@ -1,144 +1,236 @@
-import React from 'react';
-import {
-  ImageBackground,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { NavigationProp } from '@react-navigation/native';
-import { Button } from 'tamagui';
+import type React from "react"
+import { ImageBackground, StyleSheet, Text, TouchableOpacity, View, StatusBar } from "react-native"
+import { Ionicons } from "@expo/vector-icons"
+import type { NavigationProp } from "@react-navigation/native"
+import { Button } from "tamagui"
 
 type Props = {
-  navigation: NavigationProp<any>;
-};
+  navigation: NavigationProp<any>
+}
+
+const ChallengeButton = ({
+  title,
+  icon,
+  onPress,
+}: {
+  title: string
+  icon: React.ComponentProps<typeof Ionicons>["name"]
+  onPress: () => void
+}) => {
+  return (
+    <TouchableOpacity style={styles.challengeButton} onPress={onPress} activeOpacity={0.8}>
+      <View style={styles.buttonContent}>
+        <Ionicons name={icon} size={32} color="#FFF" style={styles.buttonIcon} />
+        <Text style={styles.buttonText}>{title}</Text>
+      </View>
+      <View style={styles.arrowContainer}>
+        <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.8)" />
+      </View>
+    </TouchableOpacity>
+  )
+}
 
 const Challenges: React.FC<Props> = ({ navigation }) => {
-  const goToChall1 = (whichChall: String) => {
-    navigation.navigate('Chall1', { whichChall });
-  };
+  const goToChall1 = (whichChall: string) => {
+    navigation.navigate("Chall1", { whichChall })
+  }
 
   const goToGroups = () => {
-    navigation.navigate('Groups');
-  };
+    navigation.navigate("Groups")
+  }
 
   const goToMessages = () => {
-    navigation.navigate('Messages');
-  };
+    navigation.navigate("Messages")
+  }
 
   const goToProfile = () => {
-    navigation.navigate('Profile');
-  };
+    navigation.navigate("Profile")
+  }
 
   const goToSudoku = () => {
-    navigation.navigate('Sudoku');
-  };
+    navigation.navigate("Sudoku")
+  }
 
   return (
-    <ImageBackground
-      source={require('../images/cgpt.png')}
-      style={styles.background}
-      resizeMode="cover"
-    >
-      <View style={styles.container}>
+    <ImageBackground source={require("../images/cgpt.png")} style={styles.background} resizeMode="cover">
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+
+      <View style={styles.headerContainer}>
         <Text style={styles.title}>My Challenges</Text>
-        <TouchableOpacity
-          style={styles.navToChall}
-          onPress={() => {
-            goToChall1('Personal');
-          }}
-        >
-          <Text style={styles.navToChallText}>Personal</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.navToChall}
-          onPress={() => {
-            goToChall1('Group');
-          }}
-        >
-          <Text style={styles.navToChallText}>Group</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.navToChall}
-          onPress={() => {
-            goToSudoku();
-          }}
-        >
-          <Text style={styles.navToChallText}>Sudoku</Text>
-        </TouchableOpacity>
+        <View style={styles.titleUnderline} />
       </View>
 
-      <View style={styles.buttons}>
-        <Button style={styles.button}>
-          <Ionicons name="star" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button style={styles.button} onPress={goToGroups}>
-          <Ionicons name="people-outline" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button style={styles.button} onPress={goToMessages}>
-          <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button style={styles.button} onPress={goToProfile}>
-          <Ionicons name="person-outline" size={40} color={'#FFF5CD'} />
-        </Button>
+      <View style={styles.container}>
+        <View style={styles.challengesContainer}>
+          <ChallengeButton title="Personal" icon="person-outline" onPress={() => goToChall1("Personal")} />
+
+          <ChallengeButton title="Group" icon="people-outline" onPress={() => goToChall1("Group")} />
+
+          <ChallengeButton title="Sudoku" icon="grid-outline" onPress={goToSudoku} />
+        </View>
+      </View>
+
+      <View style={styles.navBar}>
+        <TouchableOpacity style={styles.navButton}>
+          <Ionicons name="star" size={28} color="#FFD700" />
+          <Text style={styles.activeNavText}>Challenges</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navButton} onPress={goToGroups}>
+          <Ionicons name="people-outline" size={28} color="#FFF" />
+          <Text style={styles.navText}>Groups</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navButton} onPress={goToMessages}>
+          <Ionicons name="mail-outline" size={28} color="#FFF" />
+          <Text style={styles.navText}>Messages</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navButton} onPress={goToProfile}>
+          <Ionicons name="person-outline" size={28} color="#FFF" />
+          <Text style={styles.navText}>Profile</Text>
+        </TouchableOpacity>
       </View>
     </ImageBackground>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    alignItems: 'center',
+  },
+  headerContainer: {
+    alignItems: "center",
+    marginTop: 150,
+    marginBottom: 20,
+  },
+  title: {
+    color: "#FFF",
+    fontSize: 42,
+    fontWeight: "800",
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  titleUnderline: {
+    width: 60,
+    height: 4,
+    backgroundColor: "#FFD700",
+    borderRadius: 2,
+    marginTop: 10,
   },
   container: {
     flex: 1,
-    alignItems: 'center',
-    maxWidth: 400,
-    width: '80%',
-    marginVertical: 80,
+    alignItems: "center",
+    paddingHorizontal: 20,
   },
-  title: {
-    color: '#FFF',
-    fontSize: 40,
-    fontWeight: '700',
-    marginBottom: 50,
-    marginVertical: 100,
+  challengesContainer: {
+    width: "100%",
+    marginTop: 20,
   },
-  navToChall: {
-    width: '100%',
-    height: 100,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 15,
-    marginVertical: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
+  challengeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(70, 70, 80, 0.15)",
+    borderRadius: 16,
+    marginVertical: 10,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    width: "90%",
+    alignSelf: "center",
   },
-  navToChallText: {
-    color: '#FFF',
-    fontSize: 30,
-    fontWeight: '900',
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  buttonIcon: {
+    marginRight: 15,
+  },
+  buttonText: {
+    color: "#FFF",
+    fontSize: 24,
+    fontWeight: "700",
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  arrowContainer: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  statCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 16,
+    padding: 20,
+    width: "47%",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  statNumber: {
+    color: "#FFD700",
+    fontSize: 32,
+    fontWeight: "800",
+    marginBottom: 5,
+  },
+  statLabel: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "600",
+    opacity: 0.9,
   },
   buttons: {
-    backgroundColor: '#211F26',
-    flexDirection: 'row',
-    height: 100,
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    backgroundColor: "rgba(33, 31, 38, 0.95)",
+    flexDirection: "row",
+    height: 90,
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingBottom: 20,
   },
   button: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "transparent",
     borderRadius: 0,
     borderWidth: 0,
-    marginBottom: 15,
+    flex: 1,
+    height: "100%",
   },
-});
+  navBar: {
+    backgroundColor: "#211F26",
+    flexDirection: "row",
+    height: 80,
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingBottom: 15,
+  },
+  navButton: {
+    justifyContent: "center",
+    alignItems: "center",
+    flex: 1,
+  },
+  navText: {
+    color: "#999",
+    fontSize: 12,
+    marginTop: 4,
+  },
+  activeNavText: {
+    color: "#FFD700",
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+})
 
-export default Challenges;
+export default Challenges

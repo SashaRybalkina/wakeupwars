@@ -117,6 +117,10 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
     }
   };
 
+  const goToMessages = () => navigation.navigate('Messages');
+  const goToGroups = () => navigation.navigate('Groups');
+  const goToProfile = () => navigation.navigate('Profile');
+
   return (
     <ImageBackground
       source={require('../../images/secondary.png')}
@@ -249,29 +253,27 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
           </View>
         </ScrollView>
 
-        <View style={styles.buttons}>
-          <Button
-            style={styles.button}
-            onPress={() => navigation.navigate('Challenges')}
-          >
-            <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
-          </Button>
-          <Button style={styles.button}>
-            <Ionicons name="people" size={40} color={'#FFF5CD'} />
-          </Button>
-          <Button
-            style={styles.button}
-            onPress={() => navigation.navigate('Messages')}
-          >
-            <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
-          </Button>
-          <Button
-            style={styles.button}
-            onPress={() => navigation.navigate('Profile')}
-          >
-            <Ionicons name="person-outline" size={40} color={'#FFF5CD'} />
-          </Button>
-        </View>
+        <View style={styles.navBar}>
+        <TouchableOpacity style={styles.navButton}>
+          <Ionicons name="star" size={28} color="#FFD700" />
+          <Text style={styles.activeNavText}>Challenges</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navButton} onPress={goToGroups}>
+          <Ionicons name="people-outline" size={28} color="#FFF" />
+          <Text style={styles.navText}>Groups</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navButton} onPress={goToMessages}>
+          <Ionicons name="mail-outline" size={28} color="#FFF" />
+          <Text style={styles.navText}>Messages</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navButton} onPress={goToProfile}>
+          <Ionicons name="person-outline" size={28} color="#FFF" />
+          <Text style={styles.navText}>Profile</Text>
+        </TouchableOpacity>
+      </View>
       </View>
     </ImageBackground>
   );
@@ -476,6 +478,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#333',
   },  
+  navBar: {
+    backgroundColor: "#211F26",
+    flexDirection: "row",
+    height: 80,
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingBottom: 15,
+  },
+  navButton: {
+    justifyContent: "center",
+    alignItems: "center",
+    flex: 1,
+  },
+  navText: {
+    color: "#999",
+    fontSize: 12,
+    marginTop: 4,
+  },
+  activeNavText: {
+    color: "#FFD700",
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: "600",
+  },
 });
 
 export default ChallSchedule;
