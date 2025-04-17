@@ -467,6 +467,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: "600",
   },
-})
+  addMember: {
+    alignSelf: 'center',
+    marginBottom: 20,
+    backgroundColor: 'transparent',
+  },
+  
+});
 
 export default GroupDetails

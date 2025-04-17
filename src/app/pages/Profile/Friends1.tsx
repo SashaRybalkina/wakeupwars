@@ -20,6 +20,12 @@ type Props = {
 const Friends1: React.FC<Props> = ({ navigation }) => {
   const { user } = useUser();
 
+  // to be passed along from GroupDetails if we're taking this path to choose a friend to add to group
+  const route = useRoute();
+  const params = route.params as { groupId?: number } | undefined;
+  const groupId = params?.groupId;
+
+
   const [friends, setFriends] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
@@ -64,13 +70,13 @@ const Friends1: React.FC<Props> = ({ navigation }) => {
           resizeMode="cover"
         >
           <View style={styles.container}>
-            <Text style={styles.title}>My Groups</Text>
+            <Text style={styles.title}>My Friends</Text>
             <ScrollView style={styles.scrollViewContainer}>
             {friends.map((friend, index) => (
               <TouchableOpacity
                 key={friend.id}
                 style={styles.navToFriend}
-                onPress={() => navigation.navigate('Friends3', { friendId: friend.id })}
+                onPress={() => navigation.navigate('Friends3', { friendId: friend.id, groupId: groupId })}
                 // onPress={() => navigation.navigate('GroupDetails', { groupId: group.id })}
               >
                 <Text style={styles.navToFriendText}>{friend.name}</Text>

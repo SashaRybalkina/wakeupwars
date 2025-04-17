@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView, UserMessagesView, GroupDetailsView, CatListView, GameListView, ChallengeListView, ChallengeDetailView, ChallengeGameScheduleView, CreateGroupChallengeView, FriendListView
+from .views import LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView, UserMessagesView, GroupDetailsView, CatListView, GameListView, ChallengeListView, ChallengeDetailView, ChallengeGameScheduleView, CreateGroupChallengeView, FriendListView, AddGroupMemberView
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
@@ -12,6 +12,7 @@ urlpatterns = [
     path('profile/<int:user_id>/', UserProfileView.as_view(), name='user-profile'),
     path('messages/<int:user_id>/', UserMessagesView.as_view()),
     path('groups/<int:group_id>/', GroupDetailsView.as_view(), name='group-details'),
+    path('group-member-add/<int:group_id>/', AddGroupMemberView.as_view(), name='group-mem-add'),
     path('challenges/<int:user_id>/<str:which_chall>/', ChallengeListView.as_view(), name='challenge-list'),
     path('challenge-detail/<int:chall_id>/', ChallengeDetailView.as_view(), name='challenge-detail'),
     path('challenge-schedule/<int:chall_id>/', ChallengeGameScheduleView.as_view(), name='challenge-schedule'),
