@@ -23,6 +23,30 @@ type Props = {
 const { width } = Dimensions.get("window")
 const cardWidth = Math.min(width * 0.9, 400)
 
+// Function to generate a pastel color based on name
+const generatePastelColor = (name: string): string => {
+  // Simple hash function to generate a number from a string
+  const hash = name.split("").reduce((acc, char) => {
+    return char.charCodeAt(0) + ((acc << 5) - acc)
+  }, 0)
+
+  // Generate pastel colors by keeping high lightness and medium saturation
+  const h = hash % 360 // Hue: 0-359
+  const s = 60 + (hash % 20) // Saturation: 60-79%
+  const l = 80 + (hash % 10) // Lightness: 80-89%
+
+  return `hsl(${h}, ${s}%, ${l}%)`
+}
+
+// Function to get initials from name
+const getInitials = (name: string): string => {
+  return name
+    .split(" ")
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("")
+    .substring(0, 2) // Limit to 2 characters
+}
+
 const ChallDetails: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
   const { challId, challName, whichChall } = route.params as {
@@ -127,14 +151,19 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Enrolled Members</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.membersScroll}>
-              {members.map((member, index) => (
-                <View key={index} style={styles.memberCard}>
-                  <View style={styles.memberAvatar}>
-                    <Text style={styles.memberInitial}>{member.name.charAt(0).toUpperCase()}</Text>
+              {members.map((member, index) => {
+                const initials = getInitials(member.name)
+                const backgroundColor = generatePastelColor(member.name)
+
+                return (
+                  <View key={index} style={styles.memberCard}>
+                    <View style={[styles.memberAvatar, { backgroundColor }]}>
+                      <Text style={styles.memberInitials}>{initials}</Text>
+                    </View>
+                    <Text style={styles.memberName}>{member.name}</Text>
                   </View>
-                  <Text style={styles.memberName}>{member.name}</Text>
-                </View>
-              ))}
+                )
+              })}
             </ScrollView>
           </View>
 
@@ -323,31 +352,35 @@ const styles = StyleSheet.create({
   },
   memberCard: {
     alignItems: "center",
-    marginRight: 15,
+    marginRight: 20,
+    width: 70,
   },
   memberAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(255, 215, 0, 0.3)",
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 8,
     borderWidth: 2,
-    borderColor: "#FFD700",
+    borderColor: "rgba(255, 255, 255, 0.5)",
   },
-  memberInitial: {
-    fontSize: 24,
+  memberInitials: {
+    fontSize: 22,
     fontWeight: "700",
-    color: "#FFF",
+    color: "#333",
   },
   memberName: {
     color: "#FFF",
     fontSize: 14,
     fontWeight: "500",
+    textAlign: "center",
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 0.5, height: 0.5 },
+    textShadowRadius: 1,
   },
   challengeCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    backgroundColor: "rgba(50, 50, 60, 0.3)",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -506,7 +539,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   statsCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    backgroundColor: "rgba(50, 50, 60, 0.3)",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,

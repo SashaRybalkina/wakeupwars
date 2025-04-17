@@ -21,9 +21,11 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false)
   const [selectedStartDate, setSelectedStartDate] = useState(new Date())
   const [selectedEndDate, setSelectedEndDate] = useState(new Date())
-  const [curGames, setCurGames] = useState<string[][]>([])
-  const [name, setName] = useState("")
+  const [allGames, setAllGames] = useState<Record<string, string[][]>>({}) // Games organized by day
+  const [visibleGames, setVisibleGames] = useState<string[][]>([]) // Games currently visible
+  const [activeDay, setActiveDay] = useState<string | null>(null) // Currently selected day
   const [alarmSchedule, setAlarmSchedule] = useState<{ dayOfWeek: number; alarmTime: string; userName: string }[]>([])
+
   const getDayLabel = (dayOfWeek: number): string => {
     const labels = ["M", "T", "W", "TH", "F", "S", "SU"]
     return labels[dayOfWeek] || ""
@@ -61,11 +63,27 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
         setSelectedEndDate(parseLocalDate(detail.endDate))
 
         const parsedDays: Record<string, boolean> = {}
+        const gamesByDay: Record<string, string[][]> = {}
+
         data.forEach((day: any) => {
           const label = DAYS[day.dayOfWeek]
-          if (label) parsedDays[label] = true
+          if (label) {
+            parsedDays[label] = true
+
+            // Store games for this day
+            gamesByDay[label] = day.games.map((g: any) => [g.name, g.repeats || "-", g.minutes || "-"])
+          }
         })
+
         setSelectedDays(parsedDays)
+        setAllGames(gamesByDay)
+
+        // Set first selected day as active
+        const firstSelectedDay = Object.keys(parsedDays).find((day) => parsedDays[day])
+        if (firstSelectedDay) {
+          setActiveDay(firstSelectedDay)
+          setVisibleGames(gamesByDay[firstSelectedDay] || [])
+        }
 
         const alarmParsed = data.map((day: any) => ({
           dayOfWeek: day.dayOfWeek,
@@ -73,9 +91,6 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
           userName: "",
         }))
         setAlarmSchedule(alarmParsed)
-
-        const allGames: string[][] = data.flatMap((day: any) => day.games.map((g: any) => [g.name, "-", "-"]))
-        setCurGames(allGames)
       } catch (err) {
         console.error(err)
       }
@@ -84,11 +99,35 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
     fetchSchedule()
   }, [])
 
+  const selectDay = (day: string) => {
+    if (selectedDays[day]) {
+      setActiveDay(day)
+      setVisibleGames(allGames[day] || [])
+    }
+  }
+
   const toggleDay = (day: string) => {
     setSelectedDays((prev) => ({
       ...prev,
       [day]: !prev[day],
     }))
+
+    // If toggling on, make it active
+    if (!selectedDays[day]) {
+      setActiveDay(day)
+      setVisibleGames(allGames[day] || [])
+    }
+    // If toggling off the active day, find another day to make active
+    else if (day === activeDay) {
+      const nextActiveDay = Object.keys(selectedDays).find((d) => d !== day && selectedDays[d])
+      if (nextActiveDay) {
+        setActiveDay(nextActiveDay)
+        setVisibleGames(allGames[nextActiveDay] || [])
+      } else {
+        setActiveDay(null)
+        setVisibleGames([])
+      }
+    }
   }
 
   const onStartDateChange = (event: any, date: Date | undefined) => {
@@ -100,6 +139,32 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const onEndDateChange = (event: any, date: Date | undefined) => {
     if (date) {
       setSelectedEndDate(date)
+    }
+  }
+
+  const addGameToDay = (game: string, attr: string[]) => {
+    if (activeDay) {
+      const newGame = [game, attr[0] + "", attr[1] + ""]
+
+      // Update both the visible games and the stored games for the active day
+      setVisibleGames((prev) => [...prev, newGame])
+      setAllGames((prev) => ({
+        ...prev,
+        [activeDay]: [...(prev[activeDay] || []), newGame],
+      }))
+    }
+  }
+
+  const removeGame = (index: number) => {
+    if (activeDay) {
+      // Remove from visible games
+      setVisibleGames((prev) => prev.filter((_, i) => i !== index))
+
+      // Remove from stored games
+      setAllGames((prev) => ({
+        ...prev,
+        [activeDay]: (prev[activeDay] ?? []).filter((_, i) => i !== index),
+      }))
     }
   }
 
@@ -182,30 +247,37 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
             <Text style={styles.sectionTitle}>Challenge Days</Text>
             <View style={styles.calendarContainer}>
               {DAYS.map((day, index) => {
-                const isSelected = selectedDays[day];
-                const alarmItem = alarmSchedule.find(item => getDayLabel(item.dayOfWeek) === day);
-                
+                const isSelected = selectedDays[day]
+                const isActive = activeDay === day
+                const alarmItem = alarmSchedule.find((item) => getDayLabel(item.dayOfWeek) === day)
+
                 return (
                   <View key={index} style={styles.dayColumn}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={[
-                        styles.dayCircle, 
-                        isSelected && styles.selectedDayCircle
+                        styles.dayCircle,
+                        isSelected && styles.selectedDayCircle,
+                        isActive && styles.activeDayCircle,
                       ]}
-                      onPress={() => toggleDay(day)}
+                      onPress={() => (isSelected ? selectDay(day) : toggleDay(day))}
                     >
-                      <Text style={[styles.dayText, isSelected && styles.selectedDayText]}>
+                      <Text
+                        style={[styles.dayText, isSelected && styles.selectedDayText, isActive && styles.activeDayText]}
+                      >
                         {day}
                       </Text>
                     </TouchableOpacity>
-                    
+
                     {isSelected && alarmItem?.alarmTime ? (
                       <View style={styles.dayBarWithAlarm}>
-                        <View style={[
-                          styles.dayBar, 
-                          styles.selectedDayBar,
-                          day === "T" ? styles.extendedDayBar : {}
-                        ]} />
+                        <View
+                          style={[
+                            styles.dayBar,
+                            styles.selectedDayBar,
+                            isActive && styles.activeDayBar,
+                            day === "T" ? styles.extendedDayBar : {},
+                          ]}
+                        />
                         {day === "T" && alarmItem?.alarmTime && (
                           <View style={styles.alarmBadge}>
                             <Ionicons name="alarm" size={14} color="#FFD700" />
@@ -220,65 +292,91 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
                         )}
                       </View>
                     ) : (
-                      <View style={[
-                        styles.dayBar, 
-                        styles.selectedDayBar,
-                        day === "T" ? styles.extendedDayBar : {},
-                        day === "W" ? styles.mediumDayBar : {}
-                      ]} />
+                      <View
+                        style={[
+                          styles.dayBar,
+                          isSelected && styles.selectedDayBar,
+                          isActive && styles.activeDayBar,
+                          day === "T" ? styles.extendedDayBar : {},
+                          day === "W" ? styles.mediumDayBar : {},
+                        ]}
+                      />
                     )}
                   </View>
-                );
+                )
               })}
             </View>
           </View>
 
           <View style={styles.gamesSection}>
-            <Text style={styles.sectionTitle}>Games</Text>
-            <ScrollView 
-              horizontal={true}
-              showsHorizontalScrollIndicator={true}
-              contentContainerStyle={styles.gamesScrollContainer}
-            >
-              <View style={styles.gamesGrid}>
-                {curGames.map((game, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.gameCard}
-                    onPress={() => setCurGames((prevGames) => prevGames.filter((_, i) => i !== index))}
-                  >
-                    <Text style={styles.gameTitle}>{game[0]}</Text>
-                    {game[0] !== "Sudoku" ? (
-                      <>
-                        <Text style={styles.gameDetail}>Repeats: {game[1]}</Text>
-                        <Text style={styles.gameDetail}>Minutes: {game[2]}</Text>
-                      </>
-                    ) : (
-                      <ImageBackground
-                        source={require("../../images/sudoku.png")}
-                        style={styles.sudokuImage}
-                        resizeMode="contain"
-                      />
-                    )}
-                  </TouchableOpacity>
-                ))}
-
+            <View style={styles.gamesSectionHeader}>
+              <Text style={styles.sectionTitle}>{activeDay ? `Games for ${activeDay}` : "No day selected"}</Text>
+              {activeDay && (
                 <TouchableOpacity
-                  style={styles.addGameButton}
+                  style={styles.addGameButtonSmall}
                   onPress={() => {
                     navigation.navigate("GroupChall3", {
                       catType: "Group",
-                      onGameSelected: (game: string, attr: string[]) => {
-                        setCurGames((prevGames) => [...prevGames, [game, attr[0] + "", attr[1] + ""]])
-                      },
+                      onGameSelected: addGameToDay,
                     })
                   }}
                 >
-                  <Ionicons name="add-circle" size={40} color="#FFF" />
-                  <Text style={styles.addGameText}>Add new</Text>
+                  <Ionicons name="add-circle" size={24} color="#FFD700" />
+                  <Text style={styles.addGameTextSmall}>Add</Text>
                 </TouchableOpacity>
+              )}
+            </View>
+
+            {visibleGames.length > 0 ? (
+              <ScrollView
+                horizontal={true}
+                showsHorizontalScrollIndicator={true}
+                contentContainerStyle={styles.gamesScrollContainer}
+              >
+                <View style={styles.gamesGrid}>
+                  {visibleGames.map((game, index) => (
+                    <TouchableOpacity key={index} style={styles.gameCard} onPress={() => removeGame(index)}>
+                      <Text style={styles.gameTitle}>{game[0]}</Text>
+                      {game[0] !== "Sudoku" ? (
+                        <>
+                          <Text style={styles.gameDetail}>Repeats: {game[1]}</Text>
+                          <Text style={styles.gameDetail}>Minutes: {game[2]}</Text>
+                        </>
+                      ) : (
+                        <ImageBackground
+                          source={require("../../images/sudoku.png")}
+                          style={styles.sudokuImage}
+                          resizeMode="contain"
+                        />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            ) : (
+              <View style={styles.emptyGamesContainer}>
+                {activeDay ? (
+                  <>
+                    <Ionicons name="game-controller-outline" size={40} color="rgba(255,255,255,0.5)" />
+                    <Text style={styles.emptyGamesText}>No games for {activeDay}</Text>
+                    <TouchableOpacity
+                      style={styles.addGameButton}
+                      onPress={() => {
+                        navigation.navigate("GroupChall3", {
+                          catType: "Group",
+                          onGameSelected: addGameToDay,
+                        })
+                      }}
+                    >
+                      <Ionicons name="add-circle" size={40} color="#FFF" />
+                      <Text style={styles.addGameText}>Add new game</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <Text style={styles.emptyGamesText}>Select a day to see games</Text>
+                )}
               </View>
-            </ScrollView>
+            )}
           </View>
         </ScrollView>
       </View>
@@ -405,7 +503,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
     color: "#FFF",
-    marginBottom: 15,
     textShadowColor: "rgba(0, 0, 0, 0.2)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
@@ -414,53 +511,68 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   calendarContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(30, 30, 40, 0.6)',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(30, 30, 40, 0.6)",
     borderRadius: 16,
     padding: 15,
     paddingTop: 20,
     marginTop: 7,
-    paddingBottom: 20, 
+    paddingBottom: 20,
     marginBottom: 10,
   },
   dayColumn: {
-    alignItems: 'center',
+    alignItems: "center",
     width: 45,
   },
   dayCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     marginBottom: 8,
   },
   selectedDayCircle: {
-    backgroundColor: '#FFD700',
-    shadowColor: '#FFD700',
+    backgroundColor: "#FFD700",
+    shadowColor: "#FFD700",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  activeDayCircle: {
+    backgroundColor: "#FFA500",
+    shadowColor: "#FFA500",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 5,
     elevation: 5,
   },
   dayText: {
-    fontWeight: '700',
+    fontWeight: "700",
     fontSize: 15,
-    color: '#FFF',
+    color: "#FFF",
   },
   selectedDayText: {
-    color: '#000',
+    color: "#000",
+  },
+  activeDayText: {
+    color: "#000",
   },
   dayBar: {
     width: 4,
     height: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 2,
   },
   selectedDayBar: {
-    backgroundColor: '#FFD700',
+    backgroundColor: "#FFD700",
+  },
+  activeDayBar: {
+    backgroundColor: "#FFA500",
+    width: 6,
   },
   extendedDayBar: {
     height: 60,
@@ -469,36 +581,58 @@ const styles = StyleSheet.create({
     height: 30,
   },
   dayBarWithAlarm: {
-    alignItems: 'center',
-    position: 'relative',
+    alignItems: "center",
+    position: "relative",
   },
   alarmBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     marginTop: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.3)',
-    minWidth: 70, 
+    borderColor: "rgba(255, 215, 0, 0.3)",
+    minWidth: 70,
   },
   inlineAlarmBadge: {
-    position: 'absolute',
-    top: 20, 
+    position: "absolute",
+    top: 20,
     left: 15,
   },
   alarmTimeText: {
-    color: '#FFD700',
+    color: "#FFD700",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     marginLeft: 4,
     flexShrink: 1,
   },
   gamesSection: {
     marginBottom: 20,
+  },
+  gamesSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  addGameButtonSmall: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.3)",
+  },
+  addGameTextSmall: {
+    color: "#FFD700",
+    fontWeight: "600",
+    fontSize: 14,
+    marginLeft: 4,
   },
   gamesScrollContainer: {
     paddingBottom: 10,
@@ -534,24 +668,38 @@ const styles = StyleSheet.create({
     height: 60,
     marginTop: 5,
   },
+  emptyGamesContainer: {
+    backgroundColor: "rgba(30, 30, 40, 0.6)",
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 150,
+  },
+  emptyGamesText: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 16,
+    fontWeight: "500",
+    marginVertical: 10,
+  },
   addGameButton: {
     backgroundColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 15,
     padding: 12,
-    width: 120,
-    marginRight: 12,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
     borderStyle: "dashed",
-    height: 110,
+    marginTop: 15,
+    paddingHorizontal: 20,
+    flexDirection: "row",
   },
   addGameText: {
     color: "#FFF",
     fontWeight: "600",
     fontSize: 16,
-    marginTop: 8,
+    marginLeft: 8,
   },
   navBar: {
     backgroundColor: "#211F26",
