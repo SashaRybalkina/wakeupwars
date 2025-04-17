@@ -11,7 +11,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate, get_user_model
 from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer, CatSerializer, GameSerializer, FriendSerializer
-from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule, AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship
+from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule, AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship, GroupMembership
 
 User = get_user_model()
 
@@ -139,6 +139,32 @@ class GroupDetailsView(APIView):
             'challenges': serializer.data,
             'members': members
         }, status=status.HTTP_200_OK)
+
+
+class AddGroupMemberView(APIView):
+    @transaction.atomic
+    def post(self, request, group_id):
+        data = request.data
+        try:
+            friend_id = data.get("friend_id")
+            if not friend_id:
+                return Response({"error": "friend_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+            group = get_object_or_404(Group, id=group_id)
+            user = get_object_or_404(User, id=friend_id)
+
+            # Check if the membership already exists
+            existing_membership = GroupMembership.objects.filter(groupID=group, uID=user).exists()
+            if existing_membership:
+                return Response({"message": "User is already a member of the group."}, status=status.HTTP_200_OK)
+
+            # Create the new membership
+            GroupMembership.objects.create(groupID=group, uID=user)
+
+            return Response({"message": "User added to group successfully."}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
       
         
 class ChallengeListView(APIView):

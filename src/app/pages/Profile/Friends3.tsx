@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Image,
   ImageBackground,
   StyleSheet,
@@ -19,7 +20,8 @@ type Props = {
 
 const Friends3: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { friendId } = route.params as { friendId: number };
+  // groupId will be null if we're not navigating here to add this friend to a group
+  const { friendId, groupId } = route.params as { friendId: number; groupId?: number };
 
   const [profileData, setProfileData] = useState<any>(null);
 
@@ -63,41 +65,44 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
         />
       )}
 
-      {/* <View style={styles.profileContainer}>
-        <Image
-          source={require('../../images/game.jpeg')}
-          style={styles.avatar}
-        />
-        <Text style={styles.profileName}>{friendName}</Text>
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.stat}>
-              Problem Solving <Text style={styles.statValue}>4.1 Points</Text>
-            </Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.stat}>
-              Puzzle <Text style={styles.statValue}>1.3 Points</Text>
-            </Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.stat}>
-              Physical <Text style={styles.statValue}>3.3 Points</Text>
-            </Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.stat}>
-              Memory/Pattern <Text style={styles.statValue}>0.5 Points</Text>
-            </Text>
-          </View>
-        </View>
+      {groupId && (
         <TouchableOpacity
           style={styles.add}
-          onPress={() => navigation.navigate('Friends4', { friendName })}
+          onPress={async () => {
+            const payload = {
+              friend_id: friendId,
+            };
+            console.log(payload);
+            fetch(endpoints.addGroupMember(groupId), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(payload),
+            })              
+            .then((res) => {
+              if (!res.ok) {
+                return res.json().then((error) => {
+                  console.error('Error from server:', error); // This will log the error response
+                  throw new Error(error.message || 'Failed to add friend to group');
+                });
+              }
+              return res.json();
+            })
+            .then((data) => {
+              console.log('Friend added to group', data);
+              Alert.alert('Friend added to group');
+              // navigation.navigate('Challenges');
+            })
+            .catch((err) => {
+              Alert.alert('Error', err.message);
+            });
+          }}
         >
           <Text style={styles.addText}>Add to Group</Text>
         </TouchableOpacity>
-      </View> */}
+      )}
+
 
       {/* Navigation Bar */}
       <View style={styles.buttons}>
@@ -168,14 +173,16 @@ const styles = StyleSheet.create({
     color: '#FFD700',
   },
   add: {
-    backgroundColor: '#AA55FF',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // translucent black
     borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
     width: 250,
     height: 65,
     marginTop: 225,
-  },
+    borderWidth: 1,
+    borderColor: '#FFF', // optional, gives it a subtle border
+  },  
   addText: {
     color: 'white',
     fontWeight: 'bold',

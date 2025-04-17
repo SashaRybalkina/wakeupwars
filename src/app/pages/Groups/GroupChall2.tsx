@@ -270,24 +270,6 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
               }));
               console.log("Filtered Alarm Schedule:", alarmSchedule);
 
-              // const gameSchedules = Object.entries(gamesByDay || {})
-              // .filter(([day, games]) => Array.isArray(games) && games.length > 0 && dayToInt[day]) // Ensure games exist and day is valid
-              // .map(([day, games]) => ({
-              //   dayOfWeek: dayToInt[day],
-              //   games: games.map((game, index) => {
-              //     console.log(`Processing game for day ${day}:`, game);
-              //     if (!Array.isArray(game) || game.length < 2) {
-              //       console.error(`Malformed game entry for day ${day}:`, game);
-              //       return null; // Skip invalid entries
-              //     }
-              //     return {
-              //       id: parseInt(game[0], 10) || 0, // Fallback to 0 for invalid ID
-              //       order: index + 1,
-              //     };
-              //   }).filter(Boolean), // Remove invalid entries
-              // }));
-              // console.log("Processed Game Schedules:", JSON.stringify(gameSchedules, null, 2));
-
               const gameSchedules = Object.entries(gamesByDay || {})
               .filter(([day, games]) => {
                 const isValid = Array.isArray(games) && games.length > 0 && dayToInt[day];
@@ -296,6 +278,7 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
                 }
                 return isValid;
               })
+              
               .map(([day, games]) => {
                 try {
                   return {

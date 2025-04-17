@@ -117,6 +117,16 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
               ))}
             </ScrollView>
 
+            <TouchableOpacity
+              style={styles.addMember}
+              onPress={() =>
+                navigation.navigate('Friends1', { groupId: groupId })
+              }
+            >
+              <Ionicons name="person-add-outline" size={35} color={'#fff'} />
+            </TouchableOpacity>
+
+
             <Text style={styles.sectionTitle}>Current Challenges</Text>
             <TouchableOpacity
               style={styles.addChallenge}
@@ -310,6 +320,12 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     marginBottom: 15,
   },
+  addMember: {
+    alignSelf: 'center',
+    marginBottom: 20,
+    backgroundColor: 'transparent',
+  },
+  
 });
 
 export default GroupDetails;
