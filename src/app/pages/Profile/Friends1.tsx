@@ -27,7 +27,7 @@ const Friends1: React.FC<Props> = ({ navigation }) => {
     const fetchFriends = async () => {
       try {
         const response = await fetch(
-          'https://f36f-155-98-131-4.ngrok-free.app/api/friends/',
+          'https://29f4-136-38-171-186.ngrok-free.app/api/friends/',
         );
         const data = await response.json();
         const friendNames = data.map(

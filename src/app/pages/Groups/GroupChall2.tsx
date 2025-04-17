@@ -255,7 +255,7 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
                   })),
                 })),
               };
-              fetch(`$https://f36f-155-98-131-4.ngrok-free.app/api/group-challenges/`, {
+              fetch(`$https://29f4-136-38-171-186.ngrok-free.app/api/group-challenges/`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',

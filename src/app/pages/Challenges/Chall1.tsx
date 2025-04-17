@@ -58,6 +58,10 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('Profile');
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toISOString().split("T")[0] // Returns YYYY-MM-DD format
+  }
   const Challenge: React.FC<{ id: number; name: string; text: string }> = ({
     id,
     name,

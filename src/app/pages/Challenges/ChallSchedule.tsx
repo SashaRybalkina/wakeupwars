@@ -186,23 +186,21 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
             </>
           )}
 
-          {alarmSchedule.map((item, index) => {
-            const label = getDayLabel(item.dayOfWeek);
-            const isSelected = selectedDays[label];
+          <View style={styles.alarmDaysRow}>
+            {alarmSchedule.map((item, index) => {
+              const label = getDayLabel(item.dayOfWeek);
+              const isSelected = selectedDays[label];
 
-            return (
-              <TouchableOpacity
-                key={index}
-                style={[styles.day, isSelected && styles.daySelected]}
-                onPress={() => toggleDay(label)}
-              >
-                <Text style={styles.dayText}>{label}</Text>
-                {item.alarmTime && (
-                  <Text style={styles.alarmText}>Alarm at: {item.alarmTime}</Text>
-                )}
-              </TouchableOpacity>
-            );
-          })}
+              return (
+                <View key={index} style={[styles.dayItem, isSelected && styles.dayItemSelected]}>
+                  <Text style={styles.dayLabelText}>{label}</Text>
+                  {item.alarmTime && (
+                    <Text style={styles.dayAlarmText}>Alarm at: {item.alarmTime}</Text>
+                  )}
+                </View>
+              );
+            })}
+          </View>
 
           <Text style={styles.sectionTitle}>Games:</Text>
           <View style={styles.gameWrapper}>
@@ -446,6 +444,38 @@ const styles = StyleSheet.create({
     marginTop: 5,
     textAlign: 'center',
   },
+  alarmDaysRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  
+  dayItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginHorizontal: 5,
+    marginVertical: 5,
+    alignItems: 'center',
+  },
+  
+  dayItemSelected: {
+    backgroundColor: '#FFF455',
+  },
+  
+  dayLabelText: {
+    fontWeight: '700',
+    fontSize: 16,
+    color: '#000',
+  },
+  
+  dayAlarmText: {
+    fontSize: 12,
+    color: '#333',
+  },  
 });
 
 export default ChallSchedule;
