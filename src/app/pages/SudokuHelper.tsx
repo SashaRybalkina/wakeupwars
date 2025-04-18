@@ -72,24 +72,24 @@ export const validateSudokuMove = async (
   }
 };
 
-export const markGameAsCompleted = async (gameId: number): Promise<void> => {
-  try {
-    const response = await fetch(endpoints.completeSudokuGame, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ game_id: gameId }),
-    });
+// export const markGameAsCompleted = async (gameId: number): Promise<void> => {
+//   try {
+//     const response = await fetch(endpoints.completeSudokuGame, {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify({ game_id: gameId }),
+//     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('Failed to mark game as complete:', errText);
-    } else {
-      console.log('✅ Game marked as complete');
-    }
-  } catch (error) {
-    console.error('Error marking game as complete:', error);
-  }
-};
+//     if (!response.ok) {
+//       const errText = await response.text();
+//       console.error('Failed to mark game as complete:', errText);
+//     } else {
+//       console.log('✅ Game marked as complete');
+//     }
+//   } catch (error) {
+//     console.error('Error marking game as complete:', error);
+//   }
+// };
 
 
 

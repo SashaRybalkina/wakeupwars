@@ -8,6 +8,6 @@ export const endpoints = {
   profile: (userId: number) => `${BASE_URL}/api/profile/${userId}/`,
   createSudokuGame: `${BASE_URL}/api/sudoku/create/`,
   validateSudokuMove: `${BASE_URL}/api/sudoku/validate/`,
-  completeSudokuGame: `${BASE_URL}/api/sudoku/complete/`,
+  // completeSudokuGame: `${BASE_URL}/api/sudoku/complete/`,
 };
 

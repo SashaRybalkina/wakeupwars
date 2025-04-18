@@ -10,6 +10,7 @@ from .models import Message
 #### Sudoku Game Imports ####
 from .models import SudokuGameState, Challenge, SudokuGamePlayer, User, Game
 from sudoku import Sudoku
+import time
 
 User = get_user_model()
 
@@ -109,7 +110,7 @@ class CreateSudokuGameView(APIView):
             difficulty_level = 'medium'
         else:
             difficulty_map = {
-                'easy': 0.4,
+                'easy': 0.05,
                 'medium': 0.6,
                 'hard': 0.75,
             }
@@ -198,30 +199,30 @@ class ValidateSudokuMoveView(APIView):
             return Response({'success': False, 'result': 'incorrect', 'puzzle': game_state.puzzle}, status=status.HTTP_200_OK)
 
 
-class CompleteSudokuGameView(APIView):
-    permission_classes = [IsAuthenticated]
+# class CompleteSudokuGameView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        game_id = request.data.get('game_id')
+#     def post(self, request):
+#         game_id = request.data.get('game_id')
 
-        if not game_id:
-            return Response({'error': 'Missing game_id'}, status=status.HTTP_400_BAD_REQUEST)
+#         if not game_id:
+#             return Response({'error': 'Missing game_id'}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            game_state = SudokuGameState.objects.get(id=game_id)
-        except SudokuGameState.DoesNotExist:
-            return Response({'error': 'Game not found'}, status=status.HTTP_404_NOT_FOUND)
+#         try:
+#             game_state = SudokuGameState.objects.get(id=game_id)
+#         except SudokuGameState.DoesNotExist:
+#             return Response({'error': 'Game not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            player_record = SudokuGamePlayer.objects.get(gameState=game_state, player=request.user)
-        except SudokuGamePlayer.DoesNotExist:
-            return Response({'error': 'Player not found for this game'}, status=status.HTTP_404_NOT_FOUND)
+#         try:
+#             player_record = SudokuGamePlayer.objects.get(gameState=game_state, player=request.user)
+#         except SudokuGamePlayer.DoesNotExist:
+#             return Response({'error': 'Player not found for this game'}, status=status.HTTP_404_NOT_FOUND)
 
-        if player_record.completed:
-            return Response({'success': True, 'message': 'Already completed'})
+#         if player_record.completed:
+#             return Response({'success': True, 'message': 'Already completed'})
 
-        player_record.completed = True
-        player_record.completed_at = timezone.now()
-        player_record.save()
+#         player_record.completed = True
+#         player_record.completed_at = timezone.now()
+#         player_record.save()
 
-        return Response({'success': True})
+#         return Response({'success': True})

@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView, UserMessagesView
-from .views import CreateSudokuGameView, ValidateSudokuMoveView, comp
+from .views import CreateSudokuGameView, ValidateSudokuMoveView
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),

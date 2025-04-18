@@ -172,18 +172,18 @@ const SudokuScreen = ({ route, navigation }) => {
       setGameCompleted(true);
   
       if (intervalId) {
-        clearInterval(intervalId);
+        clearInterval(intervalId); // stop timer
       }
   
       const timeUsed = 300 - timeLeft;
   
       Alert.alert("🎉 You Win!", `Finished Time：${formatTime(timeUsed)}`);
   
-      try {
-        await markGameAsCompleted(gameId);
-      } catch (error) {
-        console.error('❗️ Failed to report completion:', error);
-      }
+      // try {
+      //   await markGameAsCompleted(gameId);
+      // } catch (error) {
+      //   console.error('❗️ Failed to report completion:', error);
+      // }
     }
   };
   
