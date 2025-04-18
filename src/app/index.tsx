@@ -34,6 +34,7 @@ import PersChall2 from './pages/Profile/PersChall2';
 import SignUpScreen from './pages/SignUp';
 import StartScreen from './pages/StartScreen';
 import SudokuScreen from './pages/SudokuScreen';
+import CreateGroup from './pages/Groups/CreateGroup';
 
 const Stack = createStackNavigator();
 
@@ -92,6 +93,11 @@ function App() {
         <Stack.Screen
           name="Groups"
           component={GroupScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CreateGroup"
+          component={CreateGroup}
           options={{ headerShown: false }}
         />
         <Stack.Screen

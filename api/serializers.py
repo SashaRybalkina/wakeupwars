@@ -30,7 +30,7 @@ class GroupSerializer(serializers.ModelSerializer):
 class FriendSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'username']
 
 class CatSerializer(serializers.ModelSerializer):
     class Meta:
@@ -105,3 +105,14 @@ class FriendRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = FriendRequest
         fields = ['id', 'sender', 'recipient', 'created_at']
+
+class CreateGroupSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    members = serializers.ListField(
+        child=serializers.IntegerField()
+    )
+
+class GroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = '__all__'

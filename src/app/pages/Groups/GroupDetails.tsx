@@ -150,7 +150,7 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
                   <View style={styles.addMemberCircle}>
                     <Ionicons name="person-add-outline" size={24} color="#FFF" />
                   </View>
-                  <Text style={styles.addMemberText}>+</Text>
+                  <Text style={styles.addMemberText}></Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     alignSelf: "center",
-    marginTop: 10,
+    marginTop: 30,
     marginBottom: 5,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.3)",

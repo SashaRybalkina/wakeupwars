@@ -1,17 +1,11 @@
-import React, { useState, useEffect } from "react"
+import type React from "react"
+import { useState, useEffect, useCallback } from "react"
 import { endpoints } from "../api"
-import {
-  ImageBackground,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  ScrollView as RNScrollView,
-} from "react-native"
+import { ImageBackground, StyleSheet, Text, TouchableOpacity, View, ScrollView as RNScrollView } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { NavigationProp } from "@react-navigation/native"
+import type { NavigationProp } from "@react-navigation/native"
 import { useUser } from "../context/UserContext"
-
+import { useFocusEffect } from "@react-navigation/native";
 type Props = {
   navigation: NavigationProp<any>
 }
@@ -26,38 +20,35 @@ const Groups: React.FC<Props> = ({ navigation }) => {
   const [groups, setGroups] = useState<Group[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    if (!user?.id) {
-      console.error("userId is missing!")
-      return
-    }
-    
-    const fetchGroups = async () => {
-      setIsLoading(true)
-      try {
-        const response = await fetch(endpoints.groups(Number(user.id)))
-        const data = await response.json()
-        
-        const enhancedData = data.map((group: any) => ({
-          ...group,
-        }))
-        
-        setGroups(enhancedData)
-      } catch (error) {
-        console.error("Failed to fetch groups:", error)
-      } finally {
-        setIsLoading(false)
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) {
+        console.error("userId is missing!");
+        return;
       }
-    }
-
-    fetchGroups()
-  }, [user?.id])
-
+  
+      const fetchGroups = async () => {
+        setIsLoading(true);
+        try {
+          const response = await fetch(endpoints.groups(Number(user.id)));
+          const data = await response.json();
+          setGroups(data);
+        } catch (error) {
+          console.error("Failed to fetch groups:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+  
+      fetchGroups();
+    }, [user?.id])
+  );
+  
   const goToChallenges = () => navigation.navigate("Challenges")
   const goToGroups = () => navigation.navigate("Groups")
   const goToMessages = () => navigation.navigate("Messages")
   const goToProfile = () => navigation.navigate("Profile")
-  const goToCreateGroup = () => console.log("Navigate to create group")
+  const goToCreateGroup = () => navigation.navigate("CreateGroup")
 
   // Group card icons based on name
   const getGroupIcon = (name: string) => {
@@ -110,13 +101,12 @@ const Groups: React.FC<Props> = ({ navigation }) => {
                 <View style={styles.groupIconContainer}>
                   <Ionicons name={getGroupIcon(group.name)} size={32} color="#FFF" />
                 </View>
-                
+
                 <View style={styles.groupInfo}>
                   <Text style={styles.groupName}>{group.name}</Text>
-                  <View style={styles.groupMeta}>
-                  </View>
+                  <View style={styles.groupMeta}></View>
                 </View>
-                
+
                 <View style={styles.arrowContainer}>
                   <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.6)" />
                 </View>

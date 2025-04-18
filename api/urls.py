@@ -3,7 +3,7 @@ from .views import (LoginView, RegisterView, GroupListView, HelloWorldView, User
                     UserMessagesView, GroupDetailsView, CatListView, GameListView, ChallengeListView, 
                     ChallengeDetailView, ChallengeGameScheduleView, CreateGroupChallengeView, FriendListView, 
                     AddGroupMemberView, SendFriendRequestView, FriendRequestListView, RespondToFriendRequestView, 
-                    SentFriendRequestListView, AllUsersView, CancelFriendRequestView)
+                    SentFriendRequestListView, AllUsersView, CancelFriendRequestView, CreateGroupView)
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
@@ -27,4 +27,5 @@ urlpatterns = [
     path('friend-request/send/', SendFriendRequestView.as_view(), name='send-friend-request'),
     path('profile/all/', AllUsersView.as_view(), name='all-users'),
     path('friend-request/delete/<int:request_id>/', CancelFriendRequestView.as_view(), name='cancel-friend-request'),
+    path('create-group/', CreateGroupView.as_view(), name='create-group'),
 ]

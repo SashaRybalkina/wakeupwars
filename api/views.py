@@ -10,7 +10,7 @@ from datetime import time
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate, get_user_model
-from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer, CatSerializer, GameSerializer, FriendSerializer, FriendRequestSerializer
+from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer, CatSerializer, GameSerializer, FriendSerializer, FriendRequestSerializer, CreateGroupSerializer
 from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule, AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship, GroupMembership, FriendRequest
 
 User = get_user_model()
@@ -352,3 +352,29 @@ class CancelFriendRequestView(APIView):
 
         fr.delete()
         return Response({'message': 'Friend request cancelled'}, status=status.HTTP_200_OK)
+
+
+class CreateGroupView(APIView):
+    def post(self, request):
+        serializer = CreateGroupSerializer(data=request.data)
+        if serializer.is_valid():
+            name = serializer.validated_data['name']
+            raw_ids = serializer.validated_data['members']
+
+            member_ids = {mid for mid in raw_ids if mid is not None}
+
+            if request.user and request.user.id:
+                member_ids.add(request.user.id)
+
+            group = Group.objects.create(name=name)
+
+            # Only get users that actually exist
+            users = User.objects.filter(id__in=member_ids)
+
+            for user in users:
+                GroupMembership.objects.create(groupID=group, uID=user)
+
+            return Response({'message': 'Group created successfully', 'group_id': group.id}, status=201)
+
+        else:
+            return Response(serializer.errors, status=400)
