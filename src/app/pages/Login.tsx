@@ -13,6 +13,7 @@ import {
   View,
   Dimensions,
   ImageBackground,
+  Image,
 } from "react-native"
 import type { NavigationProp } from "@react-navigation/native"
 import { Ionicons } from "@expo/vector-icons"
@@ -71,23 +72,10 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
-      <ImageBackground source={require("../images/cgpt2.png")} style={styles.backgroundImage} resizeMode="cover">
+      <ImageBackground source={require("../images/cgpt3.png")} style={styles.backgroundImage} resizeMode="cover">
         <View style={styles.contentContainer}>
           <View style={styles.logoContainer}>
-            <View style={styles.titleContainer}>
-              <Text style={styles.logoTextOutline}>
-                WAKE<Text style={styles.logoTextHighlight}>UP</Text>WARS
-              </Text>
-              <Text style={styles.logoText}>
-                WAKE<Text style={styles.logoTextHighlight}>UP</Text>WARS
-              </Text>
-              <LinearGradient
-                colors={["#FFD700", "#FFA500"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.titleUnderline}
-              />
-            </View>
+            <Image source={require("../images/wakeupwars.png")} style={styles.logoImage} resizeMode="contain" />
           </View>
 
           <View style={styles.formContainer}>
@@ -122,15 +110,12 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.loginButton} onPress={handleLogin} activeOpacity={0.8}>
-              <LinearGradient
-                colors={["#FFD700", "#FFA500"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.buttonGradient}
-              >
-                <Text style={styles.loginButtonText}>Login</Text>
-              </LinearGradient>
+            <TouchableOpacity 
+              style={[styles.loginButton, styles.loginButtonBackground]} 
+              onPress={handleLogin} 
+              activeOpacity={0.9}
+            >
+              <Text style={styles.loginButtonText}>Login</Text>
             </TouchableOpacity>
 
             <View style={styles.dividerContainer}>
@@ -182,58 +167,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 40,
   },
-  titleContainer: {
-    position: "relative",
-    alignItems: "center",
-  },
-  logoText: {
-    fontSize: 38,
-    fontWeight: "900",
-    color: "#fff",
-    letterSpacing: 2,
-    zIndex: 2,
-    fontStyle: "italic",
-    textShadowColor: "rgba(0, 0, 0, 0.5)",
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
-  },
-  logoTextOutline: {
-    fontSize: 38,
-    fontWeight: "900",
-    color: "transparent",
-    letterSpacing: 2,
-    position: "absolute",
-    top: 0,
-    left: 0,
-    zIndex: 1,
-    fontStyle: "italic",
-    textShadowColor: "#000",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
-  },
-  logoTextHighlight: {
-    color: "#FFD700",
-    fontWeight: "900",
-  },
-  titleUnderline: {
-    height: 4,
-    width: "80%",
-    borderRadius: 2,
-    marginTop: 5,
-  },
-  taglineContainer: {
-    marginTop: 10,
-  },
-  tagline: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "500",
-    opacity: 0.9,
-    letterSpacing: 1,
+  logoImage: {
+    width: 300,
+    height: 70,
   },
   formContainer: {
     width: inputWidth,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: "rgba(255, 255, 240, 0.45)",
     borderRadius: 20,
     padding: 20,
     shadowColor: "#000",
@@ -245,7 +185,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255,255,255,1)",
     borderRadius: 12,
     marginBottom: 15,
     paddingHorizontal: 15,
@@ -273,15 +213,21 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   forgotPasswordText: {
-    color: "#666",
+    color: "rgba(50, 50, 60, 0.9)",
     fontSize: 14,
   },
   loginButton: {
     width: "100%",
+    color: "rgba(50, 50, 60, 0.5)",
     height: 55,
     borderRadius: 12,
     overflow: "hidden",
     marginBottom: 20,
+  },
+  loginButtonBackground: {
+    backgroundColor: "rgba(255, 255, 245, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   buttonGradient: {
     width: "100%",
@@ -290,7 +236,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loginButtonText: {
-    color: "#fff",
+    color: "rgba(0, 0, 0, 0.8)",
     fontSize: 18,
     fontWeight: "600",
   },
@@ -302,7 +248,7 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: "#ddd",
+    backgroundColor: "rgba(245, 226, 186, 1)",
   },
   dividerText: {
     color: "#666",
@@ -343,18 +289,19 @@ const styles = StyleSheet.create({
   },
   signupText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 19,
+    fontWeight: "bold",
     marginRight: 5,
-    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowColor: "rgba(0, 0, 0, 0.9)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
   signupLink: {
     color: "#FFD700",
-    fontSize: 16,
+    fontSize: 19,
     fontWeight: "bold",
     textDecorationLine: "underline",
-    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowColor: "rgba(0, 0, 0, 0.8)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },

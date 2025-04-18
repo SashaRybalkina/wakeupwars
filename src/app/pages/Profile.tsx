@@ -19,7 +19,16 @@ const Profile: React.FC<Props> = ({ navigation }) => {
     navigation.navigate("Profile")
   }
   const [profileData, setProfileData] = useState<any>(null)
-  const { user } = useUser()
+  const { user, setUser } = useUser()
+
+  const handleLogout = () => {
+    setUser(null)
+
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Login" }],
+    })
+  }
 
   useEffect(() => {
     if (!user?.id) {
@@ -28,7 +37,7 @@ const Profile: React.FC<Props> = ({ navigation }) => {
     }
     const fetchProfile = async () => {
       try {
-        const response = await fetch(endpoints.profile(user.id))
+        const response = await fetch(endpoints.profile(Number(user.id)))
         const data = await response.json()
         setProfileData(data)
       } catch (error) {
@@ -41,16 +50,19 @@ const Profile: React.FC<Props> = ({ navigation }) => {
 
   return (
     <ImageBackground source={require("../images/cgpt.png")} style={styles.background} resizeMode="cover">
-      {/* Profile Section */}
       <UserProfileCard name={profileData?.name || "Loading..."} skillLevels={profileData?.skill_levels || []} />
 
       <View style={styles.profileButtons}>
         <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate("Friends1")}>
-          <Ionicons name="people" size={40} color={"#fff"} />
+          <View style={styles.iconShadowContainer}>
+            <Ionicons name="people" size={40} color={"#fff"} />
+          </View>
           <Text style={styles.profileButtonText}>Friends</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate("PersChall1")}>
-          <Ionicons name="trophy" size={40} color={"#FFD700"} />
+          <View style={styles.iconShadowContainer}>
+            <Ionicons name="trophy" size={40} color={"#FFD700"}  />
+          </View>
           <Text style={[styles.profileButtonText, { color: "#FF0" }]}>Challenges</Text>
         </TouchableOpacity>
       </View>
@@ -89,7 +101,7 @@ const Profile: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.logoutButton} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.logoutButton} activeOpacity={0.8} onPress={handleLogout}>
         <Ionicons name="log-out-outline" size={22} color="#FFF" style={styles.logoutIcon} />
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
@@ -213,13 +225,11 @@ const styles = StyleSheet.create({
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(50, 50, 60, 0.5)",
+    backgroundColor: "rgba(50, 50, 60, 0.45)",
     paddingVertical: 12,
     paddingHorizontal: 25,
     borderRadius: 12,
-    marginTop: 20,
-    borderWidth: 0,
-    borderColor: "rgba(50, 50, 60, 0.3)",
+    marginTop: 40,
   },
   logoutIcon: {
     marginRight: 8,
@@ -275,6 +285,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontWeight: "600",
+  },
+  iconShadowContainer: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 0,
+    elevation: 5,
+  },
+  iconWithShadow: {
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 0,
   },
 })
 

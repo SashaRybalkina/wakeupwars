@@ -1,31 +1,30 @@
-import React, { createContext, useContext, useState } from 'react';
+import type React from "react"
+import { createContext, useState, useContext, type ReactNode } from "react"
 
 type User = {
-  id: number;
-  name?: string;
-  email?: string;
-  username?: string;
-};
+  id: string | number
+  name: string
+  email: string
+  username: string
+} | null
 
 type UserContextType = {
-  user: User | null;
-  setUser: (user: User) => void;
-};
+  user: User
+  setUser: React.Dispatch<React.SetStateAction<User>>
+}
 
-const UserContext = createContext<UserContextType | undefined>(undefined);
+const UserContext = createContext<UserContextType | undefined>(undefined)
 
-export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+export const UserProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User>(null)
 
-  return (
-    <UserContext.Provider value={{ user, setUser }}>
-      {children}
-    </UserContext.Provider>
-  );
-};
+  return <UserContext.Provider value={{ user, setUser }}>{children}</UserContext.Provider>
+}
 
 export const useUser = () => {
-  const context = useContext(UserContext);
-  if (!context) throw new Error('useUser must be used within a UserProvider');
-  return context;
-};
+  const context = useContext(UserContext)
+  if (context === undefined) {
+    throw new Error("useUser must be used within a UserProvider")
+  }
+  return context
+}

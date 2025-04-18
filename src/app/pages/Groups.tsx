@@ -1,5 +1,3 @@
-"use client"
-
 import React, { useState, useEffect } from "react"
 import { endpoints } from "../api"
 import {
@@ -37,7 +35,7 @@ const Groups: React.FC<Props> = ({ navigation }) => {
     const fetchGroups = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch(endpoints.groups(user.id))
+        const response = await fetch(endpoints.groups(Number(user.id)))
         const data = await response.json()
         
         const enhancedData = data.map((group: any) => ({

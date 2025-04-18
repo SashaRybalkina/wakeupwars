@@ -12,10 +12,10 @@ import {
   TouchableOpacity,
   View,
   ImageBackground,
+  Image,
 } from "react-native"
 import type { NavigationProp } from "@react-navigation/native"
 import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -86,27 +86,15 @@ const SignUpScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
-      <ImageBackground source={require("../images/cgpt2.png")} style={styles.backgroundImage} resizeMode="cover">
+      <ImageBackground source={require("../images/cgpt3.png")} style={styles.backgroundImage} resizeMode="cover">
         <View style={styles.contentContainer}>
           <TouchableOpacity style={styles.backButton} onPress={goToLogin}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
 
           <View style={styles.headerContainer}>
-            <View style={styles.titleContainer}>
-              <Text style={styles.logoTextOutline}>
-                WAKE<Text style={styles.logoTextHighlight}>UP</Text>WARS
-              </Text>
-              <Text style={styles.logoText}>
-                WAKE<Text style={styles.logoTextHighlight}>UP</Text>WARS
-              </Text>
-              <LinearGradient
-                colors={["#FFD700", "#FFA500"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.titleUnderline}
-              />
-            </View>
+            <Image source={require("../images/wakeupwars.png")} style={styles.logoImage} resizeMode="contain" />
+            <Text style={styles.subHeaderText}>Join the challenge</Text>
           </View>
 
           <View style={styles.formContainer}>
@@ -176,15 +164,12 @@ const SignUpScreen: React.FC<Props> = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.signupButton} onPress={handleSignUp} activeOpacity={0.8}>
-              <LinearGradient
-                colors={["#FFD700", "#FFA500"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.buttonGradient}
-              >
-                <Text style={styles.signupButtonText}>Sign Up</Text>
-              </LinearGradient>
+            <TouchableOpacity
+              style={[styles.signupButton, styles.signupButtonBackground]}
+              onPress={handleSignUp}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.signupButtonText}>Sign Up</Text>
             </TouchableOpacity>
 
             <View style={styles.termsContainer}>
@@ -238,45 +223,10 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     marginTop: 60,
   },
-  titleContainer: {
-    position: "relative",
-    alignItems: "center",
+  logoImage: {
+    width: 220,
+    height: 90,
     marginBottom: 10,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: "900",
-    color: "#fff",
-    letterSpacing: 2,
-    zIndex: 2,
-    fontStyle: "italic",
-    textShadowColor: "rgba(0, 0, 0, 0.5)",
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
-  },
-  logoTextOutline: {
-    fontSize: 32,
-    fontWeight: "900",
-    color: "transparent",
-    letterSpacing: 2,
-    position: "absolute",
-    top: 0,
-    left: 0,
-    zIndex: 1,
-    fontStyle: "italic",
-    textShadowColor: "#000",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
-  },
-  logoTextHighlight: {
-    color: "#FFD700",
-    fontWeight: "900",
-  },
-  titleUnderline: {
-    height: 4,
-    width: "80%",
-    borderRadius: 2,
-    marginTop: 5,
   },
   subHeaderText: {
     fontSize: 16,
@@ -289,7 +239,7 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: inputWidth,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: "rgba(255, 255, 240, 0.45)",
     borderRadius: 20,
     padding: 20,
     shadowColor: "#000",
@@ -338,7 +288,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   signupButtonText: {
-    color: "#fff",
+    color: "rgba(0, 0, 0, 0.8)",
     fontSize: 18,
     fontWeight: "600",
   },
@@ -377,6 +327,11 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0, 0, 0, 0.5)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
+  },
+  signupButtonBackground: {
+    backgroundColor: "rgba(255, 255, 245, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 })
 

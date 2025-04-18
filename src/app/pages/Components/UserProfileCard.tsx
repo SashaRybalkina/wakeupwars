@@ -21,7 +21,6 @@ const UserProfileCard: React.FC<Props> = ({ name, skillLevels, avatarSource }) =
         style={styles.avatar}
       />
       <Text style={styles.profileName}>{name}</Text>
-      <Text style={styles.profileLink}>View My Profile {'>'}</Text>
       <View style={styles.statsContainer}>
         {skillLevels.map((skill, index) => {
           const skillLevel =
@@ -60,6 +59,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFF',
     marginTop: 10,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   profileLink: {
     color: '#EEE',

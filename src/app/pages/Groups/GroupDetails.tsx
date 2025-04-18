@@ -1,17 +1,9 @@
-"use client"
-
-import React, { useEffect, useState } from "react"
+import type React from "react"
+import { useEffect, useState } from "react"
 import { endpoints } from "../../api"
-import {
-  ImageBackground,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native"
+import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { NavigationProp, useRoute } from "@react-navigation/native"
+import { type NavigationProp, useRoute } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import ChallengeCard from "../Challenges/ChallengeCard"
 
@@ -52,17 +44,17 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
         console.log("Fetching from:", endpoints.groupProfile(groupId))
         const response = await fetch(endpoints.groupProfile(groupId))
         const data = await response.json()
-        
+
         // Add totalDays if not present and determine if challenge is completed
         if (data.challenges) {
           const now = new Date()
           data.challenges = data.challenges.map((challenge: Challenge) => ({
             ...challenge,
             totalDays: challenge.totalDays || 30,
-            isCompleted: challenge.endDate ? new Date(challenge.endDate) < now : false
+            isCompleted: challenge.endDate ? new Date(challenge.endDate) < now : false,
           }))
         }
-        
+
         setGroupData(data)
       } catch (error) {
         console.error("Failed to fetch group details:", error)
@@ -135,25 +127,32 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
 
             <View style={styles.membersSection}>
               <Text style={styles.sectionTitle}>Members</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.membersScrollContent}
-              >
-                {groupData.members.map((member, index) => (
-                  <View key={index} style={styles.memberContainer}>
-                    <View
-                      style={[
-                        styles.memberAvatar,
-                        { backgroundColor: getRandomPastelColor(index) }
-                      ]}
-                    >
-                      <Text style={styles.memberInitials}>{getInitials(member.name)}</Text>
+              <View style={styles.membersRow}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.membersScrollContent}
+                >
+                  {groupData.members.map((member, index) => (
+                    <View key={index} style={styles.memberContainer}>
+                      <View style={[styles.memberAvatar, { backgroundColor: getRandomPastelColor(index) }]}>
+                        <Text style={styles.memberInitials}>{getInitials(member.name)}</Text>
+                      </View>
+                      <Text style={styles.memberName}>{member.name}</Text>
                     </View>
-                    <Text style={styles.memberName}>{member.name}</Text>
+                  ))}
+                </ScrollView>
+
+                <TouchableOpacity
+                  style={styles.addMemberButton}
+                  onPress={() => navigation.navigate("Friends1", { groupId: Number(groupId) })}
+                >
+                  <View style={styles.addMemberCircle}>
+                    <Ionicons name="person-add-outline" size={24} color="#FFF" />
                   </View>
-                ))}
-              </ScrollView>
+                  <Text style={styles.addMemberText}>+</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.challengesSection}>
@@ -171,11 +170,11 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
                     <TouchableOpacity
                       key={challenge.id}
                       style={styles.challengeCardWrapper}
-                      onPress={() => 
+                      onPress={() =>
                         navigation.navigate("ChallDetails", {
                           challId: challenge.id,
                           challName: challenge.name,
-                          whichChall: "Group"
+                          whichChall: "Group",
                         })
                       }
                     >
@@ -190,7 +189,7 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
                   ))}
                 </View>
               )}
-              
+
               <TouchableOpacity
                 style={styles.addNewButton}
                 onPress={() => {
@@ -206,7 +205,7 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
 
             <View style={styles.challengesSection}>
               <Text style={styles.sectionTitle}>Past Challenges</Text>
-              
+
               {pastChallenges.length === 0 ? (
                 <View style={styles.emptyStateContainer}>
                   <Ionicons name="time-outline" size={40} color="rgba(255,255,255,0.7)" />
@@ -219,11 +218,11 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
                     <TouchableOpacity
                       key={challenge.id}
                       style={styles.challengeCardWrapper}
-                      onPress={() => 
+                      onPress={() =>
                         navigation.navigate("ChallDetails", {
                           challId: challenge.id,
                           challName: challenge.name,
-                          whichChall: "Group"
+                          whichChall: "Group",
                         })
                       }
                     >
@@ -467,12 +466,47 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: "600",
   },
-  addMember: {
-    alignSelf: 'center',
-    marginBottom: 20,
-    backgroundColor: 'transparent',
+  membersContainer: {
+    flexGrow: 0,
+    maxWidth: "85%",
   },
-  
-});
+  membersWithAddContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  addMember: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 0, // Change from 10 to 0 to move it right
+  },
+  membersRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  addMemberButton: {
+    marginLeft: 10,
+    alignItems: "center",
+  },
+  addMemberCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  addMemberText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "600",
+    marginTop: 5,
+  },
+})
 
 export default GroupDetails

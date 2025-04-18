@@ -36,7 +36,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
       if (!user?.id) return
 
       try {
-        const response = await fetch(endpoints.messages(user.id))
+        const response = await fetch(endpoints.messages(Number(user.id)))
         const data = await response.json()
 
         const friends = data.filter((msg: any) => msg.recipient !== null)
