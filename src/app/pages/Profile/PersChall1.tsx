@@ -1,102 +1,115 @@
-import React, { useState } from 'react';
-import {
-  ImageBackground,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { NavigationProp, useRoute } from '@react-navigation/native';
-import { Button } from 'tamagui';
+import type React from "react"
+import { useState, useEffect } from "react"
+import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, StatusBar } from "react-native"
+import { Ionicons } from "@expo/vector-icons"
+import type { NavigationProp } from "@react-navigation/native"
+import { useUser } from "../../context/UserContext"
+import axios from "axios"
+import { endpoints } from "../../api"
+import ChallengeCard from "../Challenges/ChallengeCard"
 
 type Props = {
-  navigation: NavigationProp<any>;
-};
+  navigation: NavigationProp<any>
+}
 
 const PersChall1: React.FC<Props> = ({ navigation }) => {
-  //   const route = useRoute();
-  //   const { whichChall } = route.params as {
-  //     whichChall: string;
-  //   };
+  const { user } = useUser()
+  const [challenges, setChallenges] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const [challs, setChalls] = useState<string[][]>([
-    ['NameA', 'fnucwncjkwnl'],
-    ['NameB', 'nfenvoencklk'],
-    ['NameC', 'cneoenclknck'],
-    ['NameD', 'qowfpwhnljnv'],
-  ]);
+  useEffect(() => {
+    if (!user) return
 
-  const goToNext = () => {
-    navigation.navigate('PersChall2');
-  };
+    const fetchChallenges = async () => {
+      try {
+        setLoading(true)
+        const response = await axios.get(endpoints.challengeList(Number(user.id), "Personal"))
+        const data = response.data.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          daysCompleted: c.daysCompleted || 0,
+          startDate: c.startDate,
+          totalDays: c.totalDays ?? 30,
+          daysOfWeek: c.daysOfWeek ?? [],
+        }))
+        setChallenges(data)
+      } catch (error) {
+        console.error("Failed to fetch personal challenges:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const goToChallenges = () => navigation.navigate('Challenges');
-  const goToGroups = () => navigation.navigate('Groups');
-  const goToMessages = () => navigation.navigate('Messages');
-  const goToProfile = () => {
-    navigation.navigate('Profile');
-  };
-  
-  const Challenge: React.FC<{ name: string; text: string; index: number }> = ({
-    name,
-    text,
-    index,
-  }) => (
-    <TouchableOpacity
-      style={styles.navToChall}
-      onPress={() => {
-        setChalls((prevChall) => prevChall.filter((_, i) => i !== index));
-      }}
-    >
-      <Text style={styles.navToChallName}>{name}</Text>
-      <Text style={styles.navToChallText}>{text}</Text>
-    </TouchableOpacity>
-  );
+    fetchChallenges()
+  }, [user])
+
+  const goToChallenges = () => navigation.navigate("Challenges")
+  const goToGroups = () => navigation.navigate("Groups")
+  const goToMessages = () => navigation.navigate("Messages")
+  const goToProfile = () => navigation.navigate("Profile")
 
   return (
-    <ImageBackground
-      source={require('../../images/secondary.png')}
-      style={styles.background}
-      resizeMode="cover"
-    >
-      <View style={styles.backButtonContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={30} color="#FFF" />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.container}>
-        <Text style={styles.title}>My Personal Challenges</Text>
-        <ScrollView style={styles.scrollViewContainer}>
-          {challs.map((challenge, index) => (
-            <Challenge
-              key={index}
-              name={challenge[0] + ''}
-              text={challenge[1] + ''}
-              index={index}
-            />
-          ))}
-        </ScrollView>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <ImageBackground source={require("../../images/cgpt.png")} style={styles.background} resizeMode="cover">
+        <View style={styles.headerContainer}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={28} color="#FFF" />
+          </TouchableOpacity>
 
-        <Button
-          style={styles.addButton}
-          onPress={() => {
-            setChalls((prevChall) => [
-              ...prevChall,
-              ['test', 'befpvblwebvwbjvda'],
-            ]);
-            goToNext();
-          }}
-        >
-          <Ionicons name="add-circle-outline" size={35} color={'#FFF'} />
-          <Text style={styles.addText}>Add New</Text>
-        </Button>
-      </View>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>My Personal</Text>
+            <Text style={styles.titleSecondary}>Challenges</Text>
+
+            <View style={styles.decorativeLine} />
+          </View>
+        </View>
+
+        {challenges.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="flag-outline" size={70} color="rgba(255,255,255,0.7)" />
+            <Text style={styles.emptyStateText}>No personal challenges yet</Text>
+            <Text style={styles.emptyStateSubText}>Create a challenge to get started</Text>
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.scrollViewContainer}
+            contentContainerStyle={styles.scrollViewContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {challenges.map((challenge) => (
+              <TouchableOpacity
+                key={challenge.id}
+                onPress={() =>
+                  navigation.navigate("ChallDetails", {
+                    challId: challenge.id,
+                    challName: challenge.name,
+                    whichChall: "Personal",
+                  })
+                }
+                style={styles.challengeContainer}
+              >
+                <ChallengeCard
+                  title={challenge.name}
+                  icon={require("../../images/school.png")}
+                  daysComplete={challenge.daysCompleted}
+                  totalDays={challenge.totalDays}
+                  daysOfWeek={challenge.daysOfWeek}
+                />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate("PersChall2")}>
+          <Ionicons name="add-circle-outline" size={24} color="#FFF" style={styles.addIcon} />
+          <Text style={styles.addButtonText}>Create New Challenge</Text>
+        </TouchableOpacity>
+      </ImageBackground>
 
       <View style={styles.navBar}>
         <TouchableOpacity style={styles.navButton} onPress={goToChallenges}>
-          <Ionicons name="star" size={28} color="#FFF" />
+          <Ionicons name="star-outline" size={28} color="#FFF" />
           <Text style={styles.navText}>Challenges</Text>
         </TouchableOpacity>
 
@@ -111,117 +124,121 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navButton} onPress={goToProfile}>
-          <Ionicons name="person-outline" size={28} color="#FFD700" />
+          <Ionicons name="person" size={28} color="#FFD700" />
           <Text style={styles.activeNavText}>Profile</Text>
         </TouchableOpacity>
       </View>
-    </ImageBackground>
-  );
-};
+    </View>
+  )
+}
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   background: {
     flex: 1,
-    alignItems: 'center',
+    paddingTop: 50,
   },
-  backButtonContainer: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    zIndex: 10,
+  headerContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-  container: {
-    alignItems: 'center',
-    maxWidth: 400,
-    width: '80%',
-    marginVertical: 80,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  titleContainer: {
+    marginTop: 10,
+    paddingLeft: 10,
   },
   title: {
-    color: '#fff',
-    fontSize: 40,
-    fontWeight: '700',
-    marginBottom: 50,
-    marginTop: 40,
-    textAlign: 'center',
+    color: "#FFF",
+    fontSize: 38,
+    fontWeight: "800",
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
-  input: {
-    backgroundColor: '#fff',
-    width: 280,
-    height: 40,
-    borderRadius: 5,
-    marginBottom: 30,
+  titleSecondary: {
+    color: "#FFF",
+    fontSize: 38,
+    fontWeight: "800",
+    marginTop: -5,
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
-  selection: {
-    color: '#fff',
-    fontSize: 22.5,
-    fontWeight: '700',
-    marginHorizontal: 25,
-    marginBottom: 20,
-  },
-  underline: {
-    textDecorationLine: 'underline',
-  },
-  navToChall: {
-    width: '100%',
-    height: 80,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    borderRadius: 15,
-    marginVertical: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navToChallName: {
-    color: '#fff',
-    fontSize: 22.5,
-    fontWeight: '600',
-    marginLeft: 5,
+  decorativeLine: {
+    width: 60,
+    height: 4,
+    backgroundColor: "#FFD700",
+    borderRadius: 2,
+    marginTop: 10,
     marginBottom: 10,
   },
-  navToChallText: {
-    color: '#fff',
-    fontSize: 18,
-    marginLeft: 20,
-  },
   scrollViewContainer: {
-    width: '100%',
-    height: '50%',
-    marginBottom: 20,
-    marginTop: -10,
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  scrollViewContent: {
+    paddingBottom: 100,
+  },
+  challengeContainer: {
+    marginBottom: 15,
+    borderRadius: 16,
+    overflow: "hidden",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    width: "95%",
+    alignSelf: "center",
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingBottom: 100,
+  },
+  emptyStateText: {
+    color: "#FFF",
+    fontSize: 24,
+    fontWeight: "600",
+    marginTop: 20,
+  },
+  emptyStateSubText: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 16,
+    marginTop: 10,
   },
   addButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    width: '100%',
-    height: '10%',
-    borderRadius: 15,
-    marginTop: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    position: "absolute",
+    bottom: 100,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
-  addText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-    letterSpacing: 2,
-    marginLeft: 20,
+  addIcon: {
+    marginRight: 8,
   },
-  buttons: {
-    backgroundColor: '#211F26',
-    flexDirection: 'row',
-    height: 100,
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  button: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderRadius: 0,
-    borderWidth: 0,
-    marginBottom: 15,
+  addButtonText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
   navBar: {
     backgroundColor: "#211F26",
@@ -230,10 +247,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
     paddingBottom: 15,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
   },
   navButton: {
     justifyContent: "center",
@@ -251,6 +264,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: "600",
   },
-});
+})
 
-export default PersChall1;
+export default PersChall1

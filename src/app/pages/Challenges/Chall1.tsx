@@ -34,7 +34,7 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
 
     const fetchChallenges = async () => {
       try {
-        const response = await axios.get(endpoints.challengeList(user.id, whichChall))
+        const response = await axios.get(endpoints.challengeList(Number(user.id), whichChall))
         const data = response.data.map((c: any) => ({
           id: c.id,
           name: c.name,
