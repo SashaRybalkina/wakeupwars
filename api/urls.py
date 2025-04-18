@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView, UserMessagesView, SudokuGenerateView
+from .views import LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView, UserMessagesView
+from .views import CreateSudokuGameView, ValidateSudokuMoveView, comp
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
@@ -8,5 +9,7 @@ urlpatterns = [
     path('hello/', HelloWorldView.as_view(), name='hello'),
     path('profile/<int:user_id>/', UserProfileView.as_view(), name='user-profile'),
     path('messages/<int:user_id>/', UserMessagesView.as_view()),
-    path('sudoku/generate/', SudokuGenerateView.as_view(), name='sudoku-generate'),
+    path('sudoku/create/', CreateSudokuGameView.as_view(), name='create-sudoku'),
+    path('sudoku/validate/', ValidateSudokuMoveView.as_view(), name='validate-sudoku'),
+    # path('sudoku/complete/', CompleteSudokuGameView.as_view(), name='sudoku-complete'),
 ]
