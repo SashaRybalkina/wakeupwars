@@ -1,10 +1,11 @@
 import type React from "react"
 import { useEffect, useState } from "react"
-import { Alert, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { Alert, ImageBackground, StyleSheet, Text, TouchableOpacity, View, Animated } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { type NavigationProp, useRoute } from "@react-navigation/native"
 import UserProfileCard from "../Components/UserProfileCard"
 import { endpoints } from "../../api"
+import { LinearGradient } from "expo-linear-gradient"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -14,11 +15,9 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
   // groupId will be null if we're not navigating here to add this friend to a group
   const { friendId, groupId } = route.params as { friendId: number; groupId?: number }
-
-  console.log("Route params:", route.params)
-  console.log("Group ID:", groupId)
-
+  const [isLoading, setIsLoading] = useState(false)
   const [profileData, setProfileData] = useState<any>(null)
+  const [buttonScale] = useState(new Animated.Value(1))
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -28,7 +27,6 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
         const data = await response.json()
         console.log(data)
         setProfileData(data)
-        console.log(profileData)
       } catch (error) {
         console.error("Failed to load profile:", error)
       }
@@ -36,6 +34,58 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
 
     fetchProfile()
   }, [friendId])
+
+  const handlePressIn = () => {
+    Animated.spring(buttonScale, {
+      toValue: 0.95,
+      friction: 5,
+      tension: 300,
+      useNativeDriver: true,
+    }).start()
+  }
+
+  const handlePressOut = () => {
+    Animated.spring(buttonScale, {
+      toValue: 1,
+      friction: 3,
+      tension: 400,
+      useNativeDriver: true,
+    }).start()
+  }
+
+  const handleAddToGroup = async () => {
+    if (isLoading) return
+
+    setIsLoading(true)
+    const payload = {
+      friend_id: friendId,
+    }
+
+    try {
+      const response = await fetch(endpoints.addGroupMember(groupId!), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to add friend to group")
+      }
+
+      const data = await response.json()
+      console.log("Friend added to group", data)
+      Alert.alert("Success!", `${profileData?.name || "Friend"} has been added to your group.`, [
+        { text: "OK", onPress: () => navigation.navigate("GroupDetails", { groupId }) },
+      ])
+    } catch (err: any) {
+      Alert.alert("Error", err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const goToChallenges = () => navigation.navigate("Challenges")
   const goToGroups = () => navigation.navigate("Groups")
@@ -51,45 +101,35 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
           <Ionicons name="arrow-back" size={30} color="#FFF" />
         </TouchableOpacity>
       </View>
+
       {/* Profile Section */}
       {profileData && <UserProfileCard name={profileData.name} skillLevels={profileData.skill_levels} />}
 
+      {/* Add to Group Button */}
       {groupId !== undefined && groupId !== null && (
-        <TouchableOpacity
-          style={styles.add}
-          onPress={async () => {
-            const payload = {
-              friend_id: friendId,
-            }
-            console.log(payload)
-            fetch(endpoints.addGroupMember(groupId), {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(payload),
-            })
-              .then((res) => {
-                if (!res.ok) {
-                  return res.json().then((error) => {
-                    console.error("Error from server:", error) // This will log the error response
-                    throw new Error(error.message || "Failed to add friend to group")
-                  })
-                }
-                return res.json()
-              })
-              .then((data) => {
-                console.log("Friend added to group", data)
-                Alert.alert("Friend added to group")
-                // navigation.navigate('Challenges');
-              })
-              .catch((err) => {
-                Alert.alert("Error", err.message)
-              })
-          }}
-        >
-          <Text style={styles.addText}>Add to Group</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <Animated.View style={[{ transform: [{ scale: buttonScale }] }]}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
+              onPress={handleAddToGroup}
+              disabled={isLoading}
+            >
+              <LinearGradient
+                colors={["#FFD700", "#FFA500"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.addButton}
+              >
+                <View style={styles.buttonContent}>
+                  <Ionicons name="person-add" size={24} color="#FFF" style={styles.buttonIcon} />
+                  <Text style={styles.addText}>{isLoading ? "Adding..." : "Add to Group"}</Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
       )}
 
       {/* Navigation Bar */}
@@ -161,47 +201,51 @@ const styles = StyleSheet.create({
   },
   stat: {
     color: "#FFF",
-    fontWeight: 600,
+    fontWeight: "600",
   },
   statValue: {
     fontWeight: "bold",
     color: "#FFD700",
   },
-  add: {
-    backgroundColor: "rgba(0, 0, 0, 0.3)", // translucent black
-    borderRadius: 15,
+  buttonContainer: {
+    marginTop: 225,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  addButton: {
+    borderRadius: 30,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    minWidth: 220,
     alignItems: "center",
     justifyContent: "center",
-    width: 250,
-    height: 65,
-    marginTop: 225,
-    borderWidth: 1,
-    borderColor: "#FFF", // optional, gives it a subtle border
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.5)",
+    marginTop: 170,
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buttonIcon: {
+    marginRight: 10,
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   addText: {
     color: "white",
     fontWeight: "bold",
-    fontSize: 25,
+    fontSize: 20,
     textAlign: "center",
-  },
-  buttons: {
-    backgroundColor: "#211F26",
-    flexDirection: "row",
-    height: 100,
-    justifyContent: "space-around",
-    alignItems: "center",
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  button: {
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "transparent",
-    borderRadius: 0,
-    borderWidth: 0,
-    marginBottom: 15,
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   navBar: {
     backgroundColor: "#211F26",
