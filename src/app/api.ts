@@ -1,6 +1,7 @@
-export const BASE_URL = 'https://35fd-216-162-223-194.ngrok-free.app';
+export const BASE_URL = 'https://dc1d-216-162-223-194.ngrok-free.app';
 
 export const endpoints = {
+  // getToken
   login: `${BASE_URL}/api/login/`,
   register: `${BASE_URL}/api/register/`,
   groups: `${BASE_URL}/api/groups/`,

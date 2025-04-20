@@ -1,6 +1,6 @@
 from django.urls import re_path
-from . import consumers
+from api.sudokuStuff import consumers
 
 websocket_urlpatterns = [
-    re_path(r'ws/sudoku/(?P<game_id>\d+)/$', consumers.SudokuConsumer.as_asgi()),
+    re_path(r'ws/sudoku/(?P<game_state_id>\d+)/$', consumers.SudokuConsumer.as_asgi()),
 ]

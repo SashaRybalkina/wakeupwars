@@ -6,6 +6,7 @@ from django.contrib.auth import authenticate, get_user_model
 from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer
 from .models import Group, User
 from .models import Message
+from django.http import JsonResponse
 
 #### Sudoku Game Imports ####
 from .models import SudokuGameState, Challenge, SudokuGamePlayer, User, Game
@@ -13,8 +14,16 @@ from api.sudokuStuff.utils import validate_sudoku_move, get_or_create_game
 from sudoku import Sudoku
 import time
 from django.contrib.auth import login
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.middleware.csrf import get_token
+from asgiref.sync import async_to_sync
 
 User = get_user_model()
+
+@ensure_csrf_cookie
+def get_csrf_token(request):
+    token = get_token(request)
+    return JsonResponse({'csrfToken': token})
 
 
 class LoginView(APIView):
@@ -262,7 +271,7 @@ class CreateSudokuGameView(APIView):
 
 class ValidateSudokuMoveView(APIView):
     def post(self, request):
-        game_id = request.data.get('game_id')
+        game_id = request.data.get('game_state_id')
         index = request.data.get('index')
         value = request.data.get('value')
         user = request.user
@@ -275,7 +284,8 @@ class ValidateSudokuMoveView(APIView):
         except SudokuGameState.DoesNotExist:
             return Response({'error': 'Game not found'}, status=404)
 
-        result = validate_sudoku_move(game_state, user, index, value)
+        # result = validate_sudoku_move(game_state, user, index, value)
+        result = async_to_sync(validate_sudoku_move)(game_state.id, user, index, value)
 
         if result['is_correct']:
             return Response({

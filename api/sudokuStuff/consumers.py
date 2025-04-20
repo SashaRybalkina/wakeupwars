@@ -24,11 +24,15 @@ class SudokuConsumer(AsyncWebsocketConsumer):
 
         # Assign a color and notify others
         self.color = await self.assign_color()
-        # await self.send(text_data=json.dumps({
-        #     'type': 'player_joined',
-        #     'player': self.user.username,
-        #     'color': self.color,
-        # }))
+        
+        existing_players = await self.get_existing_players()
+
+        for player in existing_players:
+            await self.send(text_data=json.dumps({
+                'type': 'player_joined',
+                'player': player['username'],
+                'color': player['color'],
+            }))
 
         await self.channel_layer.group_send(
             self.group_name,
@@ -46,34 +50,47 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
 
         if data['type'] == 'make_move':
-            index = data['selectedIndex']
+            index = data['index']
             value = data['value']
 
             result = await validate_sudoku_move(self.game_state_id, self.user, index, value)
             row, col = divmod(index, 9)
 
-            # Broadcast move
-            await self.channel_layer.group_send(
-                self.group_name,
-                {
-                    'type': 'broadcast.move',
+            if result['is_correct']:
+                # Broadcast move
+                await self.channel_layer.group_send(
+                    self.group_name,
+                    {
+                        'type': 'broadcast.move',
+                        'cell': index,
+                        'value': value,
+                        'color': self.color,
+                        'valid': result['is_correct'],
+                    }
+                )
+
+                # If the game is now complete, broadcast that too
+                if result['is_complete']:
+                    await self.channel_layer.group_send(
+                        self.group_name,
+                        {
+                            'type': 'game.complete',
+                            # 'completed_by': self.user.username,
+                            'scores': result['scores'],
+                        }
+                    )
+
+                    
+            # only broadcast incorrect move to myself
+            else:
+                await self.send(text_data=json.dumps({
+                    'type': 'broadcast_move',
                     'cell': index,
                     'value': value,
                     'color': self.color,
                     'valid': result['is_correct'],
-                }
-            )
-
-            # If the game is now complete, broadcast that too
-            if result['is_complete']:
-                await self.channel_layer.group_send(
-                    self.group_name,
-                    {
-                        'type': 'game.complete',
-                        'completed_by': self.user.username,
-                        'time': 300,  # placeholder for now
-                    }
-                )
+            }))
+                
 
     # Handlers for broadcasting
     async def broadcast_move(self, event):
@@ -94,18 +111,18 @@ class SudokuConsumer(AsyncWebsocketConsumer):
     #         }))
 
     async def player_joined(self, event):
-    await self.send(text_data=json.dumps({
-        'type': 'player_joined',
-        'player': event['player'],
-        'color': event['color'],
-    }))
+        await self.send(text_data=json.dumps({
+            'type': 'player_joined',
+            'player': event['player'],
+            'color': event['color'],
+        }))
 
 
     async def game_complete(self, event):
         await self.send(text_data=json.dumps({
             'type': 'game_complete',
-            'completedBy': event['completed_by'],
-            'time': event['time'],
+            # 'completedBy': event['completed_by'],
+            'scores': event['scores'],
         }))
 
     # Color assignment (thread-safe)
@@ -138,3 +155,16 @@ class SudokuConsumer(AsyncWebsocketConsumer):
 
         except ObjectDoesNotExist:
             return 'black'
+
+
+    @sync_to_async
+    def get_existing_players(self):
+        players = (
+            SudokuGamePlayer.objects
+            .filter(gameState__id=self.game_state_id)
+            .exclude(player=self.user)
+            .select_related('player')
+        )
+
+        return [{'username': p.player.username, 'color': p.color} for p in players if p.color]
+

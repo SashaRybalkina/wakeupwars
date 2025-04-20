@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView, UserMessagesView
-from .views import CreateSudokuGameView, ValidateSudokuMoveView
+from .views import CreateSudokuGameView, ValidateSudokuMoveView, get_csrf_token
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
@@ -11,5 +11,5 @@ urlpatterns = [
     path('messages/<int:user_id>/', UserMessagesView.as_view()),
     path('sudoku/create/', CreateSudokuGameView.as_view(), name='create-sudoku'),
     path('sudoku/validate/', ValidateSudokuMoveView.as_view(), name='validate-sudoku'),
-    # path('sudoku/complete/', CompleteSudokuGameView.as_view(), name='sudoku-complete'),
+    path('csrf-token/', get_csrf_token, name='get-csrf-token'),
 ]

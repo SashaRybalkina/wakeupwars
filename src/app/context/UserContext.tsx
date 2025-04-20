@@ -10,15 +10,18 @@ type User = {
 type UserContextType = {
   user: User | null;
   setUser: (user: User) => void;
+  csrfToken: string | null;
+  setCsrfToken: (token: string) => void;
 };
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [csrfToken, setCsrfToken] = useState<string | null>(null);
 
   return (
-    <UserContext.Provider value={{ user, setUser }}>
+    <UserContext.Provider value={{ user, setUser, csrfToken, setCsrfToken }}>
       {children}
     </UserContext.Provider>
   );

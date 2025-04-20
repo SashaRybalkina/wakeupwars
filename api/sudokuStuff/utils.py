@@ -10,7 +10,8 @@ def get_or_create_game(challenge_id, user):
     challenge = Challenge.objects.get(id=challenge_id)
     is_multiplayer = challenge.groupID is not None # TODO: will need to eventually check if this game is multiplayer, not enough to just check
                                                     # if part of a group challenge
-    difficulty = 0.5 if is_multiplayer else 0.3  # medium for groups, easy for solo
+    # difficulty = 0.5 if is_multiplayer else 0.3  # medium for groups, easy for solo
+    difficulty = 0.1 if is_multiplayer else 0.1
 
     # Try to get existing game for this challenge
     game_state = SudokuGameState.objects.filter(challenge=challenge).first()
@@ -22,7 +23,11 @@ def get_or_create_game(challenge_id, user):
         solution = sudoku.solve().board
 
         # Create game
+        print("creating new gamestate")
+        # TODO: I'm hardcoding this for now (id 1 is sudoku)
+        sudokuGame = Game.objects.get(id=1)
         game_state = SudokuGameState.objects.create(
+            game = sudokuGame,
             challenge=challenge,
             puzzle=puzzle,
             solution=solution
@@ -69,8 +74,33 @@ def validate_sudoku_move(game_state_id, user, index, value):
     player_record.save()
 
     is_complete = game_state.puzzle == game_state.solution
+
+    if is_complete:
+        players = SudokuGamePlayer.objects.filter(gameState=game_state)
+        player_scores = []
+
+        for player in players:
+            correct = player.accuracyCount
+            incorrect = player.inaccuracyCount
+            total_attempts = correct + incorrect if (correct + incorrect) > 0 else 1
+
+            # Scoring system: scale based on accuracy
+            accuracy_score = correct / total_attempts * 100
+            player_scores.append({
+                'username': player.player.username,
+                'accuracy': correct,
+                'inaccuracy': incorrect,
+                'score': round(accuracy_score, 2)
+            })
+
+        return {
+            'is_correct': True,
+            'is_complete': True,
+            'scores': player_scores
+        }
+
     return {
         'is_correct': is_correct,
-        'is_complete': is_complete
+        'is_complete': False
     }
 
