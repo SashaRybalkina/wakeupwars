@@ -1,6 +1,7 @@
 export const BASE_URL = 'https://8267-136-38-171-186.ngrok-free.app';
 
 export const endpoints = {
+  // getToken
   login: `${BASE_URL}/api/login/`,
   register: `${BASE_URL}/api/register/`,
   groups: (userId: number) => `${BASE_URL}/api/user-groups/${userId}/`,
@@ -22,4 +23,7 @@ export const endpoints = {
   respondToFriendRequest: (requestId: number) => `${BASE_URL}/api/friend-request/respond/${requestId}/`,
   cancelFriendRequest: (requestId: number) => `${BASE_URL}/api/friend-request/delete/${requestId}/`,
   createGroup: `${BASE_URL}/api/create-group/`,
+  createSudokuGame: `${BASE_URL}/api/sudoku/create/`,
+  validateSudokuMove: `${BASE_URL}/api/sudoku/validate/`,
 };
+

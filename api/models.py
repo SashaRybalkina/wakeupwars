@@ -248,7 +248,11 @@ class SudokuGamePlayer(models.Model):
       player = models.ForeignKey(User, on_delete=models.CASCADE)
       accuracyCount = models.IntegerField()
       inaccuracyCount = models.IntegerField()
+      color = models.CharField(max_length=30, blank=True, null=True)
 
+    #   completed = models.BooleanField(default=False)
+    #   completed_at = models.DateTimeField(null=True, blank=True)
+    
       class Meta:
           db_table = 'SudokuGamePlayers'
           unique_together = ('gameState', 'player')

@@ -31,6 +31,13 @@ AUTH_USER_MODEL = 'api.User'
 
 # Application definition
 
+# TODO: not good for production but fine for development
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -40,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'api',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -69,6 +77,8 @@ TEMPLATES = [
         },
     },
 ]
+
+ASGI_APPLICATION = 'myserver.asgi.application'
 
 WSGI_APPLICATION = 'myserver.wsgi.application'
 

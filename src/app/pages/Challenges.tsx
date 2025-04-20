@@ -50,8 +50,9 @@ const Challenges: React.FC<Props> = ({ navigation }) => {
   }
 
   const goToSudoku = () => {
-    navigation.navigate("Sudoku")
-  }
+                                    // hard code for now
+    navigation.navigate('Sudoku', { challengeId: 4 });
+  };
 
   return (
     <ImageBackground source={require("../images/cgpt.png")} style={styles.background} resizeMode="cover">

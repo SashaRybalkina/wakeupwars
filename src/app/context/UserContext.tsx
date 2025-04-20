@@ -9,17 +9,24 @@ type User = {
 } | null
 
 type UserContextType = {
-  user: User
-  setUser: React.Dispatch<React.SetStateAction<User>>
-}
+  user: User | null;
+  setUser: (user: User) => void;
+  csrfToken: string | null;
+  setCsrfToken: (token: string) => void;
+};
 
 const UserContext = createContext<UserContextType | undefined>(undefined)
 
-export const UserProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User>(null)
+export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [csrfToken, setCsrfToken] = useState<string | null>(null);
 
-  return <UserContext.Provider value={{ user, setUser }}>{children}</UserContext.Provider>
-}
+  return (
+    <UserContext.Provider value={{ user, setUser, csrfToken, setCsrfToken }}>
+      {children}
+    </UserContext.Provider>
+  );
+};
 
 export const useUser = () => {
   const context = useContext(UserContext)
