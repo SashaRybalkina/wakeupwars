@@ -389,7 +389,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   
 
   return (
-    <ImageBackground source={require('../images/game.jpeg')} style={styles.background} resizeMode="cover">
+    <ImageBackground source={require('../images/cgpt.png')} style={styles.background} resizeMode="cover">
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.exitButton} onPress={() => {
@@ -499,9 +499,9 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
         )}
 
         {/* message box */}
-        <View style={styles.chatBox}>
+        {/* <View style={styles.chatBox}>
           <TextInput placeholder="Type a message..." style={styles.chatInput} />
-        </View>
+        </View> */}
       </View>
     </ImageBackground>
   );
