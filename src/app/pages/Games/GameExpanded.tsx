@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   ImageBackground,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -9,7 +8,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useRoute } from '@react-navigation/native';
-import { Button } from 'tamagui';
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -26,14 +24,8 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
     onGameSelected: (game: { id: number; name: string }) => void;
   };
 
-  const goToChallenges = () => navigation.navigate('Challenges');
-  const goToGroups = () => navigation.navigate('Groups');
-  const goToMessages = () => navigation.navigate('Messages');
-  const goToProfile = () => navigation.navigate('Profile');
-
   const selectPressed = () => {
     if (onGameSelected) {
-      // Ensure that digitValue and minuteValue are numbers, not strings
       onGameSelected({ id: gameId, name: gameName });
     }
     if (catType == 'Personal') navigation.navigate('PersChall2');
@@ -46,23 +38,38 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
       style={styles.background}
       resizeMode="cover"
     >
+      {/* Decorative elements */}
+      <View style={[styles.decorativeStar, { top: '15%', left: '15%' }]} />
+      <View style={[styles.decorativeStar, { top: '30%', right: '15%' }]} />
+      <View style={[styles.decorativeDot, { top: '5%', right: '15%' }]} />
+      <View style={[styles.decorativeDot, { bottom: '25%', right: '20%' }]} />
+      <View style={[styles.decorativeDot, { bottom: '15%', left: '10%' }]} />
+      <View style={[styles.decorativeDot, { top: '45%', left: '5%' }]} />
+      
       <View style={styles.backButtonContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
           <Ionicons name="arrow-back" size={30} color="#FFF" />
         </TouchableOpacity>
       </View>
+      
       <View style={styles.container}>
         <Text style={styles.title}>{gameName}</Text>
         <ImageBackground
           source={require('../../images/sudoku.png')}
           style={styles.gameImg}
-        ></ImageBackground>
+          imageStyle={styles.gameImgStyle}
+        />
         <Text style={styles.desc}>A logic-based, combinatorial number-placement puzzle.</Text>
-        <Text style={styles.selectButton} onPress={selectPressed}>
-          Select Game
-        </Text>
+        <TouchableOpacity
+          style={styles.selectButton}
+          onPress={selectPressed}
+        >
+          <Text style={styles.selectButtonText}>Select Game</Text>
+        </TouchableOpacity>
       </View>
-
     </ImageBackground>
   );
 };
@@ -71,6 +78,7 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
     alignItems: 'center',
+    // Gradient is handled by the background image
   },
   backButtonContainer: {
     position: 'absolute',
@@ -78,78 +86,89 @@ const styles = StyleSheet.create({
     left: 20,
     zIndex: 10,
   },
-  container: {
+  backButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
     alignItems: 'center',
-    maxWidth: 400,
-    width: '80%',
-    marginVertical: 80,
+  },
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    width: '100%',
+    paddingTop: 120,
+    paddingHorizontal: 20,
   },
   title: {
     color: '#fff',
-    fontSize: 40,
+    fontSize: 48,
     fontWeight: '700',
-    marginBottom: 50,
-    marginTop: 40,
+    marginBottom: 40,
     textAlign: 'center',
-  },
-  desc: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 25,
-    marginTop: 40,
-    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   gameImg: {
     width: 300,
     height: 300,
-  },
-  selection: {
-    color: '#fff',
-    fontSize: 22.5,
-    fontWeight: '700',
-    marginHorizontal: 25,
-    marginBottom: 20,
-  },
-  underline: {
-    textDecorationLine: 'underline',
-  },
-  scrollViewContainer: {
-    width: '100%',
-    height: '75%',
-    marginBottom: 20,
-    marginTop: -15,
-  },
-  selectButton: {
-    textAlign: 'center',
-    fontSize: 20,
-    color: '#fff',
-    fontWeight: 'bold',
-    marginTop: 10,
-    paddingVertical: 12.5,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 10,
-    width: 200,
-    height: 50,
-  },
-  buttons: {
-    backgroundColor: '#211F26',
-    flexDirection: 'row',
-    height: 100,
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  button: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderRadius: 0,
-    borderWidth: 0,
-    marginBottom: 15,
+    marginBottom: 20,
+  },
+  gameImgStyle: {
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  desc: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '500',
+    marginBottom: 40,
+    textAlign: 'center',
+    maxWidth: 300,
+    lineHeight: 28,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  selectButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  selectButtonText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  // Decorative elements
+  decorativeStar: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 12,
+    transform: [{ rotate: '45deg' }],
+  },
+  decorativeDot: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 6,
   },
 });
 

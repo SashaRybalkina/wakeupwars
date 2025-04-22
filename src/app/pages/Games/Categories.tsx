@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useRoute } from '@react-navigation/native';
-import { Button } from 'tamagui';
 import { endpoints } from '../../api';
 
 type Props = {
@@ -25,14 +24,6 @@ const Categories: React.FC<Props> = ({ navigation }) => {
     singOrMult: string;
     onGameSelected: (game: { id: number; name: string }) => void;
   };
-
-  // const [cats, setCats] = useState<string[]>([
-  //   'Math',
-  //   'Typing',
-  //   'Word Games',
-  //   'Memory',
-  //   'Physical',
-  // ]);
 
   const [cats, setCats] = useState<{ id: number; categoryName: string }[]>([]);
   
@@ -51,51 +42,54 @@ const Categories: React.FC<Props> = ({ navigation }) => {
     fetchCats();
   }, []);
 
-  const goToChallenges = () => navigation.navigate('Challenges');
-  const goToGroups = () => navigation.navigate('Groups');
-  const goToMessages = () => navigation.navigate('Messages');
-  const goToProfile = () => navigation.navigate('Profile');
-
-  // const Category: React.FC<{ name: string; index: number }> = ({
-  //   name,
-  //   index,
-  // }) => (
-  //   <TouchableOpacity
-  //     style={styles.navToCat}
-  //     onPress={() =>
-  //       navigation.navigate('Games', { name, catType, onGameSelected })
-  //     }
-  //   >
-  //     <Text style={styles.navToCatName}>{name}</Text>
-  //   </TouchableOpacity>
-  // );
-
   return (
     <ImageBackground
       source={require('../../images/tertiary.png')}
       style={styles.background}
       resizeMode="cover"
     >
+      {/* Decorative elements */}
+      <View style={[styles.decorativeStar, { top: '15%', left: '15%' }]} />
+      <View style={[styles.decorativeStar, { top: '30%', right: '15%' }]} />
+      <View style={[styles.decorativeDot, { top: '5%', right: '15%' }]} />
+      <View style={[styles.decorativeDot, { bottom: '25%', right: '20%' }]} />
+      <View style={[styles.decorativeDot, { bottom: '15%', left: '10%' }]} />
+      <View style={[styles.decorativeDot, { top: '45%', left: '5%' }]} />
+      
       <View style={styles.backButtonContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
           <Ionicons name="arrow-back" size={30} color="#FFF" />
         </TouchableOpacity>
       </View>
+      
       <View style={styles.container}>
         <Text style={styles.title}>Categories</Text>
-        <ScrollView style={styles.scrollViewContainer}>
+        <ScrollView 
+          style={styles.scrollViewContainer}
+          contentContainerStyle={styles.scrollViewContent}
+          showsVerticalScrollIndicator={false}
+        >
           {cats.map((cat, index) => (
             <TouchableOpacity
               key={cat.id}
-              style={styles.navToCat}
-              onPress={() => navigation.navigate('Games', { catType, catId: cat.id, catName: cat.categoryName, groupId, groupMembers, onGameSelected })}
+              style={styles.categoryButton}
+              onPress={() => navigation.navigate('Games', { 
+                catType, 
+                catId: cat.id, 
+                catName: cat.categoryName, 
+                groupId, 
+                groupMembers, 
+                onGameSelected 
+              })}
             >
-              <Text style={styles.navToCatName}>{cat.categoryName}</Text>
+              <Text style={styles.categoryButtonText}>{cat.categoryName}</Text>
             </TouchableOpacity>
           ))}
-          </ScrollView>
+        </ScrollView>
       </View>
-
     </ImageBackground>
   );
 };
@@ -104,6 +98,7 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
     alignItems: 'center',
+    // Gradient is handled by the background image
   },
   backButtonContainer: {
     position: 'absolute',
@@ -111,91 +106,76 @@ const styles = StyleSheet.create({
     left: 20,
     zIndex: 10,
   },
-  container: {
+  backButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
     alignItems: 'center',
-    maxWidth: 400,
-    width: '80%',
-    marginVertical: 80,
+  },
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    width: '100%',
+    paddingTop: 120,
+    paddingHorizontal: 20,
   },
   title: {
     color: '#fff',
-    fontSize: 40,
+    fontSize: 48,
     fontWeight: '700',
-    marginBottom: 50,
-    marginTop: 40,
+    marginBottom: 40,
     textAlign: 'center',
-  },
-  input: {
-    backgroundColor: '#fff',
-    width: 280,
-    height: 40,
-    borderRadius: 5,
-    marginBottom: 30,
-  },
-  selection: {
-    color: '#fff',
-    fontSize: 22.5,
-    fontWeight: '700',
-    marginHorizontal: 25,
-    marginBottom: 20,
-  },
-  underline: {
-    textDecorationLine: 'underline',
-  },
-  navToCat: {
-    width: '100%',
-    height: 80,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    borderRadius: 15,
-    marginVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navToCatName: {
-    color: '#fff',
-    fontSize: 25,
-    fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   scrollViewContainer: {
     width: '100%',
-    height: '75%',
-    marginBottom: 20,
-    marginTop: -15,
+    maxWidth: 400,
   },
-  addButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  scrollViewContent: {
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  categoryButton: {
     width: '100%',
-    height: '10%',
-    borderRadius: 15,
-    marginTop: 10,
+    height: 80,
+    backgroundColor: 'rgba(80, 90, 140, 0.5)',
+    borderRadius: 20,
+    marginVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  addText: {
+  categoryButtonText: {
     color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-    letterSpacing: 2,
-    marginLeft: 20,
+    fontSize: 28,
+    fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
-  buttons: {
-    backgroundColor: '#211F26',
-    flexDirection: 'row',
-    height: 100,
-    justifyContent: 'space-around',
-    alignItems: 'center',
+  // Decorative elements
+  decorativeStar: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    width: 24,
+    height: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 12,
+    transform: [{ rotate: '45deg' }],
   },
-  button: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderRadius: 0,
-    borderWidth: 0,
-    marginBottom: 15,
+  decorativeDot: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 6,
   },
 });
 
