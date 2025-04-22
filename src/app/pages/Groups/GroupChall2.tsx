@@ -274,7 +274,7 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
       const data = await res.json();
       console.log('Challenge created:', data);
       Alert.alert('Success', 'Challenge created successfully', [
-        { text: 'OK', onPress: () => navigation.navigate('Groups') },
+        { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId, groupMembers, refresh: Date.now() }) },
       ]);
     } catch (err: any) {
       Alert.alert('Error', err.message);
