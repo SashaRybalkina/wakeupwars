@@ -48,12 +48,7 @@ const Challenges: React.FC<Props> = ({ navigation }) => {
   const goToProfile = () => {
     navigation.navigate("Profile")
   }
-
-  const goToSudoku = () => {
-                                    // hard code for now
-    navigation.navigate('Sudoku', { challengeId: 4 });
-  };
-
+  
   return (
     <ImageBackground source={require("../images/cgpt.png")} style={styles.background} resizeMode="cover">
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
@@ -69,7 +64,6 @@ const Challenges: React.FC<Props> = ({ navigation }) => {
 
           <ChallengeButton title="Group" icon="people-outline" onPress={() => goToChall1("Group")} />
 
-          <ChallengeButton title="Sudoku" icon="grid-outline" onPress={goToSudoku} />
         </View>
       </View>
 

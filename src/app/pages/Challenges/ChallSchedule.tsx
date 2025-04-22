@@ -23,9 +23,9 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false)
   const [selectedStartDate, setSelectedStartDate] = useState(new Date())
   const [selectedEndDate, setSelectedEndDate] = useState(new Date())
-  const [allGames, setAllGames] = useState<Record<string, string[][]>>({}) // Games organized by day
-  const [visibleGames, setVisibleGames] = useState<string[][]>([]) // Games currently visible
-  const [activeDay, setActiveDay] = useState<string | null>(null) // Currently selected day
+  const [allGames, setAllGames] = useState<Record<string, string[][]>>({}) 
+  const [visibleGames, setVisibleGames] = useState<string[][]>([])
+  const [activeDay, setActiveDay] = useState<string | null>(null) 
   const [alarmSchedule, setAlarmSchedule] = useState<{ dayOfWeek: number; alarmTime: string; userName: string }[]>([])
 
   useEffect(() => {
@@ -171,6 +171,18 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const goToMessages = () => navigation.navigate("Messages")
   const goToGroups = () => navigation.navigate("Groups")
   const goToProfile = () => navigation.navigate("Profile")
+
+  const goToSudoku = () => {
+    navigation.navigate('Sudoku', { challengeId: 4 });
+  };
+
+  const handleGamePress = (game: string[], index: number) => {
+    if (game[0] === "Sudoku") {
+      goToSudoku();
+    } else {
+      removeGame(index);
+    }
+  };
 
   const formatDate = (date: Date) => {
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -326,7 +338,14 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
               >
                 <View style={styles.gamesGrid}>
                   {visibleGames.map((game, index) => (
-                    <TouchableOpacity key={index} style={styles.gameCard} onPress={() => removeGame(index)}>
+                    <TouchableOpacity 
+                      key={index} 
+                      style={[
+                        styles.gameCard,
+                        game[0] === "Sudoku" && styles.sudokuGameCard
+                      ]} 
+                      onPress={() => handleGamePress(game, index)}
+                    >
                       <Text style={styles.gameTitle}>{game[0]}</Text>
                       {game[0] !== "Sudoku" ? (
                         <>
@@ -334,11 +353,17 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
                           <Text style={styles.gameDetail}>Minutes: {game[2]}</Text>
                         </>
                       ) : (
-                        <ImageBackground
-                          source={require("../../images/sudoku.png")}
-                          style={styles.sudokuImage}
-                          resizeMode="contain"
-                        />
+                        <>
+                          <ImageBackground
+                            source={require("../../images/sudoku.png")}
+                            style={styles.sudokuImage}
+                            resizeMode="contain"
+                          />
+                          <View style={styles.playIndicator}>
+                            <Ionicons name="play-circle" size={24} color="#FFD700" />
+                            <Text style={styles.playText}>Play</Text>
+                          </View>
+                        </>
                       )}
                     </TouchableOpacity>
                   ))}
@@ -643,6 +668,12 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.1)",
     height: 120,
   },
+  sudokuGameCard: {
+    borderColor: "rgba(255, 215, 0, 0.3)",
+    backgroundColor: "rgba(60, 60, 70, 0.8)",
+    width: 140,
+    height: 160,
+  },
   gameTitle: {
     color: "#FFF",
     fontWeight: "700",
@@ -655,9 +686,20 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   sudokuImage: {
-    width: 60,
-    height: 60,
+    width: 80,
+    height: 80,
     marginTop: 5,
+  },
+  playIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 5,
+  },
+  playText: {
+    color: "#FFD700",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 4,
   },
   emptyGamesContainer: {
     backgroundColor: "rgba(30, 30, 40, 0.6)",
