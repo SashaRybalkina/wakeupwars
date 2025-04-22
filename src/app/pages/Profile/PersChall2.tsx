@@ -6,6 +6,7 @@ import DateTimePicker from "@react-native-community/datetimepicker"
 import type { NavigationProp } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import { useUser } from "../../context/UserContext"
+import { BASE_URL, endpoints } from '../../api';
 
 type Props = {
   navigation: NavigationProp<any>
@@ -62,8 +63,9 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
-    })
-  }
+    }).replace(/([AP]M)/, " $1");
+  };
+  
 
   const cleanTime = (time: string) => {
     return time.replace(/\u202f/g, "").trim()
@@ -114,22 +116,64 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
     return date.toLocaleDateString(undefined, options)
   }
 
-  const handleCreateChallenge = () => {
+  const handleCreateChallenge = async () => {
     if (!name.trim()) {
-      Alert.alert("Error", "Please enter a challenge name")
-      return
+      Alert.alert("Error", "Please enter a challenge name");
+      return;
     }
-
+  
     if (Object.keys(dayTimeMapping).length === 0) {
-      Alert.alert("Error", "Please select at least one day and set an alarm time")
-      return
+      Alert.alert("Error", "Please select at least one day and set an alarm time");
+      return;
     }
-
-    // Here you would implement the API call to create the challenge
-    Alert.alert("Success", "Personal challenge created successfully", [
-      { text: "OK", onPress: () => navigation.navigate("Profile") },
-    ])
-  }
+  
+    const payload = {
+      userId: user?.id,
+      name,
+      endDate: selectedDate.toISOString().split("T")[0],
+      schedule: selectedDays.map((day) => ({
+        day,
+        dayOfWeek: dayToInt[day],
+        time: dayTimeMapping[day],
+        games: (gamesByDay[day] || []).map(([id, name]) => ({
+          id: Number(id),
+          name,
+        })),
+      }))
+    };
+  
+    try {
+      // Step 1: Get CSRF token
+      const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
+        credentials: "include",
+      });
+      const csrfData = await csrfRes.json();
+      const csrfToken = csrfData.csrfToken;
+  
+      // Step 2: Send the POST request
+      const response = await fetch(endpoints.createPersonalChallenge, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+  
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+  
+      Alert.alert("Success", "Personal challenge created successfully", [
+        { text: "OK", onPress: () => navigation.navigate("Profile") },
+      ]);
+    } catch (error) {
+      console.error("Create challenge failed:", error);
+      Alert.alert("Error", "Failed to create challenge. Please try again.");
+    }
+  };  
+  
 
   return (
     <ImageBackground source={require("../../images/secondary.png")} style={styles.background} resizeMode="cover">
@@ -251,6 +295,7 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
                   onPress={() => {
                     navigation.navigate("Categories", {
                       catType: "Personal",
+                      singOrMult:"Multiplayer",
                       onGameSelected: (game: { id: number; name: string }) => {
                         handleGameAdd(game)
                       },

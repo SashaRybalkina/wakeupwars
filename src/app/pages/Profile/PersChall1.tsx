@@ -29,8 +29,10 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
           name: c.name,
           daysCompleted: c.daysCompleted || 0,
           startDate: c.startDate,
+          endDate: c.endDate || null,
           totalDays: c.totalDays ?? 30,
           daysOfWeek: c.daysOfWeek ?? [],
+          isCompleted: c.endDate ? new Date(c.endDate) < new Date() : false,
         }))
         setChallenges(data)
       } catch (error) {
@@ -48,6 +50,9 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
   const goToMessages = () => navigation.navigate("Messages")
   const goToProfile = () => navigation.navigate("Profile")
 
+  const currentChallenges = challenges.filter(c => !c.isCompleted)
+  const pastChallenges = challenges.filter(c => c.isCompleted)
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -60,51 +65,100 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
           <View style={styles.titleContainer}>
             <Text style={styles.title}>My Personal</Text>
             <Text style={styles.titleSecondary}>Challenges</Text>
-
             <View style={styles.decorativeLine} />
           </View>
         </View>
 
-        {challenges.length === 0 ? (
-          <View style={styles.emptyStateContainer}>
-            <Ionicons name="flag-outline" size={70} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.emptyStateText}>No personal challenges yet</Text>
-            <Text style={styles.emptyStateSubText}>Create a challenge to get started</Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading challenges...</Text>
           </View>
         ) : (
           <ScrollView
-            style={styles.scrollViewContainer}
-            contentContainerStyle={styles.scrollViewContent}
+            style={styles.scrollContainer}
+            contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {challenges.map((challenge) => (
+            <View style={styles.challengesSection}>
+              <Text style={styles.sectionTitle}>Current Challenges</Text>
+
+              {currentChallenges.length === 0 ? (
+                <View style={styles.emptyStateContainer}>
+                  <Ionicons name="flag-outline" size={40} color="rgba(255,255,255,0.7)" />
+                  <Text style={styles.emptyStateText}>No active challenges</Text>
+                  <Text style={styles.emptyStateSubText}>Create a challenge to get started</Text>
+                </View>
+              ) : (
+                <View style={styles.challengeCardsContainer}>
+                  {currentChallenges.map((challenge) => (
+                    <TouchableOpacity
+                      key={challenge.id}
+                      style={styles.challengeCardWrapper}
+                      onPress={() =>
+                        navigation.navigate("ChallDetails", {
+                          challId: challenge.id,
+                          challName: challenge.name,
+                          whichChall: "Personal",
+                        })
+                      }
+                    >
+                      <ChallengeCard
+                        title={challenge.name}
+                        icon={require("../../images/school.png")}
+                        daysComplete={challenge.daysCompleted}
+                        totalDays={challenge.totalDays}
+                        daysOfWeek={challenge.daysOfWeek}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
               <TouchableOpacity
-                key={challenge.id}
-                onPress={() =>
-                  navigation.navigate("ChallDetails", {
-                    challId: challenge.id,
-                    challName: challenge.name,
-                    whichChall: "Personal",
-                  })
-                }
-                style={styles.challengeContainer}
+                style={styles.addNewButton}
+                onPress={() => navigation.navigate("PersChall2")}
               >
-                <ChallengeCard
-                  title={challenge.name}
-                  icon={require("../../images/school.png")}
-                  daysComplete={challenge.daysCompleted}
-                  totalDays={challenge.totalDays}
-                  daysOfWeek={challenge.daysOfWeek}
-                />
+                <Text style={styles.addNewButtonText}>Add new +</Text>
               </TouchableOpacity>
-            ))}
+            </View>
+
+            <View style={styles.challengesSection}>
+              <Text style={styles.sectionTitle}>Past Challenges</Text>
+
+              {pastChallenges.length === 0 ? (
+                <View style={styles.emptyStateContainer}>
+                  <Ionicons name="time-outline" size={40} color="rgba(255,255,255,0.7)" />
+                  <Text style={styles.emptyStateText}>No past challenges</Text>
+                  <Text style={styles.emptyStateSubText}>Completed challenges will appear here</Text>
+                </View>
+              ) : (
+                <View style={styles.challengeCardsContainer}>
+                  {pastChallenges.map((challenge) => (
+                    <TouchableOpacity
+                      key={challenge.id}
+                      style={styles.challengeCardWrapper}
+                      onPress={() =>
+                        navigation.navigate("ChallDetails", {
+                          challId: challenge.id,
+                          challName: challenge.name,
+                          whichChall: "Personal",
+                        })
+                      }
+                    >
+                      <ChallengeCard
+                        title={challenge.name}
+                        icon={require("../../images/school.png")}
+                        daysComplete={challenge.daysCompleted}
+                        totalDays={challenge.totalDays}
+                        daysOfWeek={challenge.daysOfWeek}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
           </ScrollView>
         )}
-
-        <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate("PersChall2")}>
-          <Ionicons name="add-circle-outline" size={24} color="#FFF" style={styles.addIcon} />
-          <Text style={styles.addButtonText}>Create New Challenge</Text>
-        </TouchableOpacity>
       </ImageBackground>
 
       <View style={styles.navBar}>
@@ -182,14 +236,40 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 10,
   },
-  scrollViewContainer: {
+  loadingContainer: {
     flex: 1,
-    paddingHorizontal: 20,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  scrollViewContent: {
+  loadingText: {
+    color: "#FFF",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
     paddingBottom: 100,
   },
-  challengeContainer: {
+  challengesSection: {
+    marginBottom: 25,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#FFF",
+    marginTop: 10,
+    marginBottom: 15,
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  challengeCardsContainer: {
+    width: "100%",
+  },
+  challengeCardWrapper: {
     marginBottom: 15,
     borderRadius: 16,
     overflow: "hidden",
@@ -198,47 +278,40 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
-    width: "95%",
-    alignSelf: "center",
   },
   emptyStateContainer: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    paddingBottom: 100,
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    borderRadius: 15,
+    padding: 30,
   },
   emptyStateText: {
     color: "#FFF",
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "600",
-    marginTop: 20,
-  },
-  emptyStateSubText: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: 16,
     marginTop: 10,
   },
-  addButton: {
-    position: "absolute",
-    bottom: 100,
-    alignSelf: "center",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+  emptyStateSubText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 14,
+    marginTop: 5,
+  },
+  addNewButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 25,
+    alignSelf: "center",
+    marginTop: 20,
+    marginBottom: 5,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "rgba(255, 255, 255, 0.3)",
   },
-  addIcon: {
-    marginRight: 8,
-  },
-  addButtonText: {
+  addNewButtonText: {
     color: "#FFF",
     fontSize: 16,
     fontWeight: "600",
+    textAlign: "center",
   },
   navBar: {
     backgroundColor: "#211F26",

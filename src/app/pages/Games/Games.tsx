@@ -88,29 +88,6 @@ const Games: React.FC<Props> = ({ navigation }) => {
           ))}
           </ScrollView>
       </View>
-
-      <View style={styles.buttons}>
-        <Button style={styles.button} onPress={goToChallenges}>
-          <Ionicons name="star-outline" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button style={styles.button} onPress={goToGroups}>
-          <Ionicons
-            name={catType == 'Group' ? 'people' : 'people-outline'}
-            size={40}
-            color={'#FFF5CD'}
-          />
-        </Button>
-        <Button style={styles.button} onPress={goToMessages}>
-          <Ionicons name="mail-outline" size={40} color={'#FFF5CD'} />
-        </Button>
-        <Button style={styles.button} onPress={goToProfile}>
-          <Ionicons
-            name={catType == 'Personal' ? 'person' : 'person-outline'}
-            size={40}
-            color={'#FFF5CD'}
-          />
-        </Button>
-      </View>
     </ImageBackground>
   );
 };

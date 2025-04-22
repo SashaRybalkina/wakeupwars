@@ -1,4 +1,4 @@
-from datetime import timezone
+from datetime import timezone, datetime
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -24,6 +24,7 @@ from django.contrib.auth import login
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.middleware.csrf import get_token
 from asgiref.sync import async_to_sync
+import traceback
 
 User = get_user_model()
 
@@ -645,3 +646,56 @@ class ValidateSudokuMoveView(APIView):
 #         player_record.save()
 
 #         return Response({'success': True})
+
+class CreatePersonalChallengeView(APIView):
+    @transaction.atomic
+    def post(self, request):
+        data = request.data
+        try:
+            user_id = data.get("userId")
+            name = data.get("name")
+            end_date = data.get("endDate")
+            schedule = data.get("schedule") 
+
+            if not user_id or not name or not end_date or not schedule:
+                return Response({'error': 'Missing required fields.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            challenge = Challenge.objects.create(
+                name=name,
+                groupID=None,
+                startDate=datetime.now().date(),
+                endDate=end_date
+            )
+
+            ChallengeMembership.objects.create(challengeID=challenge, uID_id=user_id)
+
+            for entry in schedule:
+                time_str = entry['time']
+                games = entry['games']
+                alarm = AlarmSchedule.objects.create(
+                    uID_id=user_id,
+                    dayOfWeek=entry['dayOfWeek'],
+                    alarmTime=datetime.strptime(time_str, "%I:%M %p").time()
+                )
+                ChallengeAlarmSchedule.objects.create(
+                    challenge=challenge,
+                    alarm_schedule=alarm
+                )
+
+                game_schedule = GameSchedule.objects.create(
+                    challenge=challenge,
+                    dayOfWeek=entry['dayOfWeek']
+                )
+
+                for i, game in enumerate(games):
+                    GameScheduleGameAssociation.objects.create(
+                        game_schedule=game_schedule,
+                        game_id=game['id'],
+                        game_order=i
+                    )
+
+            return Response({'message': 'Personal challenge created successfully'}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
