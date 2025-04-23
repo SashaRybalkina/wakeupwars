@@ -21,7 +21,7 @@ type Group = {
   name: string;
   members: Friend[];
 };
-import { endpoints } from "../../api"
+import { BASE_URL, endpoints } from "../../api"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -108,11 +108,18 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
         ],
       }
 
+      const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
+        credentials: 'include',
+      });
+      const tokenData = await res.json();
+      const csrfToken = tokenData.csrfToken;
       const response = await fetch(endpoints.createGroup, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          'X-CSRFToken': csrfToken,
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       })
 

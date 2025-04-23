@@ -1,6 +1,6 @@
 import type React from "react"
 import { useState } from "react"
-import { endpoints } from "../api"
+import { BASE_URL, endpoints } from "../api"
 import {
   Alert,
   Dimensions,
@@ -56,11 +56,19 @@ const SignUpScreen: React.FC<Props> = ({ navigation }) => {
     }
 
     try {
+      const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
+        credentials: 'include',
+      });
+      const tokenData = await res.json();
+      const csrfToken = tokenData.csrfToken;
+
       const response = await fetch(endpoints.register, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          'X-CSRFToken': csrfToken,
         },
+        credentials: 'include',
         body: JSON.stringify({
           username,
           email,

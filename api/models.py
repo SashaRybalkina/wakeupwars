@@ -106,11 +106,12 @@ class GameCategory(models.Model):
 
 # Games: Games available in the system, each belong to a category
 class Game(models.Model):
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=255)
     category = models.ForeignKey(GameCategory, on_delete=models.CASCADE)
 
     class Meta:
         db_table = 'Games'
+        unique_together = ('name', 'category')
 
     def __str__(self):
         return self.name
@@ -156,7 +157,7 @@ class AlarmSchedule(models.Model):
 
     class Meta:
         db_table = 'AlarmSchedules'
-        unique_together = ('uID', 'dayOfWeek')  # Ensure one alarm per day per user
+        #unique_together = ('uID', 'dayOfWeek')  # Ensure one alarm per day per user
 
     def __str__(self):
         return f"Alarm for {self.uID.username} on {self.dayOfWeek} at {self.alarmTime}"

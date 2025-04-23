@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons"
 import type { NavigationProp } from "@react-navigation/native"
 import { ScrollView } from "tamagui"
 import { useUser } from "../../context/UserContext"
-import { endpoints } from "../../api"
+import { BASE_URL, endpoints } from "../../api"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -72,11 +72,18 @@ const FriendsRequests: React.FC<Props> = ({ navigation }) => {
     try {
       setProcessingId(requestId)
 
+      const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
+        credentials: 'include',
+      });
+      const tokenData = await res.json();
+      const csrfToken = tokenData.csrfToken;
       const response = await fetch(endpoints.respondToFriendRequest(requestId), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          'X-CSRFToken': csrfToken,
         },
+        credentials: 'include',
         body: JSON.stringify({
           accept,
         }),

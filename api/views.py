@@ -12,7 +12,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate, get_user_model
 from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer, CatSerializer, GameSerializer, FriendSerializer, FriendRequestSerializer, CreateGroupSerializer
-from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule, AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship, GroupMembership, FriendRequest
+from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule, AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship, GroupMembership, FriendRequest, SkillLevel
 from django.http import JsonResponse
 
 #### Sudoku Game Imports ####
@@ -69,10 +69,18 @@ class LoginView(APIView):
 class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save(is_active=True)
-            return Response({'success': True, **UserSerializer(user).data}, status=status.HTTP_201_CREATED)
-        return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        if not serializer.is_valid():
+            return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = serializer.save(is_active=True)
+        # Create initial SkillLevel entries
+        categories = GameCategory.objects.filter(isMultiplayer=False)
+        skill_levels = [
+            SkillLevel(user=user, category=category, totalEarned=0, totalPossible=0)
+            for category in categories
+        ]
+        SkillLevel.objects.bulk_create(skill_levels)
+        return Response({'success': True, **UserSerializer(user).data}, status=status.HTTP_201_CREATED)
 
 
 class HelloWorldView(APIView):

@@ -1,11 +1,13 @@
 import type React from "react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { endpoints } from "../../api"
 import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { type NavigationProp, useRoute } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import ChallengeCard from "../Challenges/ChallengeCard"
+import { useFocusEffect } from "@react-navigation/native"
+import { ActivityIndicator } from "react-native"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -37,35 +39,41 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
   const [groupData, setGroupData] = useState<GroupData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchGroupData = async () => {
-      setIsLoading(true)
-      try {
-        console.log("Fetching from:", endpoints.groupProfile(groupId))
-        const response = await fetch(endpoints.groupProfile(groupId))
-        const data = await response.json()
+  useFocusEffect(
+    useCallback(() => {
+      console.log("[GroupDetails] focus triggered, starting fetch");
+      setIsLoading(true);
 
-        // Add totalDays if not present and determine if challenge is completed
-        if (data.challenges) {
-          const now = new Date()
-          data.challenges = data.challenges.map((challenge: Challenge) => ({
-            ...challenge,
-            totalDays: challenge.totalDays || 30,
-            isCompleted: challenge.endDate ? new Date(challenge.endDate) < now : false,
-          }))
+      const fetchGroupData = async () => {
+        console.log("[GroupDetails] set isLoading → true");
+        setIsLoading(true)
+        try {
+          console.log("Fetching from:", endpoints.groupProfile(groupId))
+          const response = await fetch(endpoints.groupProfile(groupId))
+          const data = await response.json()
+  
+          // Add totalDays if not present and determine if challenge is completed
+          if (data.challenges) {
+            const now = new Date()
+            data.challenges = data.challenges.map((challenge: Challenge) => ({
+              ...challenge,
+              totalDays: challenge.totalDays || 30,
+              isCompleted: challenge.endDate ? new Date(challenge.endDate) < now : false,
+            }))
+          }
+  
+          setGroupData(data)
+        } catch (error) {
+          console.error("Failed to fetch group details:", error)
+        } finally {
+          setIsLoading(false)
         }
-
-        setGroupData(data)
-      } catch (error) {
-        console.error("Failed to fetch group details:", error)
-      } finally {
-        setIsLoading(false)
       }
-    }
-
-    fetchGroupData()
-  }, [groupId])
-
+  
+      fetchGroupData()
+    }, [groupId])
+  );
+    
   const goToMessages = () => navigation.navigate("Messages")
   const goToGroups = () => navigation.navigate("Groups")
   const goToChallenges = () => navigation.navigate("Challenges")
@@ -98,6 +106,7 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
 
         {isLoading ? (
           <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#FFD700" />
             <Text style={styles.loadingText}>Loading group details...</Text>
           </View>
         ) : !groupData ? (

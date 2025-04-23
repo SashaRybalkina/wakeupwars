@@ -14,6 +14,7 @@ import DateTimePicker from "@react-native-community/datetimepicker"
 import { NavigationProp, useRoute } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import { BASE_URL, endpoints } from "../../api"
+import { Platform } from "react-native"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -70,12 +71,54 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
     }
   }
 
-  const onDateChange = (_: any, date?: Date) => {
-    if (date) setSelectedDate(date)
+  // const onDateChange = (_: any, date?: Date) => {
+  //   if (date) setSelectedDate(date)
+  // }
+
+  // Android + IOS version
+  const onDateChange = (event: any, date?: Date) => {
+    if (event?.type === "dismissed") {
+      setShowDatePicker(false)
+      return
+    }
+  
+    if (date) {
+      setSelectedDate(date)
+      if (Platform.OS === "android") {
+        setShowDatePicker(false)
+      }
+    }
   }
 
-  const onTimeChange = (_: any, time?: Date) => {
-    if (time) setTempTime(time)
+  // const onTimeChange = (_: any, time?: Date) => {
+  //   if (time) setTempTime(time)
+  // }
+
+  // Android + IOS version
+  const onTimeChange = (event: any, time?: Date) => {
+    if (event?.type === "dismissed") {
+      setShowTimePicker(false)
+      return
+    }
+  
+    if (time) {
+      if (Platform.OS === "android") {
+        let formattedTime = formatTime(time)
+        formattedTime = cleanTime(formattedTime)
+  
+        const updatedMapping = { ...dayTimeMapping }
+        selectedDays.forEach((day) => {
+          updatedMapping[day] = formattedTime
+        })
+  
+        setDayTimeMapping(updatedMapping)
+        setSelectedDays([])
+        setShowTimePicker(false)
+      } else {
+        // for ios
+        setTempTime(time)
+      }
+    }
   }
 
   const formatTime = (date: Date) => {
@@ -231,7 +274,7 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
       const data = await res.json();
       console.log('Challenge created:', data);
       Alert.alert('Success', 'Challenge created successfully', [
-        { text: 'OK', onPress: () => navigation.navigate('Groups') },
+        { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId, groupMembers, refresh: Date.now() }) },
       ]);
     } catch (err: any) {
       Alert.alert('Error', err.message);
@@ -320,9 +363,14 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
                   onChange={onTimeChange}
                   textColor="#FFF"
                 />
-                <TouchableOpacity style={styles.doneButton} onPress={handleSetTime}>
+                {/* <TouchableOpacity style={styles.doneButton} onPress={handleSetTime}>
                   <Text style={styles.doneButtonText}>Done</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
+                {Platform.OS !== "android" && (
+                  <TouchableOpacity style={styles.doneButton} onPress={handleSetTime}>
+                    <Text style={styles.doneButtonText}>Done</Text>
+                  </TouchableOpacity>
+                )}      
               </View>
             )}
           </View>
@@ -400,12 +448,20 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
                   onChange={onDateChange}
                   textColor="#FFF"
                 />
-                <TouchableOpacity
+                {/* <TouchableOpacity
                   style={styles.doneButton}
                   onPress={() => setShowDatePicker(false)}
                 >
                   <Text style={styles.doneButtonText}>Done</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
+                {Platform.OS !== "android" && (
+                  <TouchableOpacity
+                    style={styles.doneButton}
+                    onPress={() => setShowDatePicker(false)}
+                  >
+                    <Text style={styles.doneButtonText}>Done</Text>
+                  </TouchableOpacity>
+                )}  
               </View>
             )}
           </View>

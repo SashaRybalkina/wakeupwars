@@ -70,9 +70,13 @@ type Props = {
 
 const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { challengeId } = route.params as {
+  const { challengeId, challName, whichChall } = route.params as {
     // is currently hard coded to 4 (the only current group challenge)
     challengeId: number;
+
+    // having these to navigate back to the schedule page
+    challName: string;
+    whichChall: string;
   };
 
   const { user } = useUser();
@@ -206,10 +210,22 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
               Alert.alert(
                 '🎉 Puzzle Complete!',
                 `\n\nScores:\n` +
-                scores
-                  .sort((a, b) => b.score - a.score)
-                  .map(s => `${s.username}: ${s.score} (✅ ${s.accuracy} / ❌ ${s.inaccuracy})`)
-                  .join('\n')
+                  scores
+                    .sort((a, b) => b.score - a.score)
+                    .map(s => `${s.username}: ${s.score} (✅ ${s.accuracy} / ❌ ${s.inaccuracy})`)
+                    .join('\n'),
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      navigation.navigate("ChallSchedule", {
+                        challId: challengeId,
+                        challName: challName,
+                        whichChall: whichChall,
+                      });
+                    },
+                  },
+                ]  
               );
               break;
             }
@@ -319,7 +335,18 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
           
             if (data.completed) {
               setGameCompleted(true);
-              Alert.alert("🎉 Puzzle Complete!");
+              Alert.alert("🎉 Puzzle Complete!", "", [
+                {
+                  text: "OK",
+                  onPress: () => {
+                    navigation.navigate("ChallSchedule", {
+                      challId: challengeId,
+                      challName: challName,
+                      whichChall: whichChall,
+                    });
+                  },
+                },
+              ]);
             }
           
           } else {
@@ -365,6 +392,16 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
   
+  // temp function for checking if the cell is already filled
+  // const checkIfBoardFilled = () => {
+  //   const allFilled = grid.every(cell => cell !== '');
+  //   if (allFilled) {
+  //     setGameCompleted(true);
+  //     Alert.alert("✅ Board Filled", "All cells have been filled. Game marked as complete.");
+  //   } else {
+  //     Alert.alert("🕵️ Not Yet", "There are still empty cells.");
+  //   }
+  // };
   
 
 
@@ -393,13 +430,20 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.exitButton} onPress={() => {
-            if (gameCompleted) navigation.navigate('Start');
+            if (gameCompleted) navigation.navigate('ChallSchedule', {
+              challId: challengeId,hallName: challName,
+              whichChall: whichChall,});
             else Alert.alert('Game in Progress', 'You cannot exit while a game is in progress.', [{ text: 'OK', style: 'cancel' }]);
           }}>
             <Text style={styles.exitText}>Exit</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Sudoku</Text>
           {/* <Text style={styles.timer}>Timer: {formatTime(timeLeft)}</Text> */}
+
+          {/*Temp function for checking board is full and exit is working*/}
+          {/* <TouchableOpacity style={styles.exitButton} onPress={checkIfBoardFilled}>
+            <Text style={styles.exitText}>Check</Text>
+          </TouchableOpacity> */}
         </View>
 
         {playerColor !== '' && (
