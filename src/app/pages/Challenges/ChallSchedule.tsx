@@ -130,25 +130,37 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
     }
   }
 
-  const onStartDateChange = (event: any, date: Date | undefined) => {
-    if (Platform.OS === "android") {
-      // Android: modal picker
-      setShowStartDatePicker(false) 
-      if (date) setSelectedStartDate(date)
-    } else {
-      // iOS: inline picker
-      if (date) setSelectedStartDate(date)
+  const onStartDateChange = (event: any, date: Date | undefined) => {    
+    if (event?.type === "dismissed") {
+      // Android Cancel
+      setShowStartDatePicker(false)
+      return
+    }
+
+    if (date) {
+      setSelectedStartDate(date)
+      if (Platform.OS === "android") {
+        // Android  OK 
+        setShowStartDatePicker(false)
+      }
     }
   }
 
   const onEndDateChange = (event: any, date: Date | undefined) => {
-    if (Platform.OS === "android") {
+    if (event?.type === "dismissed") {
+      // Android Cancel
       setShowEndDatePicker(false)
-      if (date) setSelectedEndDate(date)
-    } else {
-      // iOS: inline picker
-      if (date) setSelectedEndDate(date)
+      return
     }
+
+    if (date) {
+      setSelectedEndDate(date)
+      if (Platform.OS === "android") {
+        // Android  OK 
+        setShowEndDatePicker(false)
+      }
+    }
+
   }
 
   const addGameToDay = (game: string, attr: string[]) => {

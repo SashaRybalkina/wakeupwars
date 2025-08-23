@@ -1,6 +1,6 @@
 import type React from "react"
 import { useState } from "react"
-import { ImageBackground, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from "react-native"
+import { ImageBackground, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, Platform } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import type { NavigationProp } from "@react-navigation/native"
@@ -50,13 +50,45 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
     }
   }
 
-  const onDateChange = (_: any, date?: Date) => {
-    if (date) setSelectedDate(date)
-  }
+  // Android and IOS
+  const onDateChange = (event: any, date?: Date) => {
+    //if (date) setSelectedDate(date)
+    if (event?.type === "dismissed") {
+      setShowDatePicker(false)
+      return
+    }
+    if (date) {
+      setSelectedDate(date)
+      if (Platform.OS === "android") {
+        setShowDatePicker(false)
+      }
+    }
+  };
 
-  const onTimeChange = (_: any, time?: Date) => {
-    if (time) setTempTime(time)
-  }
+  // Android and IOS
+  const onTimeChange = (event: any, time?: Date) => {
+    //if (time) setTempTime(time)
+    if (event?.type === "dismissed") {
+      setShowTimePicker(false);
+      setTempTime(null);
+      return;
+    }
+
+    if (!time) return;
+
+    if (Platform.OS === "android") {
+      let formattedTime = cleanTime(formatTime(time));
+      const updatedMapping = { ...dayTimeMapping };
+      selectedDays.forEach((day) => {
+        updatedMapping[day] = formattedTime;
+      });
+      setDayTimeMapping(updatedMapping);
+      setShowTimePicker(false);
+      setTempTime(null);
+    } else {
+      setTempTime(time);
+    }
+  };
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], {
@@ -65,7 +97,7 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
       hour12: true,
     }).replace(/([AP]M)/, " $1");
   };
-  
+
 
   const cleanTime = (time: string) => {
     return time.replace(/\u202f/g, "").trim()
@@ -121,12 +153,12 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
       Alert.alert("Error", "Please enter a challenge name");
       return;
     }
-  
+
     if (Object.keys(dayTimeMapping).length === 0) {
       Alert.alert("Error", "Please select at least one day and set an alarm time");
       return;
     }
-  
+
     const payload = {
       userId: user?.id,
       name,
@@ -141,7 +173,8 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
         })),
       }))
     };
-  
+    console.log(payload)
+
     try {
       // Step 1: Get CSRF token
       const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
@@ -149,7 +182,7 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
       });
       const csrfData = await csrfRes.json();
       const csrfToken = csrfData.csrfToken;
-  
+
       // Step 2: Send the POST request
       const response = await fetch(endpoints.createPersonalChallenge, {
         method: "POST",
@@ -160,11 +193,11 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
         credentials: "include",
         body: JSON.stringify(payload),
       });
-  
+
       if (!response.ok) {
         throw new Error(`Server error: ${response.status}`);
       }
-  
+
       Alert.alert("Success", "Personal challenge created successfully", [
         { text: "OK", onPress: () => navigation.navigate("Profile") },
       ]);
@@ -172,8 +205,8 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
       console.error("Create challenge failed:", error);
       Alert.alert("Error", "Failed to create challenge. Please try again.");
     }
-  };  
-  
+  };
+
 
   return (
     <ImageBackground source={require("../../images/secondary.png")} style={styles.background} resizeMode="cover">
@@ -249,9 +282,14 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
                   onChange={onTimeChange}
                   textColor="#FFF"
                 />
-                <TouchableOpacity style={styles.doneButton} onPress={handleSetTime}>
+                {/* <TouchableOpacity style={styles.doneButton} onPress={handleSetTime}>
                   <Text style={styles.doneButtonText}>Done</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
+                {Platform.OS !== "android" && (
+                  <TouchableOpacity style={styles.doneButton} onPress={handleSetTime}>
+                    <Text style={styles.doneButtonText}>Done</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>
@@ -295,7 +333,7 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
                   onPress={() => {
                     navigation.navigate("Categories", {
                       catType: "Personal",
-                      singOrMult:"Multiplayer",
+                      singOrMult: "Multiplayer",
                       onGameSelected: (game: { id: number; name: string }) => {
                         handleGameAdd(game)
                       },
@@ -337,9 +375,17 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
                   onChange={onDateChange}
                   textColor="#FFF"
                 />
-                <TouchableOpacity style={styles.doneButton} onPress={() => setShowDatePicker(false)}>
+                {/* <TouchableOpacity style={styles.doneButton} onPress={() => setShowDatePicker(false)}>
                   <Text style={styles.doneButtonText}>Done</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
+                {Platform.OS !== "android" && (
+                  <TouchableOpacity
+                    style={styles.doneButton}
+                    onPress={() => setShowDatePicker(false)}
+                  >
+                    <Text style={styles.doneButtonText}>Done</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>
