@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { type NavigationProp, useRoute } from "@react-navigation/native"
@@ -131,14 +131,23 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   }
 
   const onStartDateChange = (event: any, date: Date | undefined) => {
-    if (date) {
-      setSelectedStartDate(date)
+    if (Platform.OS === "android") {
+      // Android: modal picker
+      setShowStartDatePicker(false) 
+      if (date) setSelectedStartDate(date)
+    } else {
+      // iOS: inline picker
+      if (date) setSelectedStartDate(date)
     }
   }
 
   const onEndDateChange = (event: any, date: Date | undefined) => {
-    if (date) {
-      setSelectedEndDate(date)
+    if (Platform.OS === "android") {
+      setShowEndDatePicker(false)
+      if (date) setSelectedEndDate(date)
+    } else {
+      // iOS: inline picker
+      if (date) setSelectedEndDate(date)
     }
   }
 
@@ -206,6 +215,8 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
           contentContainerStyle={styles.scrollContent}
         >
           <View style={styles.dateSection}>
+
+            {/* Start Date */}
             <View style={styles.dateContainer}>
               <Text style={styles.dateLabel}>Start date</Text>
               <Text style={styles.dateValue}>{formatDate(selectedStartDate)}</Text>
@@ -215,22 +226,25 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
             </View>
 
             {showStartDatePicker && (
-              <View style={styles.pickerContainer}>
+              <View style={Platform.OS === "ios" ? styles.pickerContainer : undefined}>
                 <DateTimePicker
                   value={selectedStartDate}
                   mode="date"
-                  display="spinner"
+                  display={Platform.OS === "android" ? "default" : "spinner"}
                   onChange={onStartDateChange}
                   textColor="#FFF"
                 />
-                <TouchableOpacity style={styles.doneButton} onPress={() => setShowStartDatePicker(false)}>
-                  <Text style={styles.doneButtonText}>Done</Text>
-                </TouchableOpacity>
+                {Platform.OS === "ios" && (
+                  <TouchableOpacity style={styles.doneButton} onPress={() => setShowStartDatePicker(false)}>
+                    <Text style={styles.doneButtonText}>Done</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
             <View style={styles.divider} />
 
+            {/* End Date */}
             <View style={styles.dateContainer}>
               <Text style={styles.dateLabel}>End date</Text>
               <Text style={styles.dateValue}>{formatDate(selectedEndDate)}</Text>
@@ -240,17 +254,19 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
             </View>
 
             {showEndDatePicker && (
-              <View style={styles.pickerContainer}>
+              <View style={Platform.OS === "ios" ? styles.pickerContainer : undefined}>
                 <DateTimePicker
                   value={selectedEndDate}
                   mode="date"
-                  display="spinner"
+                  display={Platform.OS === "android" ? "default" : "spinner"}
                   onChange={onEndDateChange}
                   textColor="#FFF"
                 />
-                <TouchableOpacity style={styles.doneButton} onPress={() => setShowEndDatePicker(false)}>
-                  <Text style={styles.doneButtonText}>Done</Text>
-                </TouchableOpacity>
+                {Platform.OS === "ios" && (
+                  <TouchableOpacity style={styles.doneButton} onPress={() => setShowEndDatePicker(false)}>
+                    <Text style={styles.doneButtonText}>Done</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>
