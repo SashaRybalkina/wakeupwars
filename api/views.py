@@ -179,6 +179,16 @@ class GroupDetailsView(APIView):
             'challenges': enriched_challenges,
             'members': members
         }, status=status.HTTP_200_OK)
+    
+
+class ChallengeInviteListView(APIView):
+    def get(self, request, user_id, group_id):
+        has_invite = GroupChallengeInvite.objects.filter(
+            uID=user_id,
+            groupID=group_id
+        ).exists()
+        
+        return Response({'has_invite': has_invite})
 
 
 class AddGroupMemberView(APIView):

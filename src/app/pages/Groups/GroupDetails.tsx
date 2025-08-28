@@ -8,6 +8,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import ChallengeCard from "../Challenges/ChallengeCard"
 import { useFocusEffect } from "@react-navigation/native"
 import { ActivityIndicator } from "react-native"
+import { useUser } from "../../context/UserContext"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -35,12 +36,21 @@ type GroupData = {
 const GroupDetails: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
   const { groupId } = route.params as { groupId: number }
+  
+  const { user } = useUser()
 
   const [groupData, setGroupData] = useState<GroupData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [hasInvite, setHasInvite] = useState(false)
+
 
   useFocusEffect(
     useCallback(() => {
+      if (!user?.id) {
+        console.error("userId is missing!");
+        return;
+      }
+
       console.log("[GroupDetails] focus triggered, starting fetch");
       setIsLoading(true);
 
@@ -63,6 +73,12 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
           }
   
           setGroupData(data)
+
+          // Check for pending invites
+          const inviteResponse = await fetch(endpoints.hasChallengeInvites(Number(user.id), groupId))
+          const inviteData = await inviteResponse.json()
+          setHasInvite(inviteData.has_invite)
+
         } catch (error) {
           console.error("Failed to fetch group details:", error)
         } finally {
@@ -71,7 +87,7 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
       }
   
       fetchGroupData()
-    }, [groupId])
+    }, [user?.id, groupId])
   );
     
   const goToMessages = () => navigation.navigate("Messages")
@@ -124,6 +140,26 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.groupTitle}>{groupData.name}</Text>
               <View style={styles.decorativeLine} />
             </View>
+
+
+            {hasInvite && (
+              <View style={{ backgroundColor: '#FFD700', padding: 10, borderRadius: 8, marginHorizontal: 20, marginBottom: 15 }}>
+                <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 16 }}>
+                  You have a challenge invite!
+                </Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("ChallengeInvite", { groupId })}
+                  style={{ marginTop: 6 }}
+                >
+                  <Text style={{ color: '#0000EE', textDecorationLine: 'underline' }}>
+                    View
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+
+
 
             <View style={styles.groupImageContainer}>
               <LinearGradient

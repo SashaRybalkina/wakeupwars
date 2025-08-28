@@ -196,6 +196,7 @@ class PendingGroupChallengeAvailability(models.Model):
 
 
 class GroupChallengeInvite(models.Model):
+    groupID = models.ForeignKey(Group, on_delete=models.CASCADE)
     pendingChall = models.ForeignKey(PendingGroupChallenge, on_delete=models.CASCADE)
     uID = models.ForeignKey(User, on_delete=models.CASCADE)
         
