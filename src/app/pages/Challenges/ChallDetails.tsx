@@ -74,6 +74,15 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
   const [isFavorite, setIsFavorite] = useState(false)
   const [progressAnim] = useState(new Animated.Value(0))
 
+// leaderboard setup
+type LeaderRow = { name: string; points: number; rank: number };
+
+const [leaderboard, setLeaderboard] = useState<LeaderRow[]>([]);
+const [lbLoading, setLbLoading] = useState(false);
+const [lbError, setLbError] = useState<string | null>(null);
+const [lbSince, setLbSince] = useState<string | null>(null);
+const [lbUntil, setLbUntil] = useState<string | null>(null);
+
   const getDayLabel = (day: number): string => {
     console.log("Day passed to getDayLabel:", day);
     console.log("Mapped label:", DayOfWeekLabels[day as DayOfWeek]);
@@ -119,6 +128,42 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
     fetchChallengeDetails();
   }, []);
 
+  // AI generated
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        setLbLoading(true);
+        setLbError(null);
+
+        const res = await axios.get(endpoints.leaderboard(challId));
+        // The backend may return either an array or an object with metadata
+        //  - Array: [{ name, points, rank }, ...]
+        //  - Object: { since, until, leaderboard: [...] }
+        const data = res.data;
+        console.log(data);
+
+        if (Array.isArray(data)) {
+          setLeaderboard(data as LeaderRow[]);
+          setLbSince(null);
+          setLbUntil(null);
+        } else if (data && Array.isArray(data.leaderboard)) {
+          setLeaderboard(data.leaderboard as LeaderRow[]);
+          setLbSince(data.since ?? null);
+          setLbUntil(data.until ?? null);
+        } else {
+          setLeaderboard([]);
+        }
+      } catch (e) {
+        setLbError("Failed to load leaderboard");
+        setLeaderboard([]);
+      } finally {
+        setLbLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+  }, [challId]);
+
   useEffect(() => {
     // Animate progress bar
     Animated.timing(progressAnim, {
@@ -127,13 +172,6 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
       useNativeDriver: false,
     }).start()
   }, [daysComplete, totalDays])
-
-  const leaderboard = [
-    { name: "Pers1", points: 928, rank: 1 },
-    { name: "Pers2", points: 800, rank: 2 },
-    { name: "Pers3", points: 700, rank: 3 },
-    { name: "Pers4", points: 0, rank: 50 },
-  ]
 
   const goToMessages = () => navigation.navigate("Messages")
   const goToGroups = () => navigation.navigate("Groups")
@@ -231,33 +269,50 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
           </View>
 
           {/* Leaderboard Section */}
-          <View style={styles.leaderboardCard}>
-            <View style={styles.leaderboardHeader}>
-              <Ionicons name="trophy" size={24} color="#FFD700" style={styles.trophyIcon} />
-              <Text style={styles.leaderboardTitle}>RANKING</Text>
-            </View>
-
-            {leaderboard.map((person, index) => (
-              <View key={index} style={styles.rankItem}>
-                <View style={styles.rankPosition}>
-                  <Text style={styles.rankEmoji}>{getRankEmoji(person.rank)}</Text>
-                </View>
-                <Text style={styles.rankName}>{person.name}</Text>
-                <Text style={styles.rankPoints}>{person.points} pts</Text>
-              </View>
-            ))}
-
-            <TouchableOpacity style={styles.viewDetailsButton}>
-              <LinearGradient
-                colors={["#FFD700", "#FFA500"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.viewDetailsGradient}
-              >
-                <Text style={styles.viewDetailsText}>View leaderboard details</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+        <View style={styles.leaderboardCard}>
+          <View style={styles.leaderboardHeader}>
+            <Ionicons name="trophy" size={24} color="#FFD700" style={styles.trophyIcon} />
+            <Text style={styles.leaderboardTitle}>RANKING</Text>
           </View>
+
+          {/* Optional: show active date window */}
+          {lbSince && lbUntil && (
+            <Text style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", marginBottom: 8, fontSize: 12 }}>
+              Window: {lbSince} – {lbUntil}
+            </Text>
+          )}
+
+          {lbLoading && <Text style={{ color: "#FFF", textAlign: "center" }}>Loading…</Text>}
+          {lbError && <Text style={{ color: "#F88", textAlign: "center" }}>{lbError}</Text>}
+
+          {!lbLoading && !lbError && leaderboard.length === 0 && (
+            <Text style={{ color: "rgba(255,255,255,0.8)", textAlign: "center" }}>
+              No scores yet — be the first!
+            </Text>
+          )}
+
+          {!lbLoading && !lbError && leaderboard.map((person, index) => (
+            <View key={`${person.name}-${index}`} style={styles.rankItem}>
+              <View style={styles.rankPosition}>
+                <Text style={styles.rankEmoji}>{getRankEmoji(person.rank)}</Text>
+              </View>
+              <Text style={styles.rankName}>{person.name}</Text>
+              <Text style={styles.rankPoints}>{person.points} pts</Text>
+            </View>
+          ))}
+
+          <TouchableOpacity style={styles.viewDetailsButton}>
+            <LinearGradient
+              colors={["#FFD700", "#FFA500"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.viewDetailsGradient}
+            >
+              <Text style={styles.viewDetailsText}>View leaderboard details</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
 
           {/* Challenge Stats */}
           <View style={styles.statsCard}>

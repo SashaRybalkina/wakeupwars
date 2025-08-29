@@ -84,6 +84,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   // will only have a color if in a multiplayer game
   const [playerColor, setPlayerColor] = useState<string>('');
   const [playerColors, setPlayerColors] = useState<Record<string, string>>({});
+  const [gameId, setGameId] = useState<number | null>(null);
   // {
   //   "alice": "aqua",
   //   "bob": "orange"
@@ -101,6 +102,31 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   // const [pendingInput, setPendingInput] = useState<string>('');
 
   // const formatTime = (sec: number) => `${Math.floor(sec / 60)}:${sec % 60 < 10 ? '0' + sec % 60 : sec % 60}`;
+
+  // AI - Save scores
+   const saveScores = async (payload: {
+     challenge_id: number;
+     game_id?: number;
+     game_name?: string;
+     date?: string;
+     scores: { username: string; score: number; accuracy?: number; inaccuracy?: number }[];
+   }) => {
+     try {
+       const token = await fetch(`${BASE_URL}/api/csrf-token/`, { credentials: 'include' });
+       console.log('[debug] token status', token.status);
+       const { csrfToken } = await token.json();
+       console.log('[debug] submitGameScores →', endpoints.submitGameScores);
+       await fetch(endpoints.submitGameScores, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+         credentials: 'include',
+         body: JSON.stringify(payload),
+       });
+
+     } catch (e) {
+       console.error('Failed to submit scores', e);
+     }
+   };
 
   // INITIALIZE GAME
   const initGame = async () => {
@@ -124,8 +150,8 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   
       const data = await res.json();
       console.log("Response data:", data); // Check the response from the server
-  
-      const { game_state_id, puzzle, is_multiplayer } = data;
+
+      const { game_id, game_state_id, puzzle, is_multiplayer } = data;
 
       const board = puzzle as number[][];
       if (!Array.isArray(board)) {
@@ -133,19 +159,58 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
         return; // Or handle the case where puzzle is not an array
       }
       setGameStateId(game_state_id);
-  
-      // Set up board
-      const flatten = (board: number[][]): string[] =>
-        board.flat().map((n) => (n === null || n === 0 ? '' : n.toString()));
-  
-      setGrid(flatten(puzzle));
-      setInitialCells(flatten(puzzle).map((n) => n !== ''));
+      setGameId(game_id);
+
+      // AI - Turn a fully-filled board into a playable one by blanking N cells at random
+      const makePlayable = (flat: string[], blanks = 1) => {
+        const result = [...flat];
+        const idxs = Array.from({ length: result.length }, (_, i) => i);
+
+        // shuffle a bit
+        for (let i = idxs.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [idxs[i], idxs[j]] = [idxs[j], idxs[i]];
+        }
+
+        let removed = 0;
+        for (const i of idxs) {
+          if (removed >= blanks) break;
+          result[i] = '';   // blank it out
+          removed++;
+        }
+        return result;
+      };
+
+      // AI - Set up board
+     const flatten = (board: number[][]): string[] => {
+       const out: string[] = [];
+       for (let r = 0; r < (board?.length ?? 0); r++) {
+         const row = board[r] || [];
+         for (let c = 0; c < row.length; c++) {
+           const n = row[c];
+           out.push(n === null || n === 0 ? '' : String(n));
+         }
+       }
+       return out;
+     };
+
+      const flat = flatten(puzzle);
+      // If the puzzle is fully filled (no blanks), make it playable for single player.
+      // (Keep the original if the server already gave us a proper puzzle with blanks.)
+      const isFullyFilled = flat.every((s) => s !== '');
+
+      // If you can detect single-player here, use that too; otherwise, just fix fully-filled boards.
+      const playable = isFullyFilled ? makePlayable(flat, 1) : flat;
+
+      setGrid(playable);
+      setInitialCells(playable.map((n) => n !== ''));
       setCellColors(Array(81).fill('white'));
       // setTimeLeft(300);
       setGameCompleted(false);
       setSelectedIndex(null);
       // setPendingInput('');
-  
+
+
       // WebSocket connection for multiplayer
       if (is_multiplayer) {
         const ws = new WebSocket(`${BASE_URL.replace(/^http/, 'ws')}/ws/sudoku/${game_state_id}/`);
@@ -206,47 +271,50 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
         
             case 'game_complete': {
               const { scores } = data;
-            
+
+              (async () => {
+                try {
+                  await saveScores({
+                    challenge_id: challengeId,
+                    ...(gameId ? { game_id: gameId } : { game_name: 'Sudoku' }),
+                    date: new Date().toISOString().slice(0,10), // to fetch today's game data
+                    scores: scores.map(s => ({
+                      username: s.username,
+                      score: s.score,
+                      accuracy: s.accuracy,
+                      inaccuracy: s.inaccuracy,
+                    })),
+                  });
+                } catch (err) {
+                  console.error("submit score failed", err);
+                }
+              })();
+
               Alert.alert(
-                '🎉 Puzzle Complete!',
+                "🎉 Puzzle Complete!",
                 `\n\nScores:\n` +
                   scores
                     .sort((a, b) => b.score - a.score)
                     .map(s => `${s.username}: ${s.score} (✅ ${s.accuracy} / ❌ ${s.inaccuracy})`)
-                    .join('\n'),
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => {
-                      navigation.navigate("ChallSchedule", {
-                        challId: challengeId,
-                        challName: challName,
-                        whichChall: whichChall,
-                      });
-                    },
-                  },
-                ]  
+                    .join("\n"),
+                [{ text: "OK", onPress: () => navigation.navigate("ChallSchedule", { challId: challengeId, challName, whichChall }) }]
               );
               break;
             }
-            
-        
             default:
               console.warn('Unknown message type', data);
           }
         };
-  
+
         ws.onerror = (error) => console.error("[WebSocket] Error:", error);
         ws.onclose = () => console.log("[WebSocket] closed");
-  
+
         setSocket(ws);
       }
     } catch (error) {
       console.error('Init failed', error);
     }
   };
-  
-  
 
   // const restartGame = async () => {
   //   if (intervalId) clearInterval(intervalId);
@@ -276,12 +344,12 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
       }
     };
   }, []);
-  
+
 
 
   const confirmMove = async (index: number, value: number) => {
     try {
-      if (index !== null) {  
+      if (index !== null) {
         if (socket) {
           // Multiplayer — send over socket
           const message = {
@@ -300,7 +368,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
 
           const res = await fetch(endpoints.validateSudokuMove, {
             method: 'POST',
-            headers: { 
+            headers: {
               'Content-Type': 'application/json',
               'X-CSRFToken': csrfToken,
             },
@@ -311,19 +379,19 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
             }),
             credentials: 'include',
           });
-  
+
           const data = await res.json();
 
           if (data.success) {
             console.log("correct");
-          
+
             // Update the grid with the new puzzle values
             setGrid(prevGrid => {
               const updatedGrid = [...prevGrid];
               updatedGrid[index] = value.toString(); // Update the cell with the correct value
               return updatedGrid;
             });
-          
+
             // Reset the color to white if the previous color was red
             setCellColors(prevColors => {
               const updatedColors = [...prevColors];
@@ -332,23 +400,29 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
               }
               return updatedColors;
             });
-          
+
             if (data.completed) {
               setGameCompleted(true);
-              Alert.alert("🎉 Puzzle Complete!", "", [
-                {
-                  text: "OK",
-                  onPress: () => {
-                    navigation.navigate("ChallSchedule", {
-                      challId: challengeId,
-                      challName: challName,
-                      whichChall: whichChall,
+
+              (async () => {
+                if (user?.username) {
+                  try {
+                    await saveScores({
+                      challenge_id: challengeId,
+                      ...(gameId ? { game_id: gameId } : { game_name: 'Sudoku' }),
+                      date: new Date().toISOString().slice(0,10),
+                      scores: [{ username: user.username, score: 100 }],
                     });
-                  },
-                },
-              ]);
+                  } catch (e) {
+                    console.error("submit score failed", e);
+                  }
+                }
+                Alert.alert("🎉 Puzzle Complete!", "", [
+                  { text: "OK", onPress: () => navigation.navigate("ChallSchedule", { challId: challengeId, challName, whichChall }) },
+                ]);
+              })();
             }
-          
+
           } else {
             // If the move is incorrect, set the color to red
             setCellColors(prevColors => {
@@ -357,8 +431,8 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
               return updatedColors;
             });
           }
-          
-  
+
+
           // if (data.success) {
           //   console.log("correct");
           //   const updatedGrid = data.puzzle.flat().map((n: number) => n ? n.toString() : '');
@@ -369,7 +443,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
           //     updatedColors[index] = 'white';
           //     setCellColors(updatedColors);
           //   }
-  
+
           //   if (data.completed) {
           //     setGameCompleted(true);
           //     // if (intervalId) clearInterval(intervalId);
@@ -391,7 +465,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
       setSelectedIndex(null);
     }
   };
-  
+
   // temp function for checking if the cell is already filled
   // const checkIfBoardFilled = () => {
   //   const allFilled = grid.every(cell => cell !== '');
@@ -402,7 +476,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   //     Alert.alert("🕵️ Not Yet", "There are still empty cells.");
   //   }
   // };
-  
+
 
 
   // // Handle cell deletion
@@ -414,16 +488,15 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   //     const newGrid = [...grid];
   //     newGrid[selectedIndex] = '';
   //     setGrid(newGrid);
-  
+
   //     const newColors = [...cellColors];
   //     newColors[selectedIndex] = 'white';
   //     setCellColors(newColors);
-  
+
   //     setSelectedIndex(null);
   //     // setPendingInput('');
   //   }
   // };
-  
 
   return (
     <ImageBackground source={require('../images/cgpt.png')} style={styles.background} resizeMode="cover">
