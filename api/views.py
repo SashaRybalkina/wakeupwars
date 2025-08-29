@@ -445,79 +445,6 @@ class CreateGroupView(APIView):
     
 ################### Sudoku Game ###################
 
-# """"
-# This view creates a new sudoku game for a challenge.
-
-# Takes challenge_id and game_id from frontend.
-
-# Generates puzzle + solution using sudoku library.
-
-# Saves puzzle/solution in DB with the given challenge.
-
-# Sends back puzzle and game_id so frontend can render it.
-# """
-# class CreateSudokuGameView(APIView):
-#     def post(self, request):
-#         challenge_id = request.data.get('challenge_id')  
-#         difficulty_level = request.data.get('difficulty', 'easy')  # default
-#         mode = request.data.get('mode', 'single')  # 'single' or 'multi'
-
-#         if not challenge_id :
-#             return Response({'error': 'Missing challenge_id or game_id'}, status=status.HTTP_400_BAD_REQUEST)
-
-#         try:
-#             challenge = Challenge.objects.get(id=challenge_id)
-#         except Challenge.DoesNotExist:
-#             return Response({'error': 'Challenge not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-#         try:
-#             game = Game.objects.get(name="Sudoku")
-#         except Game.DoesNotExist:
-#             return Response({'error': 'Game "Sudoku" not found'}, status=500)
-
-#         # Difficulty setting based on mode
-#         if mode == 'multi':
-#             difficulty_level = 'medium'
-#             difficulty = 0.6  # fixed difficulty for multiplayer
-#             existing_game = SudokuGameState.objects.filter(challenge=challenge, game=game).first()
-#             if existing_game:
-#                 return Response({
-#                     'game_id': existing_game.id,
-#                     'puzzle': existing_game.puzzle,
-#                     'player_color' : "green",
-#                     'is_multiplayer': true,
-#                     'difficulty': difficulty_level,
-#                     'mode': mode,}, status=status.HTTP_200_OK)                
-#         else:
-#             difficulty_map = {
-#                 'easy': 0.05,
-#                 'medium': 0.6,
-#                 'hard': 0.75,
-#             }
-#             difficulty = difficulty_map.get(difficulty_level, 0.4)
-
-#         # Generate Sudoku puzzle and solution
-#         sudoku = Sudoku(3, 3, seed=int(time.time() * 1000)).difficulty(difficulty)
-#         puzzle = sudoku.board
-#         solution = sudoku.solve().board
-
-#         # Save game state
-#         game_state = SudokuGameState.objects.create(
-#             game=game,
-#             challenge=challenge,
-#             puzzle=puzzle,
-#             solution=solution
-#         )
-
-#         return Response({
-#             'game_id': game_state.id,
-#             'puzzle': puzzle,
-#             'difficulty': difficulty_level,
-#             'mode': mode,
-#         }, status=status.HTTP_201_CREATED)
-
-
-
 class CreateSudokuGameView(APIView):
     """
     Called when a player wants to start or join a Sudoku game for a challenge.
@@ -546,81 +473,6 @@ class CreateSudokuGameView(APIView):
         game_data = get_or_create_game(challenge_id, user)
 
         return Response(game_data, status=status.HTTP_200_OK)
-
-    
-
-# class ValidateSudokuMoveView(APIView):
-#     """
-#     ONly for single player mode.
-
-#         Frontend sends:
-#       - game_id: the id of the Sudoku game
-#       - index: a number from 0 to 80 representing the cell position
-#       - value: the number the user wants to input (as integer)
-
-#         Backend checks:
-#       - Looks up the correct solution from the database
-#       - If value matches the solution at that index:
-#           - Updates the puzzle (marks cell with value)
-#           - Returns "correct" and the new puzzle
-#       - If value is wrong:
-#           - Returns "incorrect" and does not change puzzle
-#     """
-#     def post(self, request):
-#         game_id = request.data.get('game_id')
-#         index = request.data.get('index')
-#         value = request.data.get('value')
-
-#         if game_id is None or index is None or value is None:
-#             return Response({'error': 'Missing parameters'}, status=status.HTTP_400_BAD_REQUEST)
-
-#         try:
-#             game_state = SudokuGameState.objects.get(id=game_id)
-#         except SudokuGameState.DoesNotExist:
-#             return Response({'error': 'Game not found'}, status=status.HTTP_404_NOT_FOUND)
-
-#         row, col = divmod(index, 9)
-
-#         correct_value = game_state.solution[row][col]
-
-#         print(f"[Backend] Checking cell ({row}, {col})")
-#         print(f"[Backend] Correct value: {correct_value}")
-#         print(f"[Backend] User input: {value}")
-
-#         # --- user answer correct or not ---
-#         is_correct = (correct_value == value)
-
-#         # --- update the answer status ---
-#         if request.user and request.user.is_authenticated:
-#             player_record, _ = SudokuGamePlayer.objects.get_or_create(
-#                 gameState=game_state,
-#                 player=request.user,
-#                 defaults={'accuracyCount': 0, 'inaccuracyCount': 0}
-#             )
-
-#             if is_correct:
-#                 player_record.accuracyCount += 1
-#             else:
-#                 player_record.inaccuracyCount += 1
-
-#             player_record.save()
-
-#         if is_correct:
-#             game_state.puzzle[row][col] = value
-#             game_state.save()
-
-#             is_complete = game_state.puzzle == game_state.solution
-#             # TODO: if is_complete, send scores and remove the SudokuGameState from SudokuGameStates (as well as remove the players 
-#             # from SudokuGamePlayers)
-
-#             return Response({
-#                 'success': True,
-#                 'result': 'correct',
-#                 'puzzle': game_state.puzzle,
-#                 'completed': is_complete  
-#             }, status=status.HTTP_200_OK)
-#         else:
-#             return Response({'success': False, 'result': 'incorrect', 'puzzle': game_state.puzzle}, status=status.HTTP_200_OK)
 
 
 class ValidateSudokuMoveView(APIView):
@@ -655,35 +507,6 @@ class ValidateSudokuMoveView(APIView):
                 'puzzle': game_state.puzzle
             }, status=200)
 
-
-
-# class CompleteSudokuGameView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         game_id = request.data.get('game_id')
-
-#         if not game_id:
-#             return Response({'error': 'Missing game_id'}, status=status.HTTP_400_BAD_REQUEST)
-
-#         try:
-#             game_state = SudokuGameState.objects.get(id=game_id)
-#         except SudokuGameState.DoesNotExist:
-#             return Response({'error': 'Game not found'}, status=status.HTTP_404_NOT_FOUND)
-
-#         try:
-#             player_record = SudokuGamePlayer.objects.get(gameState=game_state, player=request.user)
-#         except SudokuGamePlayer.DoesNotExist:
-#             return Response({'error': 'Player not found for this game'}, status=status.HTTP_404_NOT_FOUND)
-
-#         if player_record.completed:
-#             return Response({'success': True, 'message': 'Already completed'})
-
-#         player_record.completed = True
-#         player_record.completed_at = timezone.now()
-#         player_record.save()
-
-#         return Response({'success': True})
 
 class CreatePersonalChallengeView(APIView):
     @transaction.atomic
