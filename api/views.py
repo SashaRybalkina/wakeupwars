@@ -1,10 +1,13 @@
-from datetime import timezone, datetime
+from datetime import timezone, datetime, date
+from datetime import date as date_cls
+from django.db.models import Sum, F
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework import generics, permissions
 from rest_framework import status
 from django.db import transaction
 from datetime import time
@@ -16,8 +19,9 @@ from .models import Group, User, Message, Challenge, ChallengeMembership, GroupM
 from django.http import JsonResponse
 
 #### Sudoku Game Imports ####
-from .models import SudokuGameState, Challenge, SudokuGamePlayer, User, Game
+from .models import SudokuGameState, Challenge, SudokuGamePlayer, User, Game, GamePerformance
 from api.sudokuStuff.utils import validate_sudoku_move, get_or_create_game
+from .serializers import ChallengeSummarySerializer
 from sudoku import Sudoku
 import time
 from django.contrib.auth import login
@@ -49,10 +53,8 @@ class LoginView(APIView):
             user = User.objects.get(username=username)
         except User.DoesNotExist:
             return Response({'success': False, 'error': 'Username does not exist'}, status=status.HTTP_404_NOT_FOUND)
-            return Response({'success': False, 'error': 'Username does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
         if not user.check_password(password):
-            return Response({'success': False, 'error': 'Incorrect password'}, status=status.HTTP_401_UNAUTHORIZED)
             return Response({'success': False, 'error': 'Incorrect password'}, status=status.HTTP_401_UNAUTHORIZED)
 
         if not user.is_active:
@@ -63,8 +65,6 @@ class LoginView(APIView):
 
         serializer = UserSerializer(user)
         return Response({'success': True, **serializer.data})
-
-
 
 class RegisterView(APIView):
     def post(self, request):
@@ -545,6 +545,15 @@ class CreateSudokuGameView(APIView):
 
         game_data = get_or_create_game(challenge_id, user)
 
+        # Add game id so that inside the db, they are unique (Right now they're all just 'sudoku')
+        try:
+            state_id = game_data.get("game_state_id")
+            if state_id:
+                state = SudokuGameState.objects.get(id=state_id)
+                game_data["game_id"] = state.game_id  # make game_id explicit
+        except SudokuGameState.DoesNotExist:
+            pass
+
         return Response(game_data, status=status.HTTP_200_OK)
 
     
@@ -737,3 +746,116 @@ class CreatePersonalChallengeView(APIView):
         except Exception as e:
             traceback.print_exc()
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# AI was used to help generate this class
+class ChallengeLeaderboardView(APIView):
+    """
+    GET /challenge-leaderboard/<chall_id>/?since=YYYY-MM-DD&until=YYYY-MM-DD
+    Window defaults to [challenge.startDate, min(challenge.endDate, today)].
+    Returns [{ name, points, rank }]
+    """
+    def get(self, request, chall_id):
+        # 1) Load challenge to get its window
+        challenge = get_object_or_404(Challenge, id=chall_id)
+
+        # 2) Compute default window: start = startDate, end = min(endDate, today)
+        default_since = challenge.startDate
+        default_until = min(challenge.endDate, date.today())
+
+        # 3) Allow explicit overrides via query params
+        since_param = request.GET.get("since")
+        until_param = request.GET.get("until")
+
+        since = since_param or default_since
+        until = until_param or default_until
+
+        # 4) Filter performances for that challenge within the window (inclusive)
+        qs = GamePerformance.objects.filter(
+            challenge_id=chall_id,
+            date__gte=challenge.startDate,
+            date__lte=min(challenge.endDate, date.today())
+        )
+
+        # 5) Aggregate per user and order by points (tie-break by name)
+        rows = (qs.values("user_id", "user__name")
+                .annotate(points=Sum("score"))
+                .order_by("-points", "user__name"))
+
+        # 6) Dense-rank in Python (DB-agnostic)
+        data, last_points, rank = [], None, 0
+        for r in rows:
+            if r["points"] != last_points:
+                rank += 1
+                last_points = r["points"]
+            data.append({
+                "name": r["user__name"] or "Anonymous",
+                "points": int(r["points"] or 0),
+                "rank": rank,
+            })
+
+        return Response({
+            "since": str(since),
+            "until": str(until),
+            "challenge": {"id": challenge.id, "startDate": str(challenge.startDate), "endDate": str(challenge.endDate)},
+            "leaderboard": data
+        }, status=status.HTTP_200_OK)
+
+# AI generated
+class SubmitGameScoresView(APIView):
+    """
+    POST /submit-game-scores/
+    Body: { challenge_id, game_name|game_id, date?, scores: [{username|user_id, score, ...}] }
+    """
+    def post(self, request):
+        data = request.data
+        challenge_id = data.get("challenge_id")
+        game_id = data.get("game_id")
+        game_name = data.get("game_name")
+        scores = data.get("scores", [])
+        date_str = data.get("date")  # 'YYYY-MM-DD' or null
+
+        if not challenge_id or not scores or not (game_id or game_name):
+            return Response({"detail": "Missing required fields."}, status=status.HTTP_400_BAD_REQUEST)
+
+        challenge = get_object_or_404(Challenge, id=challenge_id)
+
+        if game_id:
+            game = get_object_or_404(Game, id=game_id)
+        else:
+            qs = Game.objects.filter(name=game_name).order_by('id')
+            if not qs.exists():
+                return Response({"detail": "Unknown game_name"}, status=400)
+            # pick the earliest (or latest) created row deterministically
+            game = qs.first()
+
+        play_date = date_cls.fromisoformat(date_str) if date_str else date_cls.today()
+
+        created_or_updated = 0
+        with transaction.atomic():
+            for row in scores:
+                user = None
+                if "user_id" in row:
+                    user = get_object_or_404(User, id=row["user_id"])
+                elif "username" in row:
+                    user = get_object_or_404(User, username=row["username"])
+                else:
+                    return Response({"detail": "Each score needs username or user_id."}, status=400)
+
+                sc = int(row.get("score", 0))
+
+                # Idempotent upsert: one row per (challenge, game, user, date)
+                obj, created = GamePerformance.objects.update_or_create(
+                    challenge=challenge, game=game, user=user, date=play_date,
+                    defaults={"score": sc}
+                )
+                # If prefer to accumulate multiple plays in one day:
+                # if created: obj.score = sc
+                # else: obj.score = F('score') + sc; obj.save(update_fields=['score'])
+                created_or_updated += 1
+
+        return Response({"ok": True, "count": created_or_updated}, status=status.HTTP_200_OK)
+
+class ChallengeUpdateView(generics.UpdateAPIView):
+    queryset = Challenge.objects.all()
+    serializer_class = ChallengeSummarySerializer      # use the one you have
+    permission_classes = [permissions.IsAdminUser]

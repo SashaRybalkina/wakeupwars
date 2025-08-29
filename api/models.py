@@ -213,6 +213,7 @@ class GamePerformance(models.Model):
 
     class Meta:
         db_table = 'GamePerformances'
+        unique_together = ('challenge', 'game', 'user', 'date')
 
     def __str__(self):
         return f"Performance by {self.user.username} in {self.game.name} on {self.date}"
