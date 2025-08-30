@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 import { NavigationProp, useRoute } from '@react-navigation/native';
 import { useUser } from '../../context/UserContext';
-import { endpoints } from '../../api';
+import { BASE_URL, endpoints } from '../../api';
 
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"];
-const TIMES = Array.from({ length: 12 }, (_, i) => `${i + 6}:00`);
+// Zero-pad to match API format like "06:00"
+const TIMES = Array.from({ length: 12 }, (_, i) => `${String(i + 6).padStart(2, '0')}:00`);
 
 type Props = {
   navigation: NavigationProp<any>
@@ -23,7 +24,7 @@ type Props = {
 type AvailabilityEntry = {
   uID: number;
   dayOfWeek: number;
-  alarmTime: string;
+  alarmTime: string; // may come as "HH:MM" or "HH:MM:SS"
 };
 
 const transparentColors = [
@@ -38,6 +39,9 @@ const transparentColors = [
   'rgba(0, 128, 0, 0.3)',
   'rgba(128, 128, 0, 0.3)',
 ];
+
+// Normalize any "HH:MM[:SS]" to "HH:MM"
+const toHHMM = (t?: string) => (t ? t.slice(0, 5) : '');
 
 const EditAvailability: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
@@ -54,23 +58,26 @@ const EditAvailability: React.FC<Props> = ({ navigation }) => {
     const colorMap: Record<number, string> = {};
     uniqueUserIds.forEach((id, index) => {
       colorMap[id] = transparentColors[index % transparentColors.length] || 'transparent';
+      // console.log('color for', id, colorMap[id]);
     });
     return colorMap;
   }, [availability]);
 
   useEffect(() => {
-        if (!user?.id) {
-        console.error("userId is missing!");
-        return;
+    if (!user?.id) {
+      console.error("userId is missing!");
+      return;
     }
 
     const fetchAvailability = async () => {
       try {
         const res = await fetch(endpoints.getAvailabilities(pendingChallengeId));
         const data = await res.json();
-        console.log(data);
+        // console.log('server availability:', data);
         setAvailability(data);
-        setUserAvailability(data.filter((entry: AvailabilityEntry) => entry.uID === user.id));
+        setUserAvailability(
+          data.filter((entry: AvailabilityEntry) => entry.uID === user.id)
+        );
       } catch (error) {
         console.error("Error fetching availabilities:", error);
       } finally {
@@ -80,62 +87,73 @@ const EditAvailability: React.FC<Props> = ({ navigation }) => {
     fetchAvailability();
   }, [pendingChallengeId, user]);
 
-const toggleCell = (dayIdx: number, timeIdx: number) => {
+  const toggleCell = (dayIdx: number, timeIdx: number) => {
+    const dayOfWeek = dayIdx + 1;
+    const timeStr = TIMES[timeIdx]; // already "HH:MM"
 
-  const dayOfWeek = dayIdx + 1;
-  const timeStr = TIMES[timeIdx];
+    if (!timeStr) return;
 
-  if (!timeStr) return;
-
-  const exists = userAvailability.some(
-    entry => entry.dayOfWeek === dayOfWeek && entry.alarmTime.startsWith(timeStr)
-  );
-
-  if (exists) {
-    setUserAvailability(prev =>
-      prev.filter(entry => !(entry.dayOfWeek === dayOfWeek && entry.alarmTime.startsWith(timeStr)))
+    const exists = userAvailability.some(
+      entry => entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr
     );
-  } else {
-    setUserAvailability(prev => [
-      ...prev,
-      {
-        uID: Number(user?.id), // force number
-        dayOfWeek,
-        alarmTime: timeStr, // definitely a string here
-      },
-    ]);
-  }
-};
 
+    if (exists) {
+      setUserAvailability(prev =>
+        prev.filter(entry => !(entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr))
+      );
+    } else {
+      setUserAvailability(prev => [
+        ...prev,
+        {
+          uID: Number(user?.id),
+          dayOfWeek,
+          alarmTime: timeStr, // keep zero-padded
+        },
+      ]);
+    }
+  };
 
   const isUserSlotSelected = (dayIdx: number, timeIdx: number) => {
     const dayOfWeek = dayIdx + 1;
     const timeStr = TIMES[timeIdx];
-    if (!timeStr) return;
+    if (!timeStr) return false;
     return userAvailability.some(
-      entry => entry.dayOfWeek === dayOfWeek && entry.alarmTime.startsWith(timeStr)
+      entry => entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr
     );
   };
 
   const getUsersInSlot = (dayIdx: number, timeIdx: number) => {
     const dayOfWeek = dayIdx + 1;
     const timeStr = TIMES[timeIdx];
-    if (!timeStr) return;
+    if (!timeStr) return [];
+    // Strict equality on normalized "HH:MM"
     return availability.filter(
-      entry => entry.dayOfWeek === dayOfWeek && entry.alarmTime.startsWith(timeStr)
+      entry => entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr
     );
   };
 
   const handleSubmit = async () => {
-    try {
+
+      // Ensure we submit zero-padded "HH:MM"
       const payload = userAvailability.map(({ dayOfWeek, alarmTime }) => ({
         dayOfWeek,
-        alarmTime,
+        alarmTime: toHHMM(alarmTime),
       }));
+
+        try {
+            const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
+                credentials: 'include',                      
+        });
+        if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
+        const { csrfToken } = await csrfRes.json();   
 
       const res = await fetch(endpoints.setUserAvailability(Number(user?.id), pendingChallengeId), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',                    
+        headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,                
+        },
         body: JSON.stringify({ availability: payload }),
       });
 
@@ -153,64 +171,70 @@ const toggleCell = (dayIdx: number, timeIdx: number) => {
       style={styles.background}
       resizeMode="cover"
     >
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Edit Your Availability</Text>
 
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Edit Your Availability</Text>
-      {loading ? (
-        <ActivityIndicator size="large" color="#FFD700" />
-      ) : (
-        <View style={styles.grid}>
-          <View style={styles.row}>
-            <View style={styles.cell} />
-            {DAYS.map((day, idx) => (
-              <View key={idx} style={styles.cell}>
-                <Text style={styles.headerText}>{day}</Text>
+        {loading ? (
+          <ActivityIndicator size="large" color="#FFD700" />
+        ) : (
+          <ScrollView horizontal>
+            <View style={styles.grid}>
+              <View style={styles.row}>
+                <View style={styles.cell} />
+                {DAYS.map((day, idx) => (
+                  <View key={idx} style={styles.cell}>
+                    <Text style={styles.headerText}>{day}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-          {TIMES.map((time, timeIdx) => (
-            <View key={timeIdx} style={styles.row}>
-              <View style={styles.cell}>
-                <Text style={styles.headerText}>{time}</Text>
-              </View>
-              {DAYS.map((_, dayIdx) => {
-                const users = getUsersInSlot(dayIdx, timeIdx);
-                const isSelected = isUserSlotSelected(dayIdx, timeIdx);
 
-                return (
-                  <TouchableOpacity
-                    key={`${dayIdx}-${timeIdx}`}
-                    style={[
-                      styles.cell,
-                      styles.interactiveCell,
-                      isSelected && styles.userSelected,
-                    ]}
-                    onPress={() => toggleCell(dayIdx, timeIdx)}
-                  >
-                    {users?.map((u, i) => (
-                      <View
-                        key={i}
+              {TIMES.map((time, timeIdx) => (
+                <View key={timeIdx} style={styles.row}>
+                  <View style={styles.cell}>
+                    <Text style={styles.headerText}>{time}</Text>
+                  </View>
+
+                  {DAYS.map((_, dayIdx) => {
+                    const users = getUsersInSlot(dayIdx, timeIdx);
+                    const isSelected = isUserSlotSelected(dayIdx, timeIdx);
+
+                    return (
+                      <TouchableOpacity
+                        key={`${dayIdx}-${timeIdx}`}
                         style={[
-                          StyleSheet.absoluteFill,
-                          {
-                            backgroundColor: userColorMap[u.uID],
-                            zIndex: i,
-                          },
+                          styles.cell,
+                          styles.interactiveCell,
+                          isSelected && styles.userSelected,
                         ]}
-                      />
-                    ))}
-                  </TouchableOpacity>
-                );
-              })}
+                        onPress={() => toggleCell(dayIdx, timeIdx)}
+                      >
+                        {/* Colored overlays for users in this slot */}
+                        {users.length > 0 && (
+                          <View pointerEvents="none" style={styles.stripeOverlay}>
+                            {users.map((u, i) => (
+                              <View
+                                key={i}
+                                style={{
+                                  flex: 1,
+                                  backgroundColor: userColorMap[u.uID],
+                                }}
+                              />
+                            ))}
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
-      )}
-      <TouchableOpacity style={styles.saveButton} onPress={handleSubmit}>
-        <Text style={styles.saveButtonText}>Save My Availability</Text>
-      </TouchableOpacity>
-    </ScrollView>
+          </ScrollView>
+        )}
 
+        <TouchableOpacity style={styles.saveButton} onPress={handleSubmit}>
+          <Text style={styles.saveButtonText}>Save My Availability</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </ImageBackground>
   );
 };
@@ -223,7 +247,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 50,
     paddingHorizontal: 12,
-    backgroundColor: '#000',
   },
   title: {
     color: '#FFF',
@@ -260,6 +283,12 @@ const styles = StyleSheet.create({
   userSelected: {
     borderColor: '#FFD700',
     borderWidth: 2,
+  },
+  // Absolute overlay that fills the cell and splits into equal stripes
+  stripeOverlay: {
+    position: 'absolute',
+    top: 0, right: 0, bottom: 0, left: 0,
+    flexDirection: 'row',
   },
   saveButton: {
     backgroundColor: '#FFD700',

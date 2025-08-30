@@ -1,4 +1,4 @@
-export const BASE_URL = 'https://3f9589d25942.ngrok-free.app';
+export const BASE_URL = 'https://bb8711827311.ngrok-free.app';
 
 export const endpoints = {
   // getToken
@@ -24,7 +24,7 @@ export const endpoints = {
   challengeInvites: (userId: number, groupId: number) => `${BASE_URL}/api/challenge-invites/${userId}/${groupId}/`,
 
   getAvailabilities: (challId: number) => `${BASE_URL}/api/get-availabilities/${challId}/`,
-  setUserAvailability: (userId: number, challId: number) => `${BASE_URL}/set-availability/${userId}/${challId}/`,
+  setUserAvailability: (userId: number, challId: number) => `${BASE_URL}/api/set-availability/${userId}/${challId}/`,
 
   sentFriendRequests: (userId: number) => `${BASE_URL}/api/friend-requests-sent/${userId}/`,
   respondToFriendRequest: (requestId: number) => `${BASE_URL}/api/friend-request/respond/${requestId}/`,

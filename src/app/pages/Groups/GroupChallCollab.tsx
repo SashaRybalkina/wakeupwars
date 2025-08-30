@@ -40,7 +40,6 @@ const GroupChallCollab: React.FC<Props> = ({ navigation }) => {
   const [showDatePicker, setShowDatePicker] = useState(false)
 
   const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
-  const isDragging = useRef(false);
 
   const dayToInt: Record<string, number> = {
     M: 1,
@@ -239,13 +238,6 @@ const GroupChallCollab: React.FC<Props> = ({ navigation }) => {
                     {DAYS.map((_, dayIdx) => (
                       <TouchableOpacity
                         key={`${dayIdx}-${timeIdx}`}
-                        onPressIn={() => {
-                          isDragging.current = true;
-                          toggleCell(dayIdx, timeIdx);
-                        }}
-                        onPressOut={() => {
-                          isDragging.current = false;
-                        }}
                         onPress={() => toggleCell(dayIdx, timeIdx)}
                         style={[
                           styles.cell,
@@ -377,7 +369,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
   selectedCell: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#4caf4fbf',
   },
   createButton: {
     borderRadius: 12,
