@@ -4,7 +4,7 @@ from .views import (LoginView, RegisterView, GroupListView, HelloWorldView, User
                     ChallengeDetailView, ChallengeGameScheduleView, CreateGroupChallengeView, CreatePendingGroupChallengeView, FriendListView, 
                     AddGroupMemberView, SendFriendRequestView, FriendRequestListView, RespondToFriendRequestView,
                     SentFriendRequestListView, AllUsersView, CancelFriendRequestView, CreateGroupView, CreatePersonalChallengeView, GetChallengeInvitesView,
-                    GetAvailabilitiesView, SetAvailabilityView, GetPendingChallengesView, DeclineChallengeInviteView)
+                    GetAvailabilitiesView, SetAvailabilityView, DeclineChallengeInviteView)
 from .views import CreateSudokuGameView, ValidateSudokuMoveView, get_csrf_token
 
 urlpatterns = [
@@ -31,7 +31,7 @@ urlpatterns = [
     path('get-challenge-invites/<int:user_id>/<int:group_id>/', GetChallengeInvitesView.as_view(), name='get-challenge-invites'),
     # path('challenge-invites/<int:user_id>/<int:group_id>/', ChallengeInvitesListView.as_view(), name='challenge-invites'),
     
-    path('get-pending-challenges/<int:group_id>/', GetPendingChallengesView.as_view(), name='get-pending-challenges'),
+    # path('get-pending-challenges/<int:group_id>/', GetPendingChallengesView.as_view(), name='get-pending-challenges'),
     path('get-availabilities/<int:chall_id>/', GetAvailabilitiesView.as_view(), name='get-availabilities'),
     path('set-availability/<int:user_id>/<int:chall_id>/', SetAvailabilityView.as_view(), name='set-availability'),
     path('decline-challenge-invite/<int:user_id>/<int:chall_id>/', DeclineChallengeInviteView.as_view(), name='decline-challenge-invite'),

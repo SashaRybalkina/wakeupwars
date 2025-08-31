@@ -92,35 +92,42 @@ const EditAvailability: React.FC<Props> = ({ navigation }) => {
     fetchAvailability();
   }, [pendingChallengeId, user]);
 
+
+
 const toggleCell = (dayIdx: number, timeIdx: number) => {
   const dayOfWeek = dayIdx + 1;
-  const timeStr = TIMES[timeIdx]; // already "HH:MM"
-
+  const timeStr = TIMES[timeIdx];
   if (!timeStr || !user?.id || !user?.name) return;
 
-  const exists = userAvailability.some(
-    entry => entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr
-  );
+  const cellKey = (entry: AvailabilityEntry) =>
+    entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr;
 
-  if (exists) {
-    setUserAvailability(prev =>
-      prev.filter(
-        entry =>
-          !(entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr)
-      )
-    );
+  const isUserInCell = userAvailability.some(cellKey);
+  const usersInCell = availability.filter(cellKey);
+
+  if (!isUserInCell) {
+    // Add user's availability
+    const newEntry: AvailabilityEntry = {
+      uID: Number(user.id),
+      name: user.name,
+      dayOfWeek,
+      alarmTime: timeStr,
+    };
+
+    setUserAvailability(prev => [...prev, newEntry]);
+    setAvailability(prev => [...prev, newEntry]);
+
   } else {
-    setUserAvailability(prev => [
-      ...prev,
-      {
-        uID: Number(user.id),
-        name: user.name,
-        dayOfWeek,
-        alarmTime: timeStr,
-      },
-    ]);
+    // User is in the slot, remove them
+    setUserAvailability(prev =>
+      prev.filter(entry => !(entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr))
+    );
+    setAvailability(prev =>
+      prev.filter(entry => !(entry.uID === user.id && entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr))
+    );
   }
 };
+
 
 
   const isUserSlotSelected = (dayIdx: number, timeIdx: number) => {
@@ -240,36 +247,36 @@ return (
                     <Text style={styles.headerText}>{time}</Text>
                   </View>
 
-                  {DAYS.map((_, dayIdx) => {
-                    const users = getUsersInSlot(dayIdx, timeIdx);
-                    const isSelected = isUserSlotSelected(dayIdx, timeIdx);
+{DAYS.map((_, dayIdx) => {
+  const users = getUsersInSlot(dayIdx, timeIdx);
+  const isUserHere = users.some(u => u.uID === user?.id);
 
-                    return (
-                      <TouchableOpacity
-                        key={`${dayIdx}-${timeIdx}`}
-                        style={[
-                          styles.cell,
-                          styles.interactiveCell,
-                          isSelected && styles.userSelected,
-                        ]}
-                        onPress={() => toggleCell(dayIdx, timeIdx)}
-                      >
-                        {users.length > 0 && (
-                          <View pointerEvents="none" style={styles.stripeOverlay}>
-                            {users.map((u, i) => (
-                              <View
-                                key={i}
-                                style={{
-                                  flex: 1,
-                                  backgroundColor: userColorMap[u.uID],
-                                }}
-                              />
-                            ))}
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
+  return (
+    <TouchableOpacity
+      key={`${dayIdx}-${timeIdx}`}
+      style={[
+        styles.cell,
+        styles.interactiveCell,
+      ]}
+      onPress={() => toggleCell(dayIdx, timeIdx)}
+    >
+      {users.length > 0 && (
+        <View pointerEvents="none" style={styles.stripeOverlay}>
+          {users.map((u, i) => (
+            <View
+              key={i}
+              style={{
+                flex: 1,
+                backgroundColor: userColorMap[u.uID] || 'rgba(255,255,255,0.2)',
+              }}
+            />
+          ))}
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+})}
+
                 </View>
               ))}
             </View>

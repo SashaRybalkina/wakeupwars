@@ -36,17 +36,39 @@ def get_csrf_token(request):
 
 class SetAvailabilityView(APIView):
     def post(self, request, user_id, chall_id):
-        data = request.data.get('availability', [])
+        availability_data = request.data.get('availability', [])
 
-        for item in data:
-            PendingGroupChallengeAvailability.objects.create(
+        for item in availability_data:
+            day = item['dayOfWeek']
+            time = item['alarmTime']
+
+            # Try to find existing availability
+            existing = PendingGroupChallengeAvailability.objects.filter(
                 pendingChall_id=chall_id,
                 uID_id=user_id,
-                dayOfWeek=item['dayOfWeek'],
-                alarmTime=item['alarmTime']
-            )
+                dayOfWeek=day,
+                alarmTime=time
+            ).first()
 
-        return Response({'status': 'updated'})
+            if existing:
+                # If availability exists, remove it
+                existing.delete()
+            else:
+                # Otherwise, create it
+                PendingGroupChallengeAvailability.objects.create(
+                    pendingChall_id=chall_id,
+                    uID_id=user_id,
+                    dayOfWeek=day,
+                    alarmTime=time
+                )
+
+        # Mark the invite as accepted
+        GroupChallengeInvite.objects.filter(
+            pendingChall_id=chall_id,
+            uID_id=user_id
+        ).update(accepted=1)
+
+        return Response({'status': 'availability toggled and invite accepted'})
         
 
 class GetAvailabilitiesView(APIView):
@@ -481,15 +503,16 @@ class CreatePendingGroupChallengeView(APIView):
             PendingGroupChallengeAvailability.objects.bulk_create(availability_entries)
 
 
-            # Send invites to other group members
-            group_members = GroupMembership.objects.filter(groupID_id=data['group_id']) \
-                                                   .exclude(uID_id=initiator_id)
+            # create invites for everyone (accepted = 2 means neither accepted nor declined, 1 
+            # means accepted, 0 means declined)
+            group_members = GroupMembership.objects.filter(groupID_id=data['group_id'])
 
             invites = [
                 GroupChallengeInvite(
                     groupID_id=data['group_id'],
                     pendingChall=pendingChallenge,
-                    uID=member.uID
+                    uID=member.uID,
+                    accepted=1 if member.uID_id == initiator_id else 2
                 ) for member in group_members
             ]
             GroupChallengeInvite.objects.bulk_create(invites)
