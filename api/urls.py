@@ -5,6 +5,7 @@ from .views import (LoginView, RegisterView, GroupListView, HelloWorldView, User
                     AddGroupMemberView, SendFriendRequestView, FriendRequestListView, RespondToFriendRequestView, 
                     SentFriendRequestListView, AllUsersView, CancelFriendRequestView, CreateGroupView, CreatePersonalChallengeView)
 from .views import CreateSudokuGameView, ValidateSudokuMoveView, get_csrf_token
+from .views import CreatePatternGameView, ValidatePatternMoveView
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
@@ -33,4 +34,6 @@ urlpatterns = [
     path('sudoku/validate/', ValidateSudokuMoveView.as_view(), name='validate-sudoku'),
     path('csrf-token/', get_csrf_token, name='get-csrf-token'),
     path("create-personal-challenge/", CreatePersonalChallengeView.as_view(), name="create_personal_challenge"),
+    path('pattern/create/',   CreatePatternGameView.as_view(),   name='pattern-create'),
+    path('pattern/validate/', ValidatePatternMoveView.as_view(), name='pattern-validate'),
 ]

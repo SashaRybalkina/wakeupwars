@@ -15,6 +15,7 @@ from .serializers import UserSerializer, RegisterSerializer, GroupSerializer, Us
 from .models import Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule, AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship, GroupMembership, FriendRequest, SkillLevel
 from django.http import JsonResponse
 
+
 #### Sudoku Game Imports ####
 from .models import SudokuGameState, Challenge, SudokuGamePlayer, User, Game
 from api.sudokuStuff.utils import validate_sudoku_move, get_or_create_game
@@ -25,6 +26,9 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.middleware.csrf import get_token
 from asgiref.sync import async_to_sync
 import traceback
+
+### Pattern Memorization###
+from api.patternMem.utils import get_or_create_pattern_game, validate_pattern_move
 
 User = get_user_model()
 
@@ -560,3 +564,29 @@ class CreatePersonalChallengeView(APIView):
         except Exception as e:
             traceback.print_exc()
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+### Pattern Memorization ###
+class CreatePatternGameView(APIView):
+    def post(self, request):
+        challenge_id = request.data.get('challenge_id')
+        user = request.user
+        if not challenge_id:
+            return Response({'error':'Missing challenge_id'}, status=400)
+        try:
+            payload = get_or_create_pattern_game(challenge_id, user)
+            return Response(payload, status=200)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
+
+class ValidatePatternMoveView(APIView):
+    def post(self, request):
+        game_state_id = request.data.get('game_state_id')
+        round_number  = request.data.get('round_number')
+        player_seq    = request.data.get('player_sequence') or []
+        user = request.user
+        if not all([game_state_id, round_number is not None]):
+            return Response({'error':'Missing params'}, status=400)
+        from asgiref.sync import async_to_sync
+        res = async_to_sync(validate_pattern_move)(int(game_state_id), user, int(round_number), player_seq)
+        return Response(res, status=200)

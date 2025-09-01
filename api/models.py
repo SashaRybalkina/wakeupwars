@@ -294,6 +294,7 @@ class PatternMemorizationGamePlayer(models.Model):
     rounds_completed = models.IntegerField(default=0)  # how many rounds the player has completed
     score = models.IntegerField(default=0)  # total score of the player
     last_round_success = models.BooleanField(default=True)  # whether the player completed the last round successfully
+    color = models.CharField(max_length=30, blank=True, null=True)
 
     class Meta:
         db_table = 'PatternMemorizationPlayers'
