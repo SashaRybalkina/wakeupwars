@@ -168,10 +168,14 @@ const GroupChallCollab: React.FC<Props> = ({ navigation }) => {
       style={styles.background}
       resizeMode="cover"
     >
+          <ScrollView
+            contentContainerStyle={{ paddingBottom: 100 }}
+            showsVerticalScrollIndicator={false}
+          >
+
       <View style={styles.container}>
         <Text style={styles.pageTitle}>Group Challenge</Text>
 
-        <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
           <View style={styles.formSection}>
             <Text style={styles.label}>Challenge Name</Text>
             <TextInput
@@ -260,8 +264,11 @@ const GroupChallCollab: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.createButtonText}>Save Schedule</Text>
             </LinearGradient>
           </TouchableOpacity>
-        </ScrollView>
+
       </View>
+
+
+      </ScrollView>
     </ImageBackground>
   )
 }
@@ -369,9 +376,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
   selectedCell: {
-    // backgroundColor: '#4caf4fbf',
-    borderColor: '#FFD700',
-    borderWidth: 2,
+    backgroundColor: 'rgba(255, 0, 0, 0.3)',
   },
   createButton: {
     borderRadius: 12,

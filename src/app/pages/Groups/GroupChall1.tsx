@@ -71,7 +71,7 @@ const GroupChall1: React.FC<Props> = ({ navigation }) => {
             goToCollab(groupId, groupMembers);
           }}
           >
-          <Text style={styles.navToChallText}>Collaberatively</Text>
+          <Text style={styles.navToChallText}>Collaboratively</Text>
         </TouchableOpacity>
       </View>
 

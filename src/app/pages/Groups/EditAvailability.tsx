@@ -68,57 +68,64 @@ const EditAvailability: React.FC<Props> = ({ navigation }) => {
     return colorMap;
   }, [availability]);
 
-  useEffect(() => {
-    if (!user?.id) {
-      console.error("userId is missing!");
-      return;
-    }
-
-    const fetchAvailability = async () => {
-      try {
-        const res = await fetch(endpoints.getAvailabilities(pendingChallengeId));
-        const data = await res.json();
-        console.log('Availability:', data);
-        setAvailability(data);
-        setUserAvailability(
-          data.filter((entry: AvailabilityEntry) => entry.uID === user.id)
-        );
-      } catch (error) {
-        console.error("Error fetching availabilities:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAvailability();
-  }, [pendingChallengeId, user]);
 
 
 
+
+const [pendingToggles, setPendingToggles] = useState<AvailabilityEntry[]>([]);
+
+// helper to compare cells (day + HH:MM)
+const cellEquals = (a: AvailabilityEntry, b: AvailabilityEntry) =>
+  a.dayOfWeek === b.dayOfWeek && toHHMM(a.alarmTime) === toHHMM(b.alarmTime);
+
+// fetch function extracted so we can call it on mount and after submit
+const fetchAvailabilities = async () => {
+  if (!user?.id) {
+    console.error("userId is missing!");
+    return;
+  }
+  setLoading(true);
+  try {
+    const res = await fetch(endpoints.getAvailabilities(pendingChallengeId));
+    const data = await res.json();
+    console.log('Availability:', data);
+    setAvailability(data);
+    setUserAvailability(data.filter((entry: AvailabilityEntry) => entry.uID === user.id));
+    setPendingToggles([]); // clear pending toggles after full refresh
+  } catch (error) {
+    console.error("Error fetching availabilities:", error);
+  } finally {
+    setLoading(false);
+  }
+};
+
+useEffect(() => {
+  fetchAvailabilities();
+}, [pendingChallengeId, user]);
+
+// --- updated toggleCell: also maintain pendingToggles as symmetric diff ---
 const toggleCell = (dayIdx: number, timeIdx: number) => {
   const dayOfWeek = dayIdx + 1;
   const timeStr = TIMES[timeIdx];
   if (!timeStr || !user?.id || !user?.name) return;
 
-  const cellKey = (entry: AvailabilityEntry) =>
+  const entryMatches = (entry: AvailabilityEntry) =>
     entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr;
 
-  const isUserInCell = userAvailability.some(cellKey);
-  const usersInCell = availability.filter(cellKey);
+  const isUserInCell = userAvailability.some(entryMatches);
+  const newEntry: AvailabilityEntry = {
+    uID: Number(user.id),
+    name: user.name,
+    dayOfWeek,
+    alarmTime: timeStr,
+  };
 
   if (!isUserInCell) {
-    // Add user's availability
-    const newEntry: AvailabilityEntry = {
-      uID: Number(user.id),
-      name: user.name,
-      dayOfWeek,
-      alarmTime: timeStr,
-    };
-
+    // add locally
     setUserAvailability(prev => [...prev, newEntry]);
     setAvailability(prev => [...prev, newEntry]);
-
   } else {
-    // User is in the slot, remove them
+    // remove locally
     setUserAvailability(prev =>
       prev.filter(entry => !(entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr))
     );
@@ -126,7 +133,20 @@ const toggleCell = (dayIdx: number, timeIdx: number) => {
       prev.filter(entry => !(entry.uID === user.id && entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr))
     );
   }
+
+  // maintain pendingToggles as symmetric difference (toggle in/out)
+  setPendingToggles(prev => {
+    const exists = prev.some(e => e.dayOfWeek === dayOfWeek && toHHMM(e.alarmTime) === timeStr);
+    if (exists) {
+      // user toggled this cell back — remove from pending
+      return prev.filter(e => !(e.dayOfWeek === dayOfWeek && toHHMM(e.alarmTime) === timeStr));
+    } else {
+      // record new toggle
+      return [...prev, newEntry];
+    }
+  });
 };
+
 
 
 
@@ -149,38 +169,44 @@ const toggleCell = (dayIdx: number, timeIdx: number) => {
     );
   };
 
-  const handleSubmit = async () => {
 
-      // Ensure we submit zero-padded "HH:MM"
-      const payload = userAvailability.map(({ dayOfWeek, alarmTime }) => ({
-        dayOfWeek,
-        alarmTime: toHHMM(alarmTime),
-      }));
 
-        try {
-            const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-                credentials: 'include',                      
-        });
-        if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-        const { csrfToken } = await csrfRes.json();   
 
-      const res = await fetch(endpoints.setUserAvailability(Number(user?.id), pendingChallengeId), {
-        method: 'POST',
-        credentials: 'include',                    
-        headers: {
+ const handleSubmit = async () => {
+  // convert pending toggles into payload entries (HH:MM)
+  const payload = pendingToggles.map(({ dayOfWeek, alarmTime }) => ({
+    dayOfWeek,
+    alarmTime: toHHMM(alarmTime),
+  }));
+
+  try {
+    const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
+      credentials: 'include',
+    });
+    if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
+    const { csrfToken } = await csrfRes.json();
+
+    const res = await fetch(endpoints.setUserAvailability(Number(user?.id), pendingChallengeId), {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken,                
-        },
-        body: JSON.stringify({ availability: payload }),
-      });
+        'X-CSRFToken': csrfToken,
+      },
+      body: JSON.stringify({ availability: payload }),
+    });
 
-      if (!res.ok) throw new Error('Failed to update availability.');
+    if (!res.ok) throw new Error('Failed to update availability.');
 
-      Alert.alert('Success', 'Your availability was saved.');
-    } catch (err: any) {
-      Alert.alert('Error', err.message);
-    }
-  };
+    // success -> clear pending toggles and re-fetch authoritative state
+    setPendingToggles([]);
+    await fetchAvailabilities();
+
+    Alert.alert('Success', 'Your availability was saved.');
+  } catch (err: any) {
+    Alert.alert('Error', err.message);
+  }
+}; 
 
 
     const handleDecline = async () => {
