@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework import generics, permissions
 from rest_framework import status
 from django.db import transaction
+from collections import defaultdict
 from datetime import time
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -749,49 +750,90 @@ class CreatePersonalChallengeView(APIView):
 
 # AI was used to help generate this class
 
+
 class ChallengeLeaderboardView(APIView):
+    """
+    GET /challenge-leaderboard/<chall_id>/
+        -> overall leaderboard (unchanged)
+
+    GET /challenge-leaderboard/<chall_id>/?history=7
+        -> overall + "history" dict for the last 7 days
+    """
     def get(self, request, chall_id):
         challenge = get_object_or_404(Challenge, id=chall_id)
 
-        # Query-string overrides, fall back to full challenge window
-        since = date_cls.fromisoformat(
-            request.GET.get("since", str(challenge.startDate))
-        )
-        until = date_cls.fromisoformat(
-            request.GET.get("until", str(max(challenge.endDate, date_cls.today())))
-        )
+        # -------------------- overall window --------------------
+        default_since = challenge.startDate
+        default_until = min(challenge.endDate, date.today())
 
-        qs = GamePerformance.objects.filter(
-            challenge_id=chall_id,
-            date__range=(since, until)
-        )
-
-        rows = (qs.values("user_id", "user__name")
+        rows = (GamePerformance.objects
+                .filter(challenge_id=chall_id,
+                        date__gte=default_since,
+                        date__lte=default_until)
+                .values("user_id", "user__name")
                 .annotate(points=Sum("score"))
                 .order_by("-points", "user__name"))
 
-        # dense-rank
-        out, last_pts, rank = [], None, 0
+        overall, last_pts, rank = [], None, 0
         for r in rows:
             if r["points"] != last_pts:
                 rank += 1
                 last_pts = r["points"]
-            out.append({
-                "name":   r["user__name"] or "Anonymous",
+            overall.append({
+                "name":  r["user__name"] or "Anonymous",
                 "points": int(r["points"] or 0),
-                "rank":   rank,
+                "rank":  rank,
             })
 
-        return Response({
-            "since": str(since),
-            "until": str(until),
-            "challenge": {
-                "id": challenge.id,
-                "startDate": str(challenge.startDate),
-                "endDate": str(challenge.endDate),
-            },
-            "leaderboard": out,
-        })
+        payload = {
+            "since": str(default_since),
+            "until": str(default_until),
+            "leaderboard": overall,
+        }
+
+        # -------------------- optional daily history --------------------
+        try:
+            n_days = int(request.GET.get("history", 0))
+        except ValueError:
+            n_days = 0
+
+        if n_days > 0:
+            end_day   = default_until
+            start_day = max(default_since, end_day - timedelta(days=n_days-1))
+
+            # fetch all rows for that window once
+            daily_qs = (GamePerformance.objects
+                        .filter(challenge_id=chall_id,
+                                date__gte=start_day,
+                                date__lte=end_day)
+                        .values("date", "user__name")
+                        .annotate(points=Sum("score"))
+                        .order_by("date", "-points", "user__name"))
+
+            # group by day -> list
+            grouped: dict[date, list[dict]] = defaultdict(list)
+            for r in daily_qs:
+                grouped[r["date"]].append(r)
+
+            # rank inside each day
+            history: dict[str, list[dict]] = {}
+            for d in (start_day + timedelta(i) for i in range(n_days)):
+                rows = grouped.get(d, [])
+                out, last_pts, rank = [], None, 0
+                for r in rows:
+                    if r["points"] != last_pts:
+                        rank += 1
+                        last_pts = r["points"]
+                    out.append({
+                        "name":   r["user__name"] or "Anonymous",
+                        "points": int(r["points"] or 0),
+                        "rank":   rank,
+                    })
+                history[str(d)] = out        # even if empty → easier for UI
+
+            payload["history"] = history
+
+        return Response(payload, status=status.HTTP_200_OK)
 
 # AI generated
 class SubmitGameScoresView(APIView):

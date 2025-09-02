@@ -9,6 +9,7 @@ import Challenges from './pages/Challenges';
 import Chall1 from './pages/Challenges/Chall1';
 import ChallDetails from './pages/Challenges/ChallDetails';
 import ChallSchedule from './pages/Challenges/ChallSchedule';
+import LeaderboardDetails from './pages/Challenges/LeaderboardDetails'
 import Categories from './pages/Games/Categories';
 import GameExpanded from './pages/Games/GameExpanded';
 import Games from './pages/Games/Games';
@@ -78,6 +79,11 @@ function App() {
         <Stack.Screen
           name="ChallSchedule"
           component={ChallSchedule}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LeaderboardDetails"
+          component={LeaderboardDetails}
           options={{ headerShown: false }}
         />
         <Stack.Screen

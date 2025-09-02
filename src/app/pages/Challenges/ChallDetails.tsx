@@ -1,3 +1,5 @@
+"use client"
+
 import type React from "react"
 import { useState, useEffect } from "react"
 import {
@@ -10,12 +12,13 @@ import {
   Dimensions,
   Animated,
 } from "react-native"
+import { useUser } from "../../context/UserContext"
 import { Ionicons } from "@expo/vector-icons"
 import { type NavigationProp, useRoute } from "@react-navigation/native"
 import axios from "axios"
 import { endpoints } from "../../api"
 import { LinearGradient } from "expo-linear-gradient"
-import { DayOfWeekLabels, DayOfWeek } from "./DayOfWeek"; // Ensure this is imported
+import { DayOfWeekLabels, type DayOfWeek } from "./DayOfWeek" // Ensure this is imported
 
 type Props = {
   navigation: NavigationProp<any>
@@ -23,17 +26,17 @@ type Props = {
 
 const { width } = Dimensions.get("window")
 const cardWidth = Math.min(width * 0.9, 400)
-const DAY_ORDER = ["M", "T", "W", "TH", "F", "S", "SU"];
+const DAY_ORDER = ["M", "T", "W", "TH", "F", "S", "SU"]
 
 const DayOfWeekReverseLabels: Record<string, number> = {
-  M: 1,  // Monday
-  T: 2,  // Tuesday
-  W: 3,  // Wednesday
+  M: 1, // Monday
+  T: 2, // Tuesday
+  W: 3, // Wednesday
   TH: 4, // Thursday
-  F: 5,  // Friday
-  S: 6,  // Saturday
+  F: 5, // Friday
+  S: 6, // Saturday
   SU: 7, // Sunday
-};
+}
 
 // Function to generate a pastel color based on name
 const generatePastelColor = (name: string): string => {
@@ -66,6 +69,8 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
     challName: string
     whichChall: string
   }
+  const { user } = useUser()
+  const myName = user?.username || ""
 
   const [daysComplete, setDaysComplete] = useState(0)
   const [totalDays, setTotalDays] = useState(0)
@@ -74,20 +79,20 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
   const [isFavorite, setIsFavorite] = useState(false)
   const [progressAnim] = useState(new Animated.Value(0))
 
-// leaderboard setup
-type LeaderRow = { name: string; points: number; rank: number };
+  // leaderboard setup
+  type LeaderRow = { name: string; points: number; rank: number }
 
-const [leaderboard, setLeaderboard] = useState<LeaderRow[]>([]);
-const [lbLoading, setLbLoading] = useState(false);
-const [lbError, setLbError] = useState<string | null>(null);
-const [lbSince, setLbSince] = useState<string | null>(null);
-const [lbUntil, setLbUntil] = useState<string | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderRow[]>([])
+  const [lbLoading, setLbLoading] = useState(false)
+  const [lbError, setLbError] = useState<string | null>(null)
+  const [lbSince, setLbSince] = useState<string | null>(null)
+  const [lbUntil, setLbUntil] = useState<string | null>(null)
 
   const getDayLabel = (day: number): string => {
-    console.log("Day passed to getDayLabel:", day);
-    console.log("Mapped label:", DayOfWeekLabels[day as DayOfWeek]);
-    return DayOfWeekLabels[day as DayOfWeek] || "";
-  };
+    console.log("Day passed to getDayLabel:", day)
+    console.log("Mapped label:", DayOfWeekLabels[day as DayOfWeek])
+    return DayOfWeekLabels[day as DayOfWeek] || ""
+  }
 
   const getDayFullName = (day: number): string => {
     const fullNames: Record<number, string> = {
@@ -98,71 +103,71 @@ const [lbUntil, setLbUntil] = useState<string | null>(null);
       5: "Friday",
       6: "Saturday",
       7: "Sunday",
-    };
-    return fullNames[day] || "";
-  };
+    }
+    return fullNames[day] || ""
+  }
 
   useEffect(() => {
     const fetchChallengeDetails = async () => {
       try {
-        const res = await axios.get(endpoints.challengeDetail(challId));
-        const data = res.data;
+        const res = await axios.get(endpoints.challengeDetail(challId))
+        const data = res.data
 
         const parsedDaysOfWeek = (data.daysOfWeek as string[])
-        .filter((day): day is keyof typeof DayOfWeekReverseLabels => day in DayOfWeekReverseLabels)
-        .sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
-        .map(day => DayOfWeekReverseLabels[day]);
-      
-        setDaysOfWeek(parsedDaysOfWeek.map(String));
-  
-        setDaysComplete(data.daysCompleted);
-        setTotalDays(data.totalDays);
-        setMembers(data.members);
-  
-        console.log("Parsed daysOfWeek array:", parsedDaysOfWeek);
+          .filter((day): day is keyof typeof DayOfWeekReverseLabels => day in DayOfWeekReverseLabels)
+          .sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+          .map((day) => DayOfWeekReverseLabels[day])
+
+        setDaysOfWeek(parsedDaysOfWeek.map(String))
+
+        setDaysComplete(data.daysCompleted)
+        setTotalDays(data.totalDays)
+        setMembers(data.members)
+
+        console.log("Parsed daysOfWeek array:", parsedDaysOfWeek)
       } catch (err) {
-        console.error(err);
+        console.error(err)
       }
-    };
-  
-    fetchChallengeDetails();
-  }, []);
+    }
+
+    fetchChallengeDetails()
+  }, [])
 
   // AI generated
   useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
-        setLbLoading(true);
-        setLbError(null);
+        setLbLoading(true)
+        setLbError(null)
 
-        const res = await axios.get(endpoints.leaderboard(challId));
+        const res = await axios.get(endpoints.leaderboard(challId))
         // The backend may return either an array or an object with metadata
         //  - Array: [{ name, points, rank }, ...]
         //  - Object: { since, until, leaderboard: [...] }
-        const data = res.data;
-        console.log(data);
+        const data = res.data
+        console.log(data)
 
         if (Array.isArray(data)) {
-          setLeaderboard(data as LeaderRow[]);
-          setLbSince(null);
-          setLbUntil(null);
+          setLeaderboard(data as LeaderRow[])
+          setLbSince(null)
+          setLbUntil(null)
         } else if (data && Array.isArray(data.leaderboard)) {
-          setLeaderboard(data.leaderboard as LeaderRow[]);
-          setLbSince(data.since ?? null);
-          setLbUntil(data.until ?? null);
+          setLeaderboard(data.leaderboard as LeaderRow[])
+          setLbSince(data.since ?? null)
+          setLbUntil(data.until ?? null)
         } else {
-          setLeaderboard([]);
+          setLeaderboard([])
         }
       } catch (e) {
-        setLbError("Failed to load leaderboard");
-        setLeaderboard([]);
+        setLbError("Failed to load leaderboard")
+        setLeaderboard([])
       } finally {
-        setLbLoading(false);
+        setLbLoading(false)
       }
-    };
+    }
 
-    fetchLeaderboard();
-  }, [challId]);
+    fetchLeaderboard()
+  }, [challId])
 
   useEffect(() => {
     // Animate progress bar
@@ -192,6 +197,22 @@ const [lbUntil, setLbUntil] = useState<string | null>(null);
     inputRange: [0, 1],
     outputRange: ["0%", "100%"],
   })
+
+  /* ---------- leaderboard compact view (AI generated)---------- */
+  const buildDisplayRows = (): Array<LeaderRow | { ellipsis: true }> => {
+    // nothing to show
+    if (leaderboard.length === 0) return []
+
+    const top3 = leaderboard.slice(0, 3)
+    const me = leaderboard.find((r) => r.name === myName)
+
+    // if I'm in top-3 just return the slice
+    if (!me || me.rank <= 3) return top3
+
+    // else: top-3 + ellipsis + me
+    return [...top3, { ellipsis: true }, me]
+  }
+  const displayRows = buildDisplayRows()
 
   return (
     <ImageBackground source={require("../../images/cgpt.png")} style={styles.background} resizeMode="cover">
@@ -231,12 +252,12 @@ const [lbUntil, setLbUntil] = useState<string | null>(null);
           {/* Challenge Days Section */}
           <View style={styles.challengeCard}>
             <View style={styles.daysContainer}>
-            {daysOfWeek.map((day, idx) => (
-              <View key={idx} style={styles.dayBadge}>
-                <Text style={styles.dayText}>{getDayLabel(Number(day))}</Text>
-                <Text style={styles.daySubtext}>{getDayFullName(Number(day)).substring(0, 3)}</Text>
-              </View>
-            ))}
+              {daysOfWeek.map((day, idx) => (
+                <View key={idx} style={styles.dayBadge}>
+                  <Text style={styles.dayText}>{getDayLabel(Number(day))}</Text>
+                  <Text style={styles.daySubtext}>{getDayFullName(Number(day)).substring(0, 3)}</Text>
+                </View>
+              ))}
             </View>
 
             <View style={styles.progressContainer}>
@@ -269,50 +290,69 @@ const [lbUntil, setLbUntil] = useState<string | null>(null);
           </View>
 
           {/* Leaderboard Section */}
-        <View style={styles.leaderboardCard}>
-          <View style={styles.leaderboardHeader}>
-            <Ionicons name="trophy" size={24} color="#FFD700" style={styles.trophyIcon} />
-            <Text style={styles.leaderboardTitle}>RANKING</Text>
-          </View>
-
-          {/* Optional: show active date window */}
-          {lbSince && lbUntil && (
-            <Text style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", marginBottom: 8, fontSize: 12 }}>
-              Window: {lbSince} – {lbUntil}
-            </Text>
-          )}
-
-          {lbLoading && <Text style={{ color: "#FFF", textAlign: "center" }}>Loading…</Text>}
-          {lbError && <Text style={{ color: "#F88", textAlign: "center" }}>{lbError}</Text>}
-
-          {!lbLoading && !lbError && leaderboard.length === 0 && (
-            <Text style={{ color: "rgba(255,255,255,0.8)", textAlign: "center" }}>
-              No scores yet — be the first!
-            </Text>
-          )}
-
-          {!lbLoading && !lbError && leaderboard.map((person, index) => (
-            <View key={`${person.name}-${index}`} style={styles.rankItem}>
-              <View style={styles.rankPosition}>
-                <Text style={styles.rankEmoji}>{getRankEmoji(person.rank)}</Text>
-              </View>
-              <Text style={styles.rankName}>{person.name}</Text>
-              <Text style={styles.rankPoints}>{person.points} pts</Text>
+          <View style={styles.leaderboardCard}>
+            <View style={styles.leaderboardHeader}>
+              <Ionicons name="trophy" size={24} color="#FFD700" style={styles.trophyIcon} />
+              <Text style={styles.leaderboardTitle}>RANKING</Text>
             </View>
-          ))}
 
-          <TouchableOpacity style={styles.viewDetailsButton}>
-            <LinearGradient
-              colors={["#FFD700", "#FFA500"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.viewDetailsGradient}
+            {lbSince && lbUntil && (
+              <Text style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", marginBottom: 8, fontSize: 12 }}>
+                Window: {lbSince} – {lbUntil}
+              </Text>
+            )}
+
+            {lbLoading && <Text style={{ color: "#FFF", textAlign: "center" }}>Loading…</Text>}
+            {lbError && <Text style={{ color: "#F88", textAlign: "center" }}>{lbError}</Text>}
+
+            {!lbLoading && !lbError && displayRows.length === 0 && (
+              <Text style={{ color: "rgba(255,255,255,0.8)", textAlign: "center" }}>No scores yet — be the first!</Text>
+            )}
+
+            {/* single compact loop */}
+            {!lbLoading &&
+              !lbError &&
+              displayRows.map((row, index) => {
+                if ("ellipsis" in row) {
+                  return (
+                    <View key={`ellipsis-${index}`} style={styles.rankItem}>
+                      <Text style={styles.ellipsisText}>…</Text>
+                    </View>
+                  )
+                }
+
+                return (
+                  <View key={`${row.name}-${index}`} style={styles.rankItem}>
+                    <View style={styles.rankPosition}>
+                      <Text style={styles.rankEmoji}>{getRankEmoji(row.rank)}</Text>
+                    </View>
+                    <Text style={[styles.rankName, row.name === myName && { color: "#FFD700" }]}>
+                      {row.name === myName ? "You" : row.name}
+                    </Text>
+                    <Text style={styles.rankPoints}>{row.points} pts</Text>
+                  </View>
+                )
+              })}
+
+            <TouchableOpacity
+              style={styles.viewDetailsButton}
+              onPress={() =>
+                navigation.navigate("LeaderboardDetails", {
+                  challId,
+                  myName,
+                })
+              }
             >
-              <Text style={styles.viewDetailsText}>View leaderboard details</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-
+              <LinearGradient
+                colors={["#FFD700", "#FFA500"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.viewDetailsGradient}
+              >
+                <Text style={styles.viewDetailsText}>View leaderboard details</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
 
           {/* Challenge Stats */}
           <View style={styles.statsCard}>
@@ -550,12 +590,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   leaderboardCard: {
-    backgroundColor: "rgba(50, 50, 60, 0.8)",
+    backgroundColor: "rgba(50, 50, 60, 0.3)",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   leaderboardHeader: {
     flexDirection: "row",
@@ -680,6 +720,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontWeight: "600",
+  },
+  ellipsisText: {
+    color: "#888",
+    fontSize: 18,
+    textAlign: "center",
+    width: "100%",
   },
 })
 
