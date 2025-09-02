@@ -25,7 +25,7 @@ def get_or_create_game(challenge_id, user):
         # Create game
         print("creating new gamestate")
         # TODO: I'm hardcoding this for now (id 1 is sudoku)
-        sudokuGame = Game.objects.get(id=1)
+        sudokuGame = Game.objects.get(id=7)
         game_state = SudokuGameState.objects.create(
             game = sudokuGame,
             challenge=challenge,
