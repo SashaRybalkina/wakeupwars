@@ -333,7 +333,8 @@ class ChallengeListView(APIView):
         elif which_chall == 'Personal':
             challenges = Challenge.objects.filter(
                 id__in=ChallengeMembership.objects.filter(uID=user_id).values_list('challengeID', flat=True),
-                groupID=None
+                groupID=None,
+                isPublic=False
             )
         elif which_chall == 'Public':
             challenges = Challenge.objects.filter(
@@ -435,7 +436,8 @@ class CreateGroupChallengeView(APIView):
                 name=data['name'],
                 groupID_id=data['group_id'],
                 startDate=data['start_date'],
-                endDate=data['end_date']
+                endDate=data['end_date'],
+                isPublic=False
             )
 
             # Add members
@@ -873,6 +875,7 @@ class CreatePersonalChallengeView(APIView):
             challenge = Challenge.objects.create(
                 name=name,
                 groupID=None,
+                isPublic=False,
                 startDate=datetime.now().date(),
                 endDate=end_date
             )
