@@ -17,11 +17,11 @@ type Props = {
 
 const Categories: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, groupId, groupMembers, singOrMult, onGameSelected } = route.params as {
+  const { catType, groupId, groupMembers, onGameSelected } = route.params as {
     catType: string;
     groupId: number;
     groupMembers: { id: number; name: string }[];
-    singOrMult: string;
+    // singOrMult: string;
     onGameSelected: (game: { id: number; name: string }) => void;
   };
 
@@ -31,7 +31,7 @@ const Categories: React.FC<Props> = ({ navigation }) => {
     const fetchCats = async () => {
       try {
         // fetch the categories for multiplayer/singleplayer (whatever was selected)
-        const response = await fetch(endpoints.cats(singOrMult));
+        const response = await fetch(endpoints.cats());
         const data = await response.json();
         setCats(data); 
       } catch (error) {
@@ -76,7 +76,7 @@ const Categories: React.FC<Props> = ({ navigation }) => {
             <TouchableOpacity
               key={cat.id}
               style={styles.categoryButton}
-              onPress={() => navigation.navigate('Games', { 
+              onPress={() => navigation.navigate('GroupChall3', { 
                 catType, 
                 catId: cat.id, 
                 catName: cat.categoryName, 

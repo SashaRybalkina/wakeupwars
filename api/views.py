@@ -134,7 +134,7 @@ class RegisterView(APIView):
         
         user = serializer.save(is_active=True)
         # Create initial SkillLevel entries
-        categories = GameCategory.objects.filter(isMultiplayer=False)
+        categories = GameCategory.objects.all()
         skill_levels = [
             SkillLevel(user=user, category=category, totalEarned=0, totalPossible=0)
             for category in categories
@@ -197,15 +197,17 @@ class FriendListView(APIView):
         return Response(serializer.data)
 
 class CatListView(APIView):
-    def get(self, request, sing_or_mult):
-        is_multiplayer = sing_or_mult == 'Multiplayer'
-        cats = GameCategory.objects.filter(isMultiplayer=is_multiplayer)
+    def get(self, request):
+        cats = GameCategory.objects.all()
         serializer = CatSerializer(cats, many=True)
         return Response(serializer.data)
 
 class GameListView(APIView):
-    def get(self, request, cat_id):
-        games = Game.objects.filter(category=cat_id)
+    def get(self, request, cat_id, sing_or_mult):
+        isMult = True
+        if sing_or_mult == "Singleplayer":
+            isMult = False
+        games = Game.objects.filter(category_id=cat_id, isMultiplayer=isMult)
         serializer = GameSerializer(games, many=True)
         return Response(serializer.data)
 
@@ -950,6 +952,8 @@ class ChallengeLeaderboardView(APIView):
                 .values("user_id", "user__name")
                 .annotate(points=Sum("score"))
                 .order_by("-points", "user__name"))
+        
+        print(rows)
 
         overall, last_pts, rank = [], None, 0
         for r in rows:

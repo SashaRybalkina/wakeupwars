@@ -238,7 +238,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                   await saveScores({
                     challenge_id: challengeId,
                     ...(gameId ? { game_id: gameId } : { game_name: 'Sudoku' }),
-                    date: new Date().toISOString().slice(0,10), // to fetch today's game data
+                    date: new Date().toLocaleDateString('en-CA'), // to fetch today's game data
                     scores: scores.map(s => ({
                       username: s.username,
                       score: s.score,

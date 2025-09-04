@@ -239,7 +239,7 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
     const payload = {
       name,
       group_id: groupId,
-      start_date: new Date().toISOString().split("T")[0],
+      start_date: new Date().toLocaleDateString('en-CA'),
       end_date: selectedDate.toISOString().split("T")[0],
       members: groupMembers.map((member) => member.id),
       alarm_schedule: alarmSchedule,
@@ -400,7 +400,7 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
                 <TouchableOpacity
                   style={styles.addGameButton}
                   onPress={() => {
-                    navigation.navigate("GroupChall3", {
+                    navigation.navigate("Categories", {
                       groupId,
                       groupMembers,
                       catType: "Group",

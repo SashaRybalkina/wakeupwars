@@ -40,12 +40,12 @@ class FriendSerializer(serializers.ModelSerializer):
 class CatSerializer(serializers.ModelSerializer):
     class Meta:
         model = GameCategory
-        fields = ['id', 'categoryName', 'isMultiplayer']
+        fields = ['id', 'categoryName']
 
 class GameSerializer(serializers.ModelSerializer):
     class Meta:
         model = Game
-        fields = ['id', 'name', 'category']
+        fields = ['id', 'name', 'category', 'isMultiplayer']
 
 class SkillLevelSerializer(serializers.ModelSerializer):
     category = CatSerializer()

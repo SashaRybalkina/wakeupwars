@@ -17,10 +17,11 @@ type Props = {
 
 const Games: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, catId, catName, groupId, groupMembers, onGameSelected } = route.params as {
+  const { catType, catId, catName, groupId, singOrMult, groupMembers, onGameSelected } = route.params as {
     catType: string
     catId: number;
     catName: string;
+    singOrMult: string;
     groupId: number;
     groupMembers: { id: number; name: string }[];
     onGameSelected: (game: { id: number; name: string }) => void;
@@ -32,7 +33,7 @@ const Games: React.FC<Props> = ({ navigation }) => {
     const fetchGames = async () => {
       try {
         // fetch the games in whatever category was selected
-        const response = await fetch(endpoints.games(catId));
+        const response = await fetch(endpoints.games(catId, singOrMult));
         const data = await response.json();
         setGames(data); 
       } catch (error) {

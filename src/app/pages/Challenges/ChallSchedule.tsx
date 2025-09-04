@@ -198,7 +198,7 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   };
 
   const handleGamePress = (game: string[], index: number) => {
-    if (game[0] === "Sudoku") {
+    if (game[0] === "Sudoku" || game[0] === "Group Sudoku") {
       goToSudoku();
     } else {
       removeGame(index);

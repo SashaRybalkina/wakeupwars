@@ -1,5 +1,5 @@
 
-export const BASE_URL = 'https://a64302c96f03.ngrok-free.app';
+export const BASE_URL = 'https://b4760f7343ca.ngrok-free.app';
 
 export const endpoints = {
   // getToken
@@ -7,8 +7,8 @@ export const endpoints = {
   register: `${BASE_URL}/api/register/`,
   groups: (userId: number) => `${BASE_URL}/api/user-groups/${userId}/`,
   friends: (userId: number) => `${BASE_URL}/api/user-friends/${userId}/`,
-  cats: (singOrMult: string) => `${BASE_URL}/api/cats/${singOrMult}/`,
-  games: (catId: number) => `${BASE_URL}/api/games/${catId}/`,
+  cats: () => `${BASE_URL}/api/cats/`,
+  games: (catId: number, singOrMult: string) => `${BASE_URL}/api/games/${catId}/${singOrMult}/`,
   messages: (userId: number) => `${BASE_URL}/api/messages/${userId}/`,
   profile: (userId: number) => `${BASE_URL}/api/profile/${userId}/`,
   groupProfile: (groupId: number) => `${BASE_URL}/api/groups/${groupId}/`,

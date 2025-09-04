@@ -93,12 +93,10 @@ class Notification(models.Model):
 
 # Game Categories: Different categories of games
 class GameCategory(models.Model):
-    categoryName = models.CharField(max_length=255)
-    isMultiplayer = models.BooleanField(default=False)
+    categoryName = models.CharField(max_length=255, unique=True)
 
     class Meta:
         db_table = 'GameCategories'
-        unique_together = ('categoryName', 'isMultiplayer')
 
     def __str__(self):
         return self.categoryName
@@ -108,6 +106,7 @@ class GameCategory(models.Model):
 class Game(models.Model):
     name = models.CharField(max_length=255)
     category = models.ForeignKey(GameCategory, on_delete=models.CASCADE)
+    isMultiplayer = models.BooleanField()
 
     class Meta:
         db_table = 'Games'

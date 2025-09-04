@@ -70,6 +70,7 @@ const LeaderboardDetails: React.FC<Props> = ({ navigation }) => {
         if (ignore) return;
 
         const data = res.data;
+        console.log(data)
         setRows(Array.isArray(data) ? data : data.leaderboard ?? []);
       } catch {
         if (!ignore) setErr("Failed to load leaderboard");
