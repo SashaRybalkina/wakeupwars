@@ -17,7 +17,7 @@ type Props = {
   navigation: NavigationProp<any>;
 };
 
-const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
+const CreatePublicChall1: React.FC<Props> = ({ navigation }) => {
   const [categories, setCategories] = useState<{ id: number; categoryName: string }[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [singOrMult, setSingOrMult] = useState<"singleplayer" | "multiplayer" | null>(null);
@@ -47,9 +47,9 @@ const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
-    navigation.navigate("PublicChallDetails", {
+    navigation.navigate("CreatePublicChall2", {
       categoryId: selectedCategory,
-      singOrMult,
+      singOrMult, // TODO: check what this is set to
     });
   };
 
@@ -193,4 +193,4 @@ const styles = StyleSheet.create({
   createButtonText: { color: "#333", fontSize: 18, fontWeight: "700" },
 });
 
-export default CreatePublicChall;
+export default CreatePublicChall1;
