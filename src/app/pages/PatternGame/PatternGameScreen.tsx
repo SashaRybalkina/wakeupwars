@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { endpoints, BASE_URL } from '../../api';
 import {
   View,
@@ -47,8 +47,7 @@ type WsIncoming =
   | WsAnswerResult
   | WsGameOver;
 
-
-/***********REST type responses**************/
+/*********** REST responses **************/
 type CreateResp = {
   success: boolean;
   game_state_id: number;
@@ -64,7 +63,7 @@ type ValidateResp = {
   result: 'correct' | 'incorrect';
   round_score: number;
   is_complete: boolean;
-  current_round?: number; 
+  current_round?: number;
   scores?: { username: string; rounds_completed: number; score: number }[];
   error?: string;
 };
@@ -77,45 +76,15 @@ const getCsrf = async (): Promise<string> => {
   return csrfToken;
 };
 
-// --- testing purposes only ---
-const ensureSession = async (username: string, password: string) => {
-  // 1) 先拿 CSRF
-  const r1 = await fetch(endpoints.csrfToken, { credentials: 'include' });
-  const { csrfToken: csrf1 } = await r1.json();
-
-  // 2) login（會設置 sessionid，可能也會刷新 csrftoken）
-  const loginRes = await fetch(endpoints.login, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf1 },
-    credentials: 'include',
-    body: JSON.stringify({ username, password }),
-  });
-  const lj = await loginRes.json();
-  if (!loginRes.ok || !lj?.success) {
-    throw new Error(lj?.error || 'Login failed');
-  }
-
-  // 3) 再拿一次最新 CSRF（保險）
-  const r2 = await fetch(endpoints.csrfToken, { credentials: 'include' });
-  const { csrfToken: csrf2 } = await r2.json();
-  return csrf2 as string;
+// Generate WS path based on BASE_URL
+const wsUrlFor = (gameStateId: number) => {
+  const base = BASE_URL.replace(/\/+$/, '');
+  const scheme = base.startsWith('https') ? 'wss' : 'ws';
+  return `${scheme}://${base.replace(/^https?:\/\//, '')}/ws/pattern/${gameStateId}/`;
 };
-// --------------------------------------
 
 const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
-  /*
-  // testing purpose only -------- Route params（可帶 dev 參數跳過整個導覽鏈）--------
-  const routeChallengeId: number | undefined = route?.params?.challengeId;
-  const devAutoLogin: boolean = !!route?.params?.devAutoLogin; // e.g. true
-  const devUser: string = route?.params?.devUser ?? 'ap1';
-  const devPass: string = route?.params?.devPass ?? 'ap1';
-  const devChallengeId: number | undefined = route?.params?.devChallengeId;
-
-  // 最終要使用的 challengeId（先取正常參數，再取 dev，再 fallback 41）
-  const challengeId = routeChallengeId ?? devChallengeId ?? 41;
-  */
-  
-  // -------- Route param --------
+  // Use only the formal route params
   const challengeId: number | undefined = route?.params?.challengeId;
 
   // -------- Game state --------
@@ -123,7 +92,10 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
   const [gameStateId, setGameStateId] = useState<number | null>(null);
   const [level, setLevel] = useState<number>(1);
   const [maxRounds, setMaxRounds] = useState<number>(5);
-  const [patternSeq, setPatternSeq] = useState<string[][]>([]); // full pattern per round
+
+  // Single-player stores the entire pattern; multiplayer relies on server-pushed sequence each round
+  const [patternSeq, setPatternSeq] = useState<string[][]>([]);
+  const [currentSeqLen, setCurrentSeqLen] = useState<number>(0);
 
   // -------- UI state --------
   const [showingPattern, setShowingPattern] = useState(false);
@@ -131,18 +103,33 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
   const [playerInput, setPlayerInput] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  // calculate the current expected length of the pattern
-  // to prevent submitting too-short answers
-  const expectedLen = patternSeq[level - 1]?.length ?? 0;
+  // Lobby/WS (multiplayer)
+  const [lobbyStatus, setLobbyStatus] = useState<string>(''); // e.g., waiting...
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [isMultiplayer, setIsMultiplayer] = useState<boolean>(false);
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // Non-blocking toast
+  const [toast, setToast] = useState<string>('');
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((text: string, ms = 1200) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(text);
+    toastTimerRef.current = setTimeout(() => setToast(''), ms);
+  }, []);
+
+  // Play queue (avoids missing animations during popups/actions)
+  const queueRef = useRef<string[][]>([]);
+  const playingRef = useRef<boolean>(false);
 
   // Small sleep helper
   const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
-  // Play a round by highlighting colors
-  const playRound = useCallback(
-    async (roundNumber: number, fullSeq: string[][] = patternSeq) => {
-      const seq = fullSeq[roundNumber - 1] || [];
-      if (!seq.length) return;
+  // Play a single sequence (works for single/multiplayer)
+  const playSequence = useCallback(
+    async (seq: string[]) => {
+      if (!seq?.length) return;
+      playingRef.current = true;
       setShowingPattern(true);
       setPlayerInput([]);
       for (const color of seq) {
@@ -153,24 +140,138 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
         await sleep(200);
       }
       setShowingPattern(false);
+      playingRef.current = false;
     },
-    [patternSeq]
+    []
   );
 
-  // Init: create/reuse a game and autoplay current round
+  // Queue scheduler
+  const drainQueue = useCallback(async () => {
+    if (playingRef.current) return;
+    const next = queueRef.current.shift();
+    if (!next) return;
+    await playSequence(next);
+    if (queueRef.current.length) drainQueue();
+  }, [playSequence]);
+
+  // For single-player: play a specific round (sequence from patternSeq)
+  const playRound = useCallback(
+    async (roundNumber: number, fullSeq: string[][] = patternSeq) => {
+      const seq = fullSeq[roundNumber - 1] || [];
+      setCurrentSeqLen(seq.length);
+      queueRef.current.push(seq);
+      drainQueue();
+    },
+    [patternSeq, drainQueue]
+  );
+
+  // Create WS (multiplayer)
+  const openWs = useCallback(
+    (id: number) => {
+      const url = wsUrlFor(id);
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setLobbyStatus('connected');
+        // Immediately declare ready (could also be manual via button)
+        ws.send(JSON.stringify({ type: 'player_ready' }));
+      };
+
+      ws.onmessage = async (ev) => {
+        let msg: WsIncoming;
+        try {
+          msg = JSON.parse(ev.data as string) as WsIncoming;
+        } catch {
+          return;
+        }
+
+        switch (msg.type) {
+          case 'lobby_state': {
+            const s = msg.started
+              ? 'started'
+              : `waiting ${msg.ready_count}/${msg.expected_count}`;
+            setLobbyStatus(s);
+            break;
+          }
+          case 'lobby_countdown': {
+            setCountdown(msg.seconds);
+            setLobbyStatus(`starting in ${msg.seconds}`);
+            break;
+          }
+          case 'pattern_sequence': {
+            // Server pushes sequence for this round (multiplayer)
+            setLobbyStatus('');
+            setCountdown(null);
+            setLevel(msg.round_number);
+            setCurrentSeqLen(msg.sequence.length);
+            queueRef.current.push(msg.sequence);
+            drainQueue();
+            break;
+          }
+          case 'answer_result': {
+            if (msg.error) {
+              showToast(`⚠️ ${msg.error}`);
+              break;
+            }
+            if (msg.is_complete) {
+              Alert.alert('🎉 Finished', 'Great job!', [
+                { text: 'OK', onPress: () => navigation.goBack() },
+              ]);
+              break;
+            }
+            if (msg.is_correct) {
+              showToast('✅ Correct');
+              setPlayerInput([]);
+            } else {
+              showToast('❌ Incorrect, try again');
+              setPlayerInput([]);
+              // Depending on server design, it may resend the sequence. If not, we could replay here.
+            }
+            break;
+          }
+          case 'game_over': {
+            const lines = msg.scores
+              .sort((a, b) => b.score - a.score)
+              .map((s) => `${s.username}: ${s.score} (R${s.rounds_completed})`)
+              .join('\n');
+            Alert.alert('🏁 Game Over', lines || 'No scores', [
+              { text: 'OK', onPress: () => navigation.goBack() },
+            ]);
+            break;
+          }
+        }
+      };
+
+      ws.onerror = (e) => {
+        setLobbyStatus('ws error');
+        console.log('WS error', e);
+      };
+      ws.onclose = () => {
+        setLobbyStatus('disconnected');
+      };      
+      
+    },
+    [navigation, showToast]
+  );
+
+  const cleanupWs = useCallback(() => {
+    const ws = wsRef.current;
+    if (!ws) return;
+    ws.onopen = null;
+    ws.onmessage = null;
+    ws.onerror = null;
+    ws.onclose = null;
+    try { ws.close(1000, 'screen exit'); } catch {}
+    wsRef.current = null;
+  }, []);
+
+  // Init: create/reuse a game; multiplayer → open WS; single-player → play immediately
   useEffect(() => {
     const init = async () => {
       try {
         setLoading(true);
         if (challengeId == null) throw new Error('Missing challengeId');
-
-        /*
-        // testing purposes only: auto-login once (using cookies session) -----------------------
-        if (devAutoLogin) {
-          await ensureSession(devUser, devPass);
-        }
-        // --------------------------- 
-        */
 
         const csrf = await getCsrf();
         const res = await fetch(endpoints.patternCreate, {
@@ -185,13 +286,20 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
         setGameStateId(j.game_state_id);
         setLevel(j.current_round);
         setMaxRounds(j.max_rounds);
+        setIsMultiplayer(!!j.is_multiplayer);
 
-        if (Array.isArray(j.pattern_sequence)) {
-          setPatternSeq(j.pattern_sequence);
-          // autoplay round
-          await playRound(j.current_round, j.pattern_sequence);
+        if (j.is_multiplayer) {
+          openWs(j.game_state_id);
+          // Multiplayer: sequence is pushed by server
         } else {
-          Alert.alert('Missing pattern', 'pattern_sequence not provided by server.');
+          // Single-player: use provided pattern
+          if (Array.isArray(j.pattern_sequence)) {
+            setPatternSeq(j.pattern_sequence);
+            setCurrentSeqLen(j.pattern_sequence[j.current_round - 1]?.length ?? 0);
+            await playRound(j.current_round, j.pattern_sequence);
+          } else {
+            Alert.alert('Missing pattern', 'pattern_sequence not provided by server.');
+          }
         }
       } catch (e: any) {
         Alert.alert('Init Error', e?.message ?? 'Failed to init pattern game');
@@ -201,11 +309,16 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
       }
     };
     init();
+    return () => {
+      wsRef.current?.close();
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengeId]);
 
-  // Re-sync helper if round mismatch or server says "Round closed"
+  // Single-player resync (multiplayer does not need)
   const resyncFromServer = useCallback(async () => {
+    if (isMultiplayer) return;
     try {
       if (challengeId == null) return;
       const csrf = await getCsrf();
@@ -223,34 +336,45 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
       setMaxRounds(j.max_rounds);
       if (Array.isArray(j.pattern_sequence)) {
         setPatternSeq(j.pattern_sequence);
+        setCurrentSeqLen(j.pattern_sequence[j.current_round - 1]?.length ?? 0);
         await playRound(j.current_round, j.pattern_sequence);
       }
     } catch (e: any) {
       Alert.alert('Resync Error', e?.message ?? 'Failed to resync');
     }
-  }, [challengeId, playRound]);
+  }, [challengeId, isMultiplayer, playRound]);
 
-  // Handle color taps (just build input; submit with button)
+  // Handle color taps
   const handlePress = (color: string) => {
     if (showingPattern || submitting) return;
     setPlayerInput((prev) => [...prev, color]);
   };
 
-  // Submit the player's attempt for current round
+  // Submit (multiplayer via WS; single-player via REST)
   const submitAnswer = async () => {
     if (showingPattern || submitting) return;
     if (!gameStateId) {
       Alert.alert('Error', 'Missing game_state_id');
       return;
     }
-
-    // Optional: require exact length before submit (避免一定錯)
-    const expectedLen = patternSeq[level - 1]?.length ?? 0;
-    if (expectedLen > 0 && playerInput.length !== expectedLen) {
-      Alert.alert('Incomplete', `This round needs ${expectedLen} taps.`);
+    // Restrict input length (single-player: from pattern; multiplayer: from server sequence)
+    if (currentSeqLen > 0 && playerInput.length !== currentSeqLen) {
+      Alert.alert('Incomplete', `This round needs ${currentSeqLen} taps.`);
       return;
     }
 
+    if (isMultiplayer && wsRef.current) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'player_answer',
+          round_number: level,
+          sequence: playerInput,
+        })
+      );
+      return;
+    }
+
+    // Single-player → REST
     try {
       setSubmitting(true);
       const csrf = await getCsrf();
@@ -260,7 +384,7 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
         credentials: 'include',
         body: JSON.stringify({
           game_state_id: gameStateId,
-          round_number: level, // strict sync with server
+          round_number: level,
           player_sequence: playerInput,
         }),
       });
@@ -279,19 +403,19 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
             { text: 'OK', onPress: () => navigation.goBack() },
           ]);
         } else {
-          Alert.alert('✅ Correct', `+${j.round_score}`);
+          showToast(`✅ +${j.round_score}`);
           const nextRound =
             typeof j.current_round === 'number' && j.current_round > level
               ? j.current_round
               : level + 1;
           setLevel(nextRound);
           setPlayerInput([]);
-          await playRound(nextRound); // autoplay next round
+          await playRound(nextRound);
         }
       } else {
-        Alert.alert('❌ Incorrect', 'Try again!');
+        showToast('❌ Incorrect');
         setPlayerInput([]);
-        await playRound(level); // replay current round
+        await playRound(level);
       }
     } catch (e: any) {
       Alert.alert('Network Error', e?.message ?? 'Failed to submit');
@@ -318,14 +442,21 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
     >
       <View style={styles.container}>
         {/* Exit */}
-        <TouchableOpacity style={styles.exitButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.exitButton} onPress={() => { cleanupWs(); navigation.goBack(); }}>
           <Text style={styles.exitText}>Exit</Text>
         </TouchableOpacity>
 
         <Text style={styles.title}>🧠 Pattern Memory Game</Text>
         <Text style={styles.subtitle}>Round: {level}/{maxRounds}</Text>
 
-        {/* Palette (highlight while playing) */}
+        {/* Multiplayer lobby status / countdown */}
+        {isMultiplayer && (
+          <Text style={[styles.subtitle, { marginTop: -4 }]}>
+            {countdown != null ? `Starting in ${countdown}…` : lobbyStatus || 'connecting…'}
+          </Text>
+        )}
+
+        {/* Palette */}
         <View style={styles.patternRow}>
           {COLORS.map((c, i) => (
             <View
@@ -341,13 +472,16 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
 
         {/* Controls */}
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-          <TouchableOpacity
-            style={[styles.smallBtn, showingPattern && { opacity: 0.5 }]}
-            onPress={() => playRound(level)}
-            disabled={showingPattern || submitting}
-          >
-            <Text style={styles.smallBtnText}>{showingPattern ? 'Playing...' : 'Replay Round'}</Text>
-          </TouchableOpacity>
+          {/* No Replay for multiplayer (server handles it) */}
+          {!isMultiplayer && (
+            <TouchableOpacity
+              style={[styles.smallBtn, showingPattern && { opacity: 0.5 }]}
+              onPress={() => playRound(level)}
+              disabled={showingPattern || submitting}
+            >
+              <Text style={styles.smallBtnText}>{showingPattern ? 'Playing...' : 'Replay Round'}</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[styles.smallBtn, (showingPattern || playerInput.length === 0) && { opacity: 0.5 }]}
             onPress={() => setPlayerInput([])}
@@ -367,8 +501,10 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Player input preview */}
-        <Text style={styles.subtitle}>Your Input: {playerInput.join(', ')}</Text>
+        {/* Player input preview (shows required length this round) */}
+        <Text style={styles.subtitle}>
+          Your Input ({playerInput.length}/{currentSeqLen}): {playerInput.join(', ')}
+        </Text>
 
         {/* Color buttons */}
         <View style={styles.colorRow}>
@@ -384,6 +520,20 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
             />
           ))}
         </View>
+
+        {/* Countdown overlay (multiplayer) */}
+        {isMultiplayer && countdown !== null && (
+          <View style={styles.overlay}>
+            <Text style={styles.countdownText}>{countdown}</Text>
+          </View>
+        )}
+
+        {/* Non-blocking toast */}
+        {!!toast && (
+          <View style={styles.toast}>
+            <Text style={styles.toastText}>{toast}</Text>
+          </View>
+        )}
       </View>
     </ImageBackground>
   );
@@ -414,6 +564,27 @@ const styles = StyleSheet.create({
   smallBtnText: { fontWeight: '600' },
   smallBtnPrimary: { backgroundColor: '#0ea5e9', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
   smallBtnPrimaryText: { color: 'white', fontWeight: '700' },
+
+  // overlays
+  overlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  countdownText: { fontSize: 64, fontWeight: '900', color: '#fff' },
+
+  toast: {
+    position: 'absolute',
+    top: 90,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  toastText: { color: '#fff', fontWeight: '700' },
 });
 
 export default PatternGameScreen;

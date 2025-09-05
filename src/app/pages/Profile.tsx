@@ -12,6 +12,12 @@ type Props = {
 }
 
 const Profile: React.FC<Props> = ({ navigation }) => {
+  //--------------------------
+  //const goToPatternGame = () => navigation.navigate("PatternGame")
+  //-------------
+  
+
+
   const goToChallenges = () => navigation.navigate("Challenges")
   const goToGroups = () => navigation.navigate("Groups")
   const goToMessages = () => navigation.navigate("Messages")
@@ -106,6 +112,17 @@ const Profile: React.FC<Props> = ({ navigation }) => {
             <Ionicons name="chevron-forward" size={22} color="#FFF" />
           </TouchableOpacity>
         </View>
+
+        {/* Testing Button for Pattern Game */}
+        <TouchableOpacity
+          style={styles.testBtn}
+          onPress={() => navigation.navigate("PatternGame", { challengeId: 42 })}
+        >
+          <Text style={styles.testBtnText}>Test Pattern Game (42)</Text>
+        </TouchableOpacity>
+
+
+
 
         <TouchableOpacity style={styles.logoutButton} activeOpacity={0.8} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={22} color="#FFF" style={styles.logoutIcon} />
@@ -299,6 +316,20 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0, 0, 0, 0.75)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 0,
+  },
+
+  // Test Button Styles
+  testBtn: {
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: "#0ea5e9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  testBtnText: {
+    color: "#FFF",
+    fontWeight: "700",
   },
 })
 

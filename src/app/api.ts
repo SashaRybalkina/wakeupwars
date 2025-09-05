@@ -1,4 +1,4 @@
-export const BASE_URL = 'https://9ef44f634cd8.ngrok-free.app';
+export const BASE_URL = 'https://6263283334aa.ngrok-free.app';
 
 
 export const endpoints = {
