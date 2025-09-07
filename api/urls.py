@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView, 
                     UserMessagesView, GroupDetailsView, CatListView, GameListView, ChallengeListView, GetChallengeInitiatorView,
                     ChallengeDetailView, ChallengeGameScheduleView, CreateManualGroupChallengeView, CreatePendingCollaborativeGroupChallengeView, FriendListView, 
-                    AddGroupMemberView, SendFriendRequestView, FriendRequestListView, RespondToFriendRequestView, FinalizeCollaborativeGroupChallengeView,
+                    AddGroupMemberView, SendFriendRequestView, FriendRequestListView, RespondToFriendRequestView, FinalizeCollaborativeGroupChallengeScheduleView,
                     SentFriendRequestListView, AllUsersView, CancelFriendRequestView, CreateGroupView, CreatePersonalChallengeView, GetChallengeInvitesView,
                     GetAvailabilitiesView, SetAvailabilityView, DeclineChallengeInviteView, ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView)
 
@@ -26,7 +26,7 @@ urlpatterns = [
     path('challenge-schedule/<int:chall_id>/', ChallengeGameScheduleView.as_view(), name='challenge-schedule'),
     path('create-manual-group-challenge/', CreateManualGroupChallengeView.as_view(), name='create-manual-group-challenge'),
     path('create-pending-collaborative-group-challenge/', CreatePendingCollaborativeGroupChallengeView.as_view(), name='create-pending-collaborative-group-challenge'),
-    path('finalize-collaborative-group-challenge/<int:chall_id>/', FinalizeCollaborativeGroupChallengeView.as_view(), name='finalize-collaborative-group-challenge'),
+    path('finalize-collaborative-group-challenge-schedule/<int:chall_id>/', FinalizeCollaborativeGroupChallengeScheduleView.as_view(), name='finalize-collaborative-group-challenge-schedule'),
     path('friend-requests/<int:user_id>/', FriendRequestListView.as_view(), name='friend-requests'),
     path('friend-requests-sent/<int:user_id>/', SentFriendRequestListView.as_view(), name='sent-friend-requests'),
     path('friend-request/respond/<int:request_id>/', RespondToFriendRequestView.as_view(), name='respond-friend-request'),

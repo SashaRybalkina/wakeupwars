@@ -603,7 +603,7 @@ class CreatePendingCollaborativeGroupChallengeView(APIView):
 
 
 
-class FinalizeCollaborativeGroupChallengeView(APIView):
+class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
     def post(self, request, chall_id):
         # Get the Challenge object or 404
         challenge = get_object_or_404(Challenge, id=chall_id)

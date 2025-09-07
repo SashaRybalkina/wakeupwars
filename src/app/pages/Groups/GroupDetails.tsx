@@ -243,10 +243,11 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
                       key={challenge.id}
                       style={styles.challengeCardWrapper}
                       onPress={() =>
-                        navigation.navigate("EditAvailability", {
+                        navigation.navigate("ilability", {
                           pendingChallengeId: challenge.id,
                           pendingChallengeName: challenge.name,
                           pendingChallengeEndDate: challenge.endDate,
+                          accepted: challenge.accepted
                         })
                       }
                     >

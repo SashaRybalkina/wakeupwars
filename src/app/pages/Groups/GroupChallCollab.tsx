@@ -24,7 +24,12 @@ import { BASE_URL, endpoints } from '../../api';
 type Props = { navigation: NavigationProp<any> } 
 // Config 
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
-const TIMES = Array.from({ length: 12 }, (_, i) => `${i + 6}:00`); // 6am - 5pm 
+// const TIMES = Array.from({ length: 12 }, (_, i) => `${i + 6}:00`); // 6am - 5pm 
+const TIMES = Array.from({ length: 24 * 4 }, (_, i) => {
+  const hours = Math.floor(i / 4);
+  const minutes = (i % 4) * 15;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+});
 type SelectedCell = { day: number; time: number }; // day: 0-6, time: 0-11 
 
 const GroupChallCollab: React.FC<Props> = ({ navigation }) => { 

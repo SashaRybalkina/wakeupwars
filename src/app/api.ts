@@ -19,7 +19,7 @@ export const endpoints = {
   challengeSchedule: (challId: number) => `${BASE_URL}/api/challenge-schedule/${challId}/`,
   createManualGroupChallenge: `${BASE_URL}/api/create-manual-group-challenge/`,
   createPendingCollaborativeGroupChallenge: () => `${BASE_URL}/api/create-pending-collaborative-group-challenge/`,
-  finalizeCollaborativeGroupChallenge: (challId: number) => `${BASE_URL}/api/finalize-collaborative-group-challenge/${challId}/`,
+  finalizeCollaborativeGroupChallengeSchedule: (challId: number) => `${BASE_URL}/api/finalize-collaborative-group-challenge-schedule/${challId}/`,
   allUsers: () => `${BASE_URL}/api/profile/all/`,
   sendFriendRequest: () => `${BASE_URL}/api/friend-request/send/`,
   friendRequests: (userId: number) => `${BASE_URL}/api/friend-requests/${userId}/`,
