@@ -119,9 +119,11 @@ class Game(models.Model):
 # Challenges: Challenges, either personal or group challenges. might have to enforce that a user can’t have 2 challenges 
 # scheduled on the same day through code instead of the db, it gets weird with the personal and group challenge cases
 class Challenge(models.Model):
-    groupID = models.ForeignKey(Group, null=True, blank=True, on_delete=models.CASCADE) # null if personal challenge
-    isPublic = models.BooleanField()
-    startDate = models.DateField()
+    groupID = models.ForeignKey(Group, null=True, blank=True, on_delete=models.CASCADE) # null if personal or public challenge
+    initiator = models.ForeignKey(User, null=True, on_delete=models.CASCADE) # not null for collab group challenges
+    isPublic = models.BooleanField(default=False)
+    isPending = models.BooleanField(default=False)
+    startDate = models.DateField(null=True)
     endDate = models.DateField()
     name = models.CharField(max_length=255, default='Challenge')
     isCompleted = models.BooleanField(default=False)
@@ -176,17 +178,8 @@ class ChallengeAlarmSchedule(models.Model):
         return f"Alarm schedule {self.alarm_schedule.id} for challenge {self.challenge.name}"
     
 
-class PendingGroupChallenge(models.Model):
-    groupID = models.ForeignKey(Group, on_delete=models.CASCADE)
-    endDate = models.DateField()
-    name = models.CharField(max_length=255, default='Challenge')
-    
-    class Meta:
-        db_table = 'PendingGroupChallenges'
-
-
 class PendingGroupChallengeAvailability(models.Model):
-    pendingChall = models.ForeignKey(PendingGroupChallenge, on_delete=models.CASCADE)
+    chall = models.ForeignKey(Challenge, on_delete=models.CASCADE)
     uID = models.ForeignKey(User, on_delete=models.CASCADE)
     dayOfWeek = models.IntegerField()  # Integer field to store day of the week (1-7)
     alarmTime = models.TimeField()
@@ -197,12 +190,13 @@ class PendingGroupChallengeAvailability(models.Model):
 
 class GroupChallengeInvite(models.Model):
     groupID = models.ForeignKey(Group, on_delete=models.CASCADE)
-    pendingChall = models.ForeignKey(PendingGroupChallenge, on_delete=models.CASCADE)
+    chall = models.ForeignKey(Challenge, on_delete=models.CASCADE)
     uID = models.ForeignKey(User, on_delete=models.CASCADE)
     accepted = models.IntegerField() # 0 means declined, 1 means accepted, 2 means neither (pending)
         
     class Meta:
         db_table = 'GroupChallengeInvites'
+
 
 
 # Game Schedules: the days of the week games are scheduled for challenges
