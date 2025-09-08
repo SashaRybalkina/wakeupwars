@@ -8,7 +8,7 @@ from asgiref.sync import sync_to_async
 
 def get_or_create_game(challenge_id, user):
     challenge = Challenge.objects.get(id=challenge_id)
-    print("Challenge is using game:", challenge.game.id, challenge.game.name)
+    #print("Challenge is using game:", challenge.game.id, challenge.game.name)
     is_multiplayer = challenge.groupID is not None # TODO: will need to eventually check if this game is multiplayer, not enough to just check
                                                     # if part of a group challenge
     # difficulty = 0.5 if is_multiplayer else 0.3  # medium for groups, easy for solo
