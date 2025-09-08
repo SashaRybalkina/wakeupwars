@@ -24,13 +24,16 @@ def test_never_played_returns_zero(user, category):
 
 @pytest.mark.django_db
 def test_plain_averaging_no_decay_no_window(user, category, game, challenge, monkeypatch):
-    # Disable decay & window
-    monkeypatch.setattr(SKILL_CONFIG, "HALF_LIFE_DAYS", None)
-    monkeypatch.setattr(SKILL_CONFIG, "WINDOW_DAYS", None)
+    from api.services import skill as skill_mod
+    from api.services.skill_config import SkillConfig
+
+    test_cfg = SkillConfig(WINDOW_DAYS=None, HALF_LIFE_DAYS=None)
+
+    monkeypatch.setattr(skill_mod, "SKILL_CONFIG", test_cfg, raising=True)
 
     today = date(2025, 9, 8)
     GamePerformance.objects.create(challenge=challenge, game=game, user=user, date=today, score=80)
-    GamePerformance.objects.create(challenge=challenge, game=game, user=user, date=today, score=60)
+    GamePerformance.objects.create(challenge=challenge, game=game, user=user, date=today + timedelta(days=1), score=60)
 
     skill = recompute_skill_for_category(user, category)
     sl = SkillLevel.objects.get(user=user, category=category)
@@ -43,9 +46,15 @@ def test_plain_averaging_no_decay_no_window(user, category, game, challenge, mon
 
 @pytest.mark.django_db
 def test_half_life_decay(user, category, game, challenge, monkeypatch):
-    # Enable half-life 30 days, no window
-    monkeypatch.setattr(SKILL_CONFIG, "HALF_LIFE_DAYS", 30.0)
-    monkeypatch.setattr(SKILL_CONFIG, "WINDOW_DAYS", None)
+    import api.services.skill as skill_mod
+    from api.services.skill_config import SkillConfig
+    from api.services.skill import recompute_skill_for_category
+
+    # temporary settings just for this test
+    test_cfg = SkillConfig(WINDOW_DAYS=None, HALF_LIFE_DAYS=30.0)
+
+    # swap the variable inside the module; do **not** touch the dataclass fields
+    monkeypatch.setattr(skill_mod, "SKILL_CONFIG", test_cfg, raising=True)
 
     base_day = date(2025, 9, 8)
     with freeze_time(base_day):
@@ -67,10 +76,16 @@ def test_half_life_decay(user, category, game, challenge, monkeypatch):
 
 
 @pytest.mark.django_db
-def test_window_cutoff(user, category, game, challenge, monkeypatch):
-    # Window 10 days, no decay
-    monkeypatch.setattr(SKILL_CONFIG, "WINDOW_DAYS", 10)
-    monkeypatch.setattr(SKILL_CONFIG, "HALF_LIFE_DAYS", None)
+def test_half_life_decay(user, category, game, challenge, monkeypatch):
+    import api.services.skill as skill_mod
+    from api.services.skill_config import SkillConfig
+    from api.services.skill import recompute_skill_for_category
+
+    # temporary settings just for this test
+    test_cfg = SkillConfig(WINDOW_DAYS=10.0, HALF_LIFE_DAYS=None)
+
+    # swap the variable inside the module; do **not** touch the dataclass fields
+    monkeypatch.setattr(skill_mod, "SKILL_CONFIG", test_cfg, raising=True)
 
     today = date(2025, 9, 8)
     recent = today - timedelta(days=5)
@@ -91,10 +106,16 @@ def test_window_cutoff(user, category, game, challenge, monkeypatch):
 
 
 @pytest.mark.django_db
-def test_signals_recompute_on_save_and_delete(user, category, game, challenge, monkeypatch):
-    # Disable decay/window
-    monkeypatch.setattr(SKILL_CONFIG, "HALF_LIFE_DAYS", None)
-    monkeypatch.setattr(SKILL_CONFIG, "WINDOW_DAYS", None)
+def test_half_life_decay(user, category, game, challenge, monkeypatch):
+    import api.services.skill as skill_mod
+    from api.services.skill_config import SkillConfig
+    from api.services.skill import recompute_skill_for_category
+
+    # temporary settings just for this test
+    test_cfg = SkillConfig(WINDOW_DAYS=None, HALF_LIFE_DAYS=None)
+
+    # swap the variable inside the module; do **not** touch the dataclass fields
+    monkeypatch.setattr(skill_mod, "SKILL_CONFIG", test_cfg, raising=True)
 
     today = date(2025, 9, 8)
 
