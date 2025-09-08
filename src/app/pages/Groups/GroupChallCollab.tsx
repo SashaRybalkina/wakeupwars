@@ -24,7 +24,19 @@ import { BASE_URL, endpoints } from '../../api';
 type Props = { navigation: NavigationProp<any> } 
 // Config 
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
-const TIMES = Array.from({ length: 12 }, (_, i) => `${i + 6}:00`); // 6am - 5pm 
+// const TIMES = Array.from({ length: 12 }, (_, i) => `${i + 6}:00`); // 6am - 5pm 
+const TIMES = Array.from({ length: 44 }, (_, i) => {
+  const totalMinutes = 4 * 60 + i * 15; // start at 4:00
+  const hours24 = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  const period = hours24 >= 12 ? "PM" : "AM";
+  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+
+  return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
+});
+
+
 type SelectedCell = { day: number; time: number }; // day: 0-6, time: 0-11 
 
 const GroupChallCollab: React.FC<Props> = ({ navigation }) => { 
@@ -92,6 +104,22 @@ const GroupChallCollab: React.FC<Props> = ({ navigation }) => {
 
 
 
+const convertTo24Hour = (time12: string) => {
+  // "4:15 AM" => "04:15", "3:00 PM" => "15:00"
+  const [time, modifier] = time12.split(" ");
+  if (!time || !modifier) throw new Error(`Invalid time format: ${time12}`);
+
+  const [hoursStr, minutesStr] = time.split(":");
+  if (!hoursStr || !minutesStr) throw new Error(`Invalid time format: ${time12}`);
+
+  let hours = Number(hoursStr);
+  const minutes = Number(minutesStr);
+
+  if (modifier === "AM" && hours === 12) hours = 0;
+  if (modifier === "PM" && hours !== 12) hours += 12;
+
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+};
 
 
 
@@ -107,26 +135,26 @@ const GroupChallCollab: React.FC<Props> = ({ navigation }) => {
         }
         
         const alarmSchedule = selectedCells.flatMap(({ day, time }) => {
-            const dayStr = DAYS[day];
-            if (dayStr === undefined) return [];
+          const dayStr = DAYS[day];
+          if (!dayStr) return [];
 
-            const dayOfWeek = dayToInt[dayStr as keyof typeof dayToInt];
-            if (dayOfWeek === undefined) return [];
-
-            return [{ dayOfWeek, time: TIMES[time] }];
+          const dayOfWeek = dayToInt[dayStr as keyof typeof dayToInt];
+          if (!dayOfWeek) return [];
+          if (!TIMES[time]) return;
+          return [{ dayOfWeek, time: convertTo24Hour(TIMES[time]) }];
         });
 
-
-        console.log("Alarm Availabilities:", alarmSchedule)
-
         const payload = {
-            name,
-            group_id: groupId,
-            end_date: selectedDate.toISOString().split("T")[0],
-            member: user?.id,
-            alarm_schedule: alarmSchedule,
-        }
-        console.log(payload)
+          name,
+          group_id: groupId,
+          initiator_id: Number(user?.id),
+          end_date: selectedDate.toISOString().split("T")[0],
+          members: groupMembers.map((member) => member.id),
+          alarm_schedule: alarmSchedule,
+        };
+
+        console.log("Payload sent to backend:", payload);
+
 
         try {
             const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
@@ -137,7 +165,7 @@ const GroupChallCollab: React.FC<Props> = ({ navigation }) => {
         console.log('csrfToken:', csrfToken);
 
 
-        const res = await fetch(endpoints.createPendingGroupChallenge, {
+        const res = await fetch(endpoints.createPendingCollaborativeGroupChallenge(), {
             method: 'POST',
             credentials: 'include',                    
             headers: {
@@ -362,7 +390,7 @@ const styles = StyleSheet.create({
   },
   cell: {
     width: 60,
-    height: 40,
+    height: 30,
     borderWidth: 1,
     borderColor: '#ccc',
     justifyContent: 'center',

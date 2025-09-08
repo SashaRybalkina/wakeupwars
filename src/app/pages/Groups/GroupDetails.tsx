@@ -247,6 +247,7 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
                           pendingChallengeId: challenge.id,
                           pendingChallengeName: challenge.name,
                           pendingChallengeEndDate: challenge.endDate,
+                          accepted: challenge.accepted
                         })
                       }
                     >

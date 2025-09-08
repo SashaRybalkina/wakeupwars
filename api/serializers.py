@@ -1,15 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Group, User, SkillLevel, GameCategory, Challenge, GamePerformance, GameSchedule, Message, ChallengeMembership, Game, FriendRequest, PendingGroupChallenge
+from .models import Group, User, SkillLevel, GameCategory, Challenge, GamePerformance, GameSchedule, Message, ChallengeMembership, Game, FriendRequest
 from django.contrib.auth.hashers import make_password
 import calendar
 
 User = get_user_model()
 
-class PendingGroupChallengeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PendingGroupChallenge
-        fields = ['id', 'name', 'endDate', 'groupID']
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -61,6 +57,7 @@ class ChallengeSummarySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Challenge
+        # TODO: may need to update for public/pending stuff
         fields = [
             'id',
             'name',

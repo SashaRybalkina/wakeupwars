@@ -29,7 +29,8 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
       onGameSelected({ id: gameId, name: gameName });
     }
     if (catType == 'Personal') navigation.navigate('PersChall2');
-    else navigation.navigate('GroupChall2', { groupId, groupMembers });
+    else if (catType == 'Group') navigation.navigate('GroupChall2', { groupId, groupMembers });
+    else if (catType == 'Public') navigation.navigate('CreatePublicChall2', { groupId, groupMembers });
   };
 
   return (

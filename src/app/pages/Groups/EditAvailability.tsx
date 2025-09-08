@@ -15,7 +15,13 @@ import { BASE_URL, endpoints } from '../../api';
 
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"];
 // Zero-pad to match API format like "06:00"
-const TIMES = Array.from({ length: 12 }, (_, i) => `${String(i + 6).padStart(2, '0')}:00`);
+// const TIMES = Array.from({ length: 12 }, (_, i) => `${String(i + 6).padStart(2, '0')}:00`);
+
+const TIMES = Array.from({ length: 24 * 4 }, (_, i) => {
+  const hours = Math.floor(i / 4);
+  const minutes = (i % 4) * 15;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+});
 
 type Props = {
   navigation: NavigationProp<any>
@@ -46,20 +52,23 @@ const toHHMM = (t?: string) => (t ? t.slice(0, 5) : '');
 
 const EditAvailability: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { pendingChallengeId, pendingChallengeName, pendingChallengeEndDate } = route.params as { 
+  const { pendingChallengeId, pendingChallengeName, pendingChallengeEndDate, accepted } = route.params as { 
     pendingChallengeId: number, 
     pendingChallengeName: string, 
-    pendingChallengeEndDate: string };
+    pendingChallengeEndDate: string,
+    accepted: number };
 
   const { user } = useUser();
 
   const [availability, setAvailability] = useState<AvailabilityEntry[]>([]);
   const [userAvailability, setUserAvailability] = useState<AvailabilityEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isInitiator, setIsInitiator] = useState(false);
+
+  const uniqueUserIds = [...new Set(availability.map(a => a.uID))];
 
   // Assign a color to each user
   const userColorMap = useMemo(() => {
-    const uniqueUserIds = [...new Set(availability.map(a => a.uID))];
     const colorMap: Record<number, string> = {};
     uniqueUserIds.forEach((id, index) => {
       colorMap[id] = transparentColors[index % transparentColors.length] || 'transparent';
@@ -92,6 +101,11 @@ const fetchAvailabilities = async () => {
     setAvailability(data);
     setUserAvailability(data.filter((entry: AvailabilityEntry) => entry.uID === user.id));
     setPendingToggles([]); // clear pending toggles after full refresh
+    
+    const res2 = await fetch(endpoints.getInitiator(pendingChallengeId));
+    const data2 = await res2.json();
+    console.log('Initiator: ', data2.initiator_id);
+    setIsInitiator(data2.initiator_id === user?.id);
   } catch (error) {
     console.error("Error fetching availabilities:", error);
   } finally {
@@ -234,12 +248,42 @@ const toggleCell = (dayIdx: number, timeIdx: number) => {
     }
   };
 
+
+  
+  const handleFinalizeSchedule = async () => {
+      try {
+          const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
+              credentials: 'include',                      
+      });
+      if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
+      const { csrfToken } = await csrfRes.json();   
+
+    const res = await fetch(endpoints.finalizeCollaborativeGroupChallengeSchedule(pendingChallengeId), {
+      method: 'POST',
+      credentials: 'include',                    
+      headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken,                
+      },
+    });
+
+    if (!res.ok) throw new Error('Failed to finalize schedule.');
+
+    Alert.alert('Success', 'Schedule finalized.');
+  } catch (err: any) {
+    Alert.alert('Error', err.message);
+  }
+};
+
 return (
   <ImageBackground
     source={require('../../images/cgpt.png')}
     style={styles.background}
     resizeMode="cover"
   >
+      {loading ? (
+        <ActivityIndicator size="large" color="#FFD700" />
+      ) : (
     <ScrollView
       contentContainerStyle={styles.scrollContentContainer}
       showsVerticalScrollIndicator={false}
@@ -251,9 +295,7 @@ return (
 
       <Text style={styles.title}>Edit Your Availability</Text>
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#FFD700" />
-      ) : (
+
         <View style={styles.formSection}>
           <Text style={styles.sectionLabel}>Select Availability</Text>
           <ScrollView horizontal>
@@ -308,9 +350,9 @@ return (
             </View>
           </ScrollView>
         </View>
-      )}
 
-      {!loading && availability.length > 0 && (() => {
+
+      {availability.length > 0 && (() => {
         const nameMap = new Map(availability.map(({ uID, name }) => [uID, name]));
         return (
           <View style={styles.legendContainer}>
@@ -328,10 +370,23 @@ return (
         <Text style={styles.saveButtonText}>Save My Availability</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.saveButton} onPress={handleDecline}>
-        <Text style={styles.saveButtonText}>Decline Challenge Invite</Text>
-      </TouchableOpacity>
+      {accepted !== 1 && (
+        <TouchableOpacity style={styles.saveButton} onPress={handleDecline}>
+          <Text style={styles.saveButtonText}>Decline Challenge Invite</Text>
+        </TouchableOpacity>
+      )}
+
+      {isInitiator && uniqueUserIds.length > 1 && (
+        <TouchableOpacity style={styles.saveButton} onPress={handleFinalizeSchedule}>
+          <Text style={styles.saveButtonText}>Finalize Challenge Schedule</Text>
+        </TouchableOpacity>
+      )}
+
     </ScrollView>
+
+      )}
+
+
   </ImageBackground>
 );
 
@@ -367,7 +422,7 @@ const styles = StyleSheet.create({
   },
   cell: {
     width: 50,
-    height: 40,
+    height: 30,
     borderWidth: 1,
     borderColor: '#ffffffd1',
     justifyContent: 'center',
