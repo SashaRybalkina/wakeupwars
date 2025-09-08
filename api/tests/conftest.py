@@ -22,6 +22,6 @@ def game(db, category):
 @pytest.fixture
 def challenge(db):
     # Minimal challenge just to satisfy FK (not used in skill math)
-    from yourapp.models import Group
+    from api.models import Group
     g = Group.objects.create(name="Solo")
     return Challenge.objects.create(groupID=g, isPublic=False, startDate=date(2025,1,1), endDate=date(2025,12,31), name="Solo Challenge")

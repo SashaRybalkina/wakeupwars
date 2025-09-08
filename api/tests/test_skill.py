@@ -6,10 +6,10 @@ from freezegun import freeze_time
 import pytest
 from django.utils import timezone
 
-from yourapp.models import SkillLevel, GamePerformance
-from yourapp.services.skill import recompute_skill_for_category
-from yourapp.services.skill_config import SKILL_CONFIG
-from yourapp.tests.utils import current_skill
+from api.models import SkillLevel, GamePerformance
+from api.services.skill import recompute_skill_for_category
+from api.services.skill_config import SKILL_CONFIG
+from .utils import current_skill
 
 
 @pytest.mark.django_db
