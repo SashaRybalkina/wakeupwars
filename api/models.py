@@ -237,6 +237,13 @@ class GamePerformance(models.Model):
     class Meta:
         db_table = 'GamePerformances'
         unique_together = ('challenge', 'game', 'user', 'date')
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['game']),
+            models.Index(fields=['date']),
+            models.Index(fields=['user', 'date']),
+            models.Index(fields=['game', 'date']),
+        ]
 
     def __str__(self):
         return f"Performance by {self.user.username} in {self.game.name} on {self.date}"
