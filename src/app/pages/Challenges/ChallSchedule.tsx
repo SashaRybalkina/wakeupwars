@@ -198,7 +198,7 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   };
 
   const goToPattern = () => {
-    navigation.navigate('PatternGame', { challengeId: challId, whichChall });
+    navigation.navigate('PatternGame', { challengeId: challId});
   }
 
   const handleGamePress = (game: string[], index: number) => {
@@ -206,7 +206,7 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
       goToSudoku();
     } 
     // If the second game exists and matches certain names
-    else if (game[1] === "Pattern Game") {
+    else if (game[0] === "Pattern Game") {
       goToPattern(); // Navigate to the second game (custom handler)
     }
     else {
