@@ -58,7 +58,7 @@ def get_or_create_pattern_game(challenge_id: int, user) -> Dict[str, Any]:
             pm_game = Game.objects.first()
 
         # Build full pattern for all rounds (max_rounds is default=5 in model)
-        max_rounds = 5
+        max_rounds = 2
         pattern = _build_full_pattern(max_rounds=max_rounds, start_len=4)
 
         # Create the game state
