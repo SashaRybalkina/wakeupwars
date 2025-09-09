@@ -41,6 +41,8 @@ node_modules
 *.tmp
 *.orig
 
+.expo
+
 # === IDEs ===
 .vscode/
 .idea/

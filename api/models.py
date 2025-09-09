@@ -237,6 +237,13 @@ class GamePerformance(models.Model):
     class Meta:
         db_table = 'GamePerformances'
         unique_together = ('challenge', 'game', 'user', 'date')
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['game']),
+            models.Index(fields=['date']),
+            models.Index(fields=['user', 'date']),
+            models.Index(fields=['game', 'date']),
+        ]
 
     def __str__(self):
         return f"Performance by {self.user.username} in {self.game.name} on {self.date}"
@@ -246,8 +253,8 @@ class GamePerformance(models.Model):
 class SkillLevel(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     category = models.ForeignKey(GameCategory, on_delete=models.CASCADE)
-    totalEarned = models.IntegerField()
-    totalPossible = models.IntegerField()
+    totalEarned = models.FloatField(default=0.0)    # was IntegerField
+    totalPossible = models.FloatField(default=0.0)  # was IntegerField
 
     class Meta:
         db_table = 'SkillLevels'
@@ -255,7 +262,6 @@ class SkillLevel(models.Model):
 
     def __str__(self):
         return f"Skill level of {self.user.username} in {self.category.categoryName}"
-
 
 # stores the states of currently running sudoku games (what the puzzle currently looks like, the solution, who's playing)
 class SudokuGameState(models.Model):

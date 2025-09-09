@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
 from rest_framework import generics, permissions
 from rest_framework import status
 from django.db import transaction
@@ -32,6 +32,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.middleware.csrf import get_token
 from asgiref.sync import async_to_sync
 import traceback
+from api.services.skill import recompute_skill_for_user
 
 User = get_user_model()
 
@@ -1353,3 +1354,11 @@ class ChallengeDailyHistoryView(APIView):
             "history": history,
         }
         return Response(payload, status=status.HTTP_200_OK)
+
+class RecomputeUserSkills(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, user_id: int):
+        user = get_object_or_404(User, pk=user_id)
+        skills = recompute_skill_for_user(user)
+        return Response({"success": True, "skills": skills})
