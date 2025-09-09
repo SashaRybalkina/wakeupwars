@@ -67,7 +67,6 @@ type Props = {
   navigation: NavigationProp<any>;
 };
 
-
 const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
   const { challengeId, challName, whichChall } = route.params as {
@@ -79,7 +78,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
     whichChall: string;
   };
 
-  const { user } = useUser();
+  const { user, setSkillLevels } = useUser();
   const [socket, setSocket] = useState<WebSocket | null>(null);
   // will only have a color if in a multiplayer game
   const [playerColor, setPlayerColor] = useState<string>('');
@@ -97,12 +96,21 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   const [cellColors, setCellColors] = useState(Array(81).fill('white'));
   // const [timeLeft, setTimeLeft] = useState(300);
   // const [intervalId, setIntervalId] = useState<ReturnType<typeof setInterval> | null>(null);
-  const [gameCompleted, setGameCompleted] = useState(false);  
+  const [gameCompleted, setGameCompleted] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   // const [pendingInput, setPendingInput] = useState<string>('');
 
   // const formatTime = (sec: number) => `${Math.floor(sec / 60)}:${sec % 60 < 10 ? '0' + sec % 60 : sec % 60}`;
 
+    const refreshSkills = async () => {
+      try {
+        const res = await fetch(endpoints.skillLevels(), { credentials: "include" });
+        const data = await res.json();
+        setSkillLevels(data);
+      } catch (err) {
+        console.error("skill refresh failed", err);
+      }
+    };
   // AI - Save scores
    const saveScores = async (payload: {
      challenge_id: number;
@@ -246,6 +254,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                       inaccuracy: s.inaccuracy,
                     })),
                   });
+                  await refreshSkills();
                 } catch (err) {
                   console.error("submit score failed", err);
                 }
@@ -374,6 +383,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                       date: new Date().toISOString().slice(0,10),
                       scores: [{ username: user.username, score: 100 }],
                     });
+                    await refreshSkills();
                   } catch (e) {
                     console.error("submit score failed", e);
                   }

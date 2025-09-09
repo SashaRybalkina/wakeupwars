@@ -1,5 +1,6 @@
 import type React from "react"
 import { useEffect, useState } from "react"
+import { useFocusEffect } from "@react-navigation/native"
 import { useUser } from "../context/UserContext"
 import { endpoints } from "../api"
 import { ImageBackground, StyleSheet, Text, TouchableOpacity, View, ScrollView } from "react-native"
@@ -19,7 +20,7 @@ const Profile: React.FC<Props> = ({ navigation }) => {
     navigation.navigate("Profile")
   }
   const [profileData, setProfileData] = useState<any>(null)
-  const { user, setUser } = useUser()
+  const { user, setUser, setSkillLevels } = useUser()
 
   const handleLogout = () => {
     setUser(null)
@@ -31,22 +32,32 @@ const Profile: React.FC<Props> = ({ navigation }) => {
   }
 
   useEffect(() => {
-    if (!user?.id) {
-      console.error("userId is missing!")
-      return
-    }
-    const fetchProfile = async () => {
+    if (!user) return;
+    (async () => {
       try {
-        const response = await fetch(endpoints.profile(Number(user.id)))
-        const data = await response.json()
-        setProfileData(data)
-      } catch (error) {
-        console.error("Failed to load profile:", error)
-      }
-    }
+        const res  = await fetch(endpoints.skillLevels(), { credentials: "include" });
+        setSkillLevels(await res.json());
+      } catch {}
+    })();
+  }, [user, setSkillLevels]);
 
-    fetchProfile()
-  }, [user])
+  useFocusEffect(
+    React.useCallback(() => {
+      let cancelled = false;
+
+      (async () => {
+        try {
+          const res  = await fetch(endpoints.skillLevels(), { credentials: "include" });
+          const data = await res.json();
+          if (!cancelled) setSkillLevels(data);
+        } catch (e) {
+          console.error("refresh skills failed", e);
+        }
+      })();
+
+      return () => { cancelled = true };
+    }, [setSkillLevels]),
+  );
 
   return (
     <ImageBackground source={require("../images/cgpt.png")} style={styles.background} resizeMode="cover">
@@ -56,7 +67,7 @@ const Profile: React.FC<Props> = ({ navigation }) => {
         contentContainerStyle={styles.scrollViewContent}
         showsVerticalScrollIndicator={false}
       >
-        <UserProfileCard name={profileData?.name || "Loading..."} skillLevels={profileData?.skill_levels || []} />
+        <UserProfileCard name={user?.name ?? "Loading…"} />
 
         <View style={styles.profileButtons}>
           <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate("Friends1")}>
