@@ -27,7 +27,7 @@ const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
 const extendedDays = new Set(["T", "TH", "S"])
 const DayOfWeekLabels: Record<number, string> = { 1: "M", 2: "T", 3: "W", 4: "TH", 5: "F", 6: "S", 7: "SU" }
 
-const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
+const ChallScheduleCp = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const route = useRoute()
   const { challId, challName } = route.params as { challId: number; challName: string }
 
@@ -631,6 +631,6 @@ const styles = StyleSheet.create({
   },
 })
 
-export default ChallSchedule
+export default ChallScheduleCp
 
 

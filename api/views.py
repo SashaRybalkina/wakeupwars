@@ -422,6 +422,74 @@ class ChallengeGameScheduleView(APIView):
             })
 
         return Response(result, status=status.HTTP_200_OK)
+    
+
+
+
+class ChallengeGameScheduleView(APIView):
+    def get(self, request, chall_id):
+        # Get the challenge
+        try:
+            challenge = Challenge.objects.get(id=chall_id)
+        except Challenge.DoesNotExist:
+            return Response({'error': 'Challenge not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Members
+        memberships = ChallengeMembership.objects.filter(challengeID=challenge)
+        members = [{'id': m.uID.id, 'name': m.uID.name} for m in memberships]
+
+        # Preload ChallengeAlarmSchedules, including the user
+        challenge_alarm_schedules = (
+            ChallengeAlarmSchedule.objects
+            .filter(challenge_id=chall_id)
+            .select_related("alarm_schedule__uID")
+            .order_by("alarm_schedule__dayOfWeek", "alarm_schedule__alarmTime")
+        )
+
+        # Collect games for the challenge, grouped by day
+        games_by_day = {}
+        games_qs = (
+            GameScheduleGameAssociation.objects
+            .filter(game_schedule__challenge_id=chall_id)
+            .select_related("game_schedule", "game")
+            .order_by("game_schedule__dayOfWeek", "game_order")
+        )
+        for g in games_qs:
+            day = g.game_schedule.dayOfWeek
+            games_by_day.setdefault(day, []).append({
+                "name": g.game.name,
+                "order": g.game_order
+            })
+
+        # Group alarms by day
+        alarms_by_day = {}
+        for cas in challenge_alarm_schedules:
+            sched = cas.alarm_schedule
+            day = sched.dayOfWeek
+            alarms_by_day.setdefault(day, []).append({
+                "userName": sched.uID.name,
+                "alarmTime": sched.alarmTime.strftime("%H:%M")
+            })
+
+        # Merge games + alarms into result
+        schedule = []
+        all_days = set(alarms_by_day.keys()) | set(games_by_day.keys())
+        for day in sorted(all_days):
+            schedule.append({
+                "dayOfWeek": day,
+                "alarms": alarms_by_day.get(day, []),
+                "games": games_by_day.get(day, [])
+            })
+
+        return Response({
+            "id": challenge.id,
+            "name": challenge.name,
+            "totalDays": (challenge.endDate - challenge.startDate).days + 1,
+            "members": members,
+            "schedule": schedule
+        }, status=status.HTTP_200_OK)
+
+
 
     
 
