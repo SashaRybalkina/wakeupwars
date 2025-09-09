@@ -88,7 +88,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   //   "alice": "aqua",
   //   "bob": "orange"
   // }
-  
+
   const [gameStateId, setGameStateId] = useState<number>(1);
   const [grid, setGrid] = useState<string[]>(Array(81).fill(''));
   const [initialCells, setInitialCells] = useState<boolean[]>(Array(81).fill(false));
@@ -142,7 +142,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
       });
       const tokenData = await token.json();
       const csrfToken = tokenData.csrfToken;
-      
+
       console.log("token in initGame: " + csrfToken);
       const res = await fetch(endpoints.createSudokuGame, {
         method: 'POST',
@@ -153,7 +153,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
         credentials: 'include',
         body: JSON.stringify({ challenge_id: challengeId }),
       });
-  
+
       const data = await res.json();
       console.log("Response data:", data); // Check the response from the server
 
@@ -183,13 +183,13 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
       // WebSocket connection for multiplayer
       if (is_multiplayer) {
         const ws = new WebSocket(`${BASE_URL.replace(/^http/, 'ws')}/ws/sudoku/${game_state_id}/`);
-        
+
         ws.onopen = () => console.log("[WebSocket] connected");
-  
+
         ws.onmessage = (event) => {
           const data = JSON.parse(event.data) as ServerToClientMessage;
           console.log("[WebSocket] Message received:", data);
-  
+
           switch (data.type) {
 
             case 'broadcast_move': {
@@ -201,14 +201,14 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                   updatedGrid[cell] = value.toString();
                   return updatedGrid;
                 });
-              
+
                 setCellColors(prevColors => {
                   const updatedColors = [...prevColors];
                   updatedColors[cell] = color;
                   return updatedColors;
                 });
               }
-            
+
               else {
                 setCellColors(prevColors => {
                   const updatedColors = [...prevColors];
@@ -217,27 +217,27 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                   return updatedColors;
                 });
               }
-            
+
               break;
             }
-        
+
             case 'player_joined': {
               console.log(`${data.player} joined the game as color ${data.color}`);
-            
+
               // Assume you have access to the current user's username somehow:
               if (data.player === user?.username) {
                 console.log('setting my own color');
                 setPlayerColor(data.color);
               }
-            
+
               setPlayerColors(prev => ({
                 ...prev,
                 [data.player]: data.color,
               }));
 
               break;
-            }                    
-        
+            }
+
             case 'game_complete': {
               const { scores } = data;
 
@@ -267,7 +267,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                     .sort((a, b) => b.score - a.score)
                     .map(s => `${s.username}: ${s.score} (✅ ${s.accuracy} / ❌ ${s.inaccuracy})`)
                     .join("\n"),
-                [{ text: "OK", onPress: () => navigation.navigate("ChallSchedule", { challId: challengeId, challName, whichChall }) }]
+                [{ text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) }]
               );
               break;
             }
@@ -389,7 +389,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                   }
                 }
                 Alert.alert("🎉 Puzzle Complete!", "", [
-                  { text: "OK", onPress: () => navigation.navigate("ChallSchedule", { challId: challengeId, challName, whichChall }) },
+                  { text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) },
                 ]);
               })();
             }
@@ -474,7 +474,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.exitButton} onPress={() => {
-            if (gameCompleted) navigation.navigate('ChallSchedule', {
+            if (gameCompleted) navigation.navigate('ChallDetails', {
               challId: challengeId,hallName: challName,
               whichChall: whichChall,});
             else Alert.alert('Game in Progress', 'You cannot exit while a game is in progress.', [{ text: 'OK', style: 'cancel' }]);
@@ -509,9 +509,9 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
           {/* Number buttons */}
           <View style={styles.numberRow}>
             {[1,2,3,4,5,6,7,8,9].map(n => (
-              <TouchableOpacity 
-              key={n} 
-              style={styles.numButton} 
+              <TouchableOpacity
+              key={n}
+              style={styles.numButton}
               onPress={() => {
                 if (selectedIndex !== null && !initialCells[selectedIndex]) {
                   confirmMove(selectedIndex, n);
@@ -528,15 +528,15 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
 
           {/* Delete and confirm buttons
           <View style={styles.actionRow}>
-            <TouchableOpacity 
-              style={styles.actionButton} 
+            <TouchableOpacity
+              style={styles.actionButton}
               onPress={handleDeleteMove}
             >
               <Image source={require('../images/trash.png')} style={{ width: 20, height: 20, resizeMode: 'contain',}} />
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.actionButton} 
+
+            <TouchableOpacity
+              style={styles.actionButton}
               onPress={confirmMove}
             >
               <Image source={require('../images/check.png')} style={{ width: 20, height: 20, resizeMode: 'contain',}} />
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#f0f0f0',
     paddingVertical: 5,
-    paddingHorizontal: 40, 
+    paddingHorizontal: 40,
     marginHorizontal: 8,
     borderRadius: 8,
     borderWidth: 1,
@@ -657,8 +657,8 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 12,
     color: 'white',
-  },  
-  
+  },
+
 
   // Sudoku grid styles
   gridContainer: { backgroundColor: 'black' },

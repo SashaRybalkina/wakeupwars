@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
+import { useFocusEffect } from '@react-navigation/native';
 import {
   ImageBackground,
   ScrollView,
@@ -135,42 +136,41 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
 
   // AI generated
 //   ---------- Leaderboard fetch ----------
+    const loadLeaderboard = async () => {
+      try {
+        setLbLoading(true);
+        setLbError(null);
+
+        const res = await fetch(endpoints.leaderboard(challId), {
+          credentials: 'include',
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+
+        setLeaderboard(Array.isArray(data) ? data : data.leaderboard ?? []);
+        setLbSince(data?.since ?? null);
+        setLbUntil(data?.until ?? null);
+      } catch (err) {
+        console.error(err);
+        setLbError('Failed to load leaderboard');
+      } finally {
+        setLbLoading(false);
+      }
+    };
+
+    // run once on the first mount
     useEffect(() => {
-      (async () => {
-        try {
-          setLbLoading(true);
-          setLbError(null);
-
-          const res = await fetch(endpoints.leaderboard(challId), {
-            credentials: 'include',
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-          const data = await res.json();
-          console.log('leaderboard raw', data);
-
-          if (Array.isArray(data)) {
-            // plain array variant
-            setLeaderboard(data);
-            setLbSince(null);
-            setLbUntil(null);
-          } else if (data && Array.isArray(data.leaderboard)) {
-            // object variant (the one you just logged)
-            setLeaderboard(data.leaderboard);
-            setLbSince(data.since ?? null);
-            setLbUntil(data.until ?? null);
-          } else {
-            // unexpected payload
-            setLeaderboard([]);
-          }
-        } catch (err) {
-          console.error(err);
-          setLbError('Failed to load leaderboard');
-        } finally {
-          setLbLoading(false);
-        }
-      })();
+      loadLeaderboard();
     }, [challId]);
+
+    // run every time the screen gains focus
+    useFocusEffect(
+      React.useCallback(() => {
+        loadLeaderboard();
+        return () => {};   // no cleanup needed
+      }, [challId]),
+    );
 
   useEffect(() => {
     // Animate progress bar
