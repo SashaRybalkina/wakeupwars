@@ -16,13 +16,15 @@ type Props = {
 // single or multiplayer page
 const GroupChall3: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, catId, catName, groupId, groupMembers, onGameSelected } = route.params as {
+  const { catType, catId, catName, groupId, groupMembers, onGameSelected, challId, challName } = route.params as {
     catType: string;
     catId: number;
     catName: string;
     groupId: number;
     groupMembers: { id: number; name: string }[];
     onGameSelected: (game: { id: number; name: string }) => void;
+    challId: number;
+    challName: number;
   };
 
   const goToNext = (singOrMult: String) => {
@@ -33,7 +35,9 @@ const GroupChall3: React.FC<Props> = ({ navigation }) => {
       singOrMult,
       groupId, 
       groupMembers, 
-      onGameSelected 
+      onGameSelected,
+      challId,
+      challName
     })
   };
 

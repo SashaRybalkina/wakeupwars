@@ -426,7 +426,7 @@ class ChallengeGameScheduleView(APIView):
 
 
 
-class ChallengeGameScheduleView(APIView):
+class GetChallengeScheduleView(APIView):
     def get(self, request, chall_id):
         # Get the challenge
         try:
@@ -484,6 +484,8 @@ class ChallengeGameScheduleView(APIView):
         return Response({
             "id": challenge.id,
             "name": challenge.name,
+            "startDate": challenge.startDate,
+            "endDate": challenge.endDate,
             "totalDays": (challenge.endDate - challenge.startDate).days + 1,
             "members": members,
             "schedule": schedule
@@ -491,7 +493,42 @@ class ChallengeGameScheduleView(APIView):
 
 
 
-    
+
+class AddGameToScheduleView(APIView):
+    @transaction.atomic
+    def post(self, request):
+        data = request.data
+        try:
+            # Get the schedule for this challenge/day
+            game_schedule = get_object_or_404(
+                GameSchedule,
+                challenge_id=data['challengeId'],
+                dayOfWeek=data['dayOfWeek']
+            )
+
+            # Get the game
+            game = get_object_or_404(Game, id=data['gameId'])
+
+            # Create the association
+            association = GameScheduleGameAssociation.objects.create(
+                game_schedule=game_schedule,
+                game=game,
+                game_order=data['gameOrder']  # order passed from frontend
+            )
+
+            return Response({
+                'id': association.id,
+                'gameName': game.name,
+                'dayOfWeek': game_schedule.dayOfWeek,
+                'gameOrder': association.game_order
+            }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
 
 class CreateManualGroupChallengeView(APIView):
     @transaction.atomic

@@ -14,13 +14,21 @@
 // import { endpoints } from "../../api"
 // // import styles from "./ChallSchedule.styles"
 import { useState, useEffect } from "react"
-import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native"
+import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform, Alert } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { type NavigationProp, useRoute } from "@react-navigation/native"
 import axios from "axios"
-import { endpoints } from "../../api"
+import { BASE_URL, endpoints } from "../../api"
+import ChallengeCard from "./ChallengeCard"
 // import { DayOfWeek, DayOfWeekLabels } from "./DayOfWeek";
+
+type Alarm = { userName: string; alarmTime: string }
+type DaySchedule = {
+  dayOfWeek: number
+  alarms: Alarm[]
+  games: { name: string; order: number }[]
+}
 
 
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
@@ -31,12 +39,12 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const route = useRoute()
   const { challId, challName } = route.params as { challId: number; challName: string }
 
-  const [selectedStartDate, setSelectedStartDate] = useState(new Date())
-  const [selectedEndDate, setSelectedEndDate] = useState(new Date())
+  const [selectedStartDate, setSelectedStartDate] = useState<Date>(new Date())
+  const [selectedEndDate, setSelectedEndDate] = useState<Date>(new Date())
   const [showStartDatePicker, setShowStartDatePicker] = useState(false)
   const [showEndDatePicker, setShowEndDatePicker] = useState(false)
 
-  // NEW: full schedule state from backend
+  // Full schedule from backend (contains both alarms and games)
   const [schedule, setSchedule] = useState<
     {
       dayOfWeek: number
@@ -45,64 +53,57 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
     }[]
   >([])
 
+  // Which day is currently selected by the user
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
 
-  // For showing games of selected day
+  // Challenge members
+  const [members, setMembers] = useState<{ id: number; name: string }[]>([])
+
+  // Derived for convenience: currently visible games and alarms
   const currentDay = schedule.find((d) => d.dayOfWeek === selectedDay)
-
-  useEffect(() => {
-    const fetchSchedule = async () => {
-      try {
-        const [detailRes, scheduleRes] = await Promise.all([
-          axios.get(endpoints.challengeDetail(challId)),
-          axios.get(endpoints.challengeSchedule(challId)),
-        ])
-
-        const detail = detailRes.data
-        const data = scheduleRes.data
-
-        // Parse dates
-        const parseLocalDate = (dateStr: string): Date => {
-            if (!dateStr) return new Date() // handle undefined/null
-
-            const parts = dateStr.split("-")
-            const year = Number(parts[0])
-            const month = Number(parts[1])
-            const day = Number(parts[2])
-
-            // fallback if any part is invalid
-            if (isNaN(year) || isNaN(month) || isNaN(day)) {
-                console.warn("Invalid date string:", dateStr)
-                return new Date()
-            }
-
-            return new Date(year, month - 1, day)
-        }
+  const visibleGames = currentDay?.games ?? []
+  const visibleAlarms = currentDay?.alarms ?? []
 
 
-        setSelectedStartDate(parseLocalDate(detail.startDate))
-        setSelectedEndDate(parseLocalDate(detail.endDate))
+useEffect(() => {
+  const fetchSchedule = async () => {
+    try {
+      const res = await axios.get(endpoints.getChallengeSchedule(challId))
+      const data = res.data
 
-        // Map API response directly into schedule state
-        const parsedSchedule = data.map((day: any) => ({
-          dayOfWeek: day.dayOfWeek,
-          alarms: day.alarms || [],
-          games: day.games || [],
-        }))
+      // Set challenge dates
+      const startDate = new Date(data.startDate)
+      setSelectedStartDate(startDate)
+      setSelectedEndDate(new Date(data.endDate))
 
-        setSchedule(parsedSchedule)
-        console.log("schedule: " + parsedSchedule)
+      setMembers(data.members)
 
-        // Pick first day with any alarms or games as default selected
-        const firstDay = parsedSchedule[0]?.dayOfWeek || null
-        setSelectedDay(firstDay)
-      } catch (err) {
-        console.error(err)
+      const dedupedSchedule: DaySchedule[] = data.schedule.map((day: DaySchedule) => ({
+        ...day,
+        alarms: Object.values(
+          day.alarms.reduce((acc: Record<string, Alarm>, alarm: Alarm) => {
+            acc[alarm.alarmTime] = alarm // only keep one per unique time
+            return acc
+          }, {})
+        )
+      }))
+
+      setSchedule(dedupedSchedule)
+      // setSchedule(data.schedule)
+      console.log(JSON.stringify(data.schedule, null, 2))
+
+      // Select first day that has a schedule by default
+      if (data.schedule.length > 0) {
+        setSelectedDay(data.schedule[0].dayOfWeek)
       }
+    } catch (err) {
+      console.error(err)
     }
+  }
 
-    fetchSchedule()
-  }, [])
+  fetchSchedule()
+}, [])
+
 
   const onStartDateChange = (event: any, date?: Date) => {
     if (event?.type === "dismissed") return setShowStartDatePicker(false)
@@ -120,18 +121,68 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
     }
   }
 
-  const addGameToDay = (game: string, attr: string[]) => {
-    // update db??
-    if (!selectedDay) return
-    const newGame = { name: game, order: (currentDay?.games.length || 0) + 1 }
+
+const addGameToDay = async (game: { id: number; name: string }) => {
+  if (!selectedDay) return;
+
+  const gameOrder = (currentDay?.games.length || 0) + 1;
+
+  // 1. Update local state immediately for responsive UI
+  const newGame = { name: game.name, order: gameOrder };
+  setSchedule((prev) =>
+    prev.map((d) =>
+      d.dayOfWeek === selectedDay
+        ? { ...d, games: [...d.games, newGame] }
+        : d
+    )
+  );
+
+  try {
+      const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
+          credentials: 'include',                      
+  });
+  if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
+  const { csrfToken } = await csrfRes.json();  
+
+
+        const payload = {
+          challengeId: challId,
+          gameId: game.id,
+          dayOfWeek: selectedDay,
+          gameOrder: gameOrder
+        };
+
+        console.log("Payload sent to backend:", payload);
+
+        const res = await fetch(endpoints.addGameToSchedule(), {
+            method: 'POST',
+            credentials: 'include',                    
+            headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,                
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.message || 'Failed to add game');
+        }
+
+  } catch (err) {
+    console.error("Failed to add game to backend:", err);
+
+    // 3. Optional: revert state if API fails
     setSchedule((prev) =>
       prev.map((d) =>
         d.dayOfWeek === selectedDay
-          ? { ...d, games: [...d.games, newGame] }
+          ? { ...d, games: d.games.filter((g) => g.order !== gameOrder) }
           : d
       )
-    )
+    );
   }
+};
+
 
   const removeGame = (index: number) => {
     if (!selectedDay) return
@@ -197,92 +248,89 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
           <View style={styles.alarmSection}>
             <Text style={styles.sectionTitle}>Challenge Days</Text>
             <ScrollView horizontal contentContainerStyle={{ flexDirection: "row", paddingVertical: 8 }}>
-              {DAYS.map((dayLabel, idx) => {
-                const dayData = schedule.find((d) => DayOfWeekLabels[d.dayOfWeek] === dayLabel)
-                const isActive = dayData?.dayOfWeek === selectedDay
+{DAYS.map((dayLabel, idx) => {
+  // find the schedule object for this label
+  const dayData = schedule.find((d) => DayOfWeekLabels[d.dayOfWeek] === dayLabel)
+  const isActive = dayData?.dayOfWeek === selectedDay
 
-                return (
-                  <View key={idx} style={{ alignItems: "center", marginHorizontal: 6 }}>
-                    <TouchableOpacity
-                      style={[
-                        styles.dayCircle,
-                        isActive && styles.activeDayCircle,
-                      ]}
-                      onPress={() => dayData && setSelectedDay(dayData.dayOfWeek)}
-                    >
-                      <Text style={[styles.dayText, isActive && styles.activeDayText]}>{dayLabel}</Text>
-                    </TouchableOpacity>
+  return (
+    <View key={idx} style={{ alignItems: "center", marginHorizontal: 6 }}>
+      <TouchableOpacity
+        style={[styles.dayCircle, isActive && styles.activeDayCircle]}
+        onPress={() => dayData && setSelectedDay(dayData.dayOfWeek)} // set selectedDay
+      >
+        <Text style={[styles.dayText, isActive && styles.activeDayText]}>{dayLabel}</Text>
+      </TouchableOpacity>
 
-                    {/* Render all alarms for this day */}
-                    <View style={{ flexDirection: "row", marginTop: 4 }}>
-                      {dayData?.alarms.map((alarm, i) => (
-                        <View
-                          key={i}
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 20,
-                            backgroundColor: "#1E90FF",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            marginHorizontal: 2,
-                          }}
-                        >
-                          <Ionicons name="alarm" size={14} color="#FFD700" />
-                          <Text style={{ fontSize: 10, color: "#FFF" }}>{alarm.alarmTime}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                )
-              })}
+      <View style={{ flexDirection: "row", marginTop: 4 }}>
+        {dayData?.alarms.map((alarm, i) => (
+          <View key={i} style={{
+            width: 40, height: 40, borderRadius: 20,
+            backgroundColor: "#1E90FF", justifyContent: "center",
+            alignItems: "center", marginHorizontal: 2
+          }}>
+            <Ionicons name="alarm" size={14} color="#FFD700" />
+            <Text style={{ fontSize: 10, color: "#FFF" }}>{alarm.alarmTime}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+})}
+
             </ScrollView>
           </View>
 
           {/* Games Section */}
-          <View style={styles.gamesSection}>
-            <View style={styles.gamesSectionHeader}>
-              <Text style={styles.sectionTitle}>
-                {selectedDay ? `Games for ${DayOfWeekLabels[selectedDay]}` : "Select a day"}
-              </Text>
-              {selectedDay && (
-                <TouchableOpacity
-                  style={styles.addGameButtonSmall}
-                  onPress={() => navigation.navigate("GroupChall3", { catType: "Group", onGameSelected: addGameToDay })}
-                >
-                  <Ionicons name="add-circle" size={24} color="#FFD700" />
-                  <Text style={styles.addGameTextSmall}>Add</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+<View style={styles.gamesSection}>
+  <View style={styles.gamesSectionHeader}>
+    <Text style={styles.sectionTitle}>
+      {selectedDay ? `Games for ${DayOfWeekLabels[selectedDay]}` : "Select a day"}
+    </Text>
+    {selectedDay && (
+      <TouchableOpacity
+        style={styles.addGameButtonSmall}
+        onPress={() => navigation.navigate("Categories", {
+          catType: "Schedule",
+          groupId: null,
+          onGameSelected: addGameToDay,
+          challId,
+          challName
+        })}
+      >
+        <Ionicons name="add-circle" size={24} color="#FFD700" />
+        <Text style={styles.addGameTextSmall}>Add</Text>
+      </TouchableOpacity>
+    )}
+  </View>
 
-            {currentDay?.games.length ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.gamesScrollContainer}>
-                <View style={styles.gamesGrid}>
-                  {currentDay.games.map((game, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[styles.gameCard, game.name === "Sudoku" && styles.sudokuGameCard]}
-                      onPress={() => handleGamePress(game, index)}
-                    >
-                      <Text style={styles.gameTitle}>{game.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            ) : (
-              <View style={styles.emptyGamesContainer}>
-                {selectedDay ? (
-                  <>
-                    <Ionicons name="game-controller-outline" size={40} color="rgba(255,255,255,0.5)" />
-                    <Text style={styles.emptyGamesText}>No games for {DayOfWeekLabels[selectedDay]}</Text>
-                  </>
-                ) : (
-                  <Text style={styles.emptyGamesText}>Select a day to see games</Text>
-                )}
-              </View>
-            )}
-          </View>
+  {visibleGames.length ? (
+    <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.gamesScrollContainer}>
+      <View style={styles.gamesGrid}>
+        {visibleGames.map((game, index) => (
+          <TouchableOpacity
+            key={index}
+            style={[styles.gameCard, game.name === "Sudoku" && styles.sudokuGameCard]}
+            onPress={() => handleGamePress(game, index)}
+          >
+            <Text style={styles.gameTitle}>{game.name}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
+  ) : (
+    <View style={styles.emptyGamesContainer}>
+      {selectedDay ? (
+        <>
+          <Ionicons name="game-controller-outline" size={40} color="rgba(255,255,255,0.5)" />
+          <Text style={styles.emptyGamesText}>No games for {DayOfWeekLabels[selectedDay]}</Text>
+        </>
+      ) : (
+        <Text style={styles.emptyGamesText}>Select a day to see games</Text>
+      )}
+    </View>
+  )}
+</View>
         </ScrollView>
       </View>
     </ImageBackground>

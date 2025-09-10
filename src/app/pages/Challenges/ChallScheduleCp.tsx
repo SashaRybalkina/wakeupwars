@@ -1,18 +1,3 @@
-// import React, { useEffect, useState } from "react"
-// import {
-//   View,
-//   Text,
-//   ScrollView,
-//   TouchableOpacity,
-//   ImageBackground,
-//   Platform,
-// } from "react-native"
-// import { useRoute, NavigationProp } from "@react-navigation/native"
-// import DateTimePicker from "@react-native-community/datetimepicker"
-// import { Ionicons } from "@expo/vector-icons"
-// import axios from "axios"
-// import { endpoints } from "../../api"
-// // import styles from "./ChallSchedule.styles"
 import { useState, useEffect } from "react"
 import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
@@ -20,82 +5,92 @@ import DateTimePicker from "@react-native-community/datetimepicker"
 import { type NavigationProp, useRoute } from "@react-navigation/native"
 import axios from "axios"
 import { endpoints } from "../../api"
-// import { DayOfWeek, DayOfWeekLabels } from "./DayOfWeek";
-
+import { DayOfWeek, DayOfWeekLabels } from "./DayOfWeek";
 
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
-const extendedDays = new Set(["T", "TH", "S"])
-const DayOfWeekLabels: Record<number, string> = { 1: "M", 2: "T", 3: "W", 4: "TH", 5: "F", 6: "S", 7: "SU" }
+const extendedDays = new Set(["T", "TH", "S"]);
 
-const ChallScheduleCp = ({ navigation }: { navigation: NavigationProp<any> }) => {
+const ChallScheduleOrig = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const route = useRoute()
-  const { challId, challName } = route.params as { challId: number; challName: string }
+  const { challId, challName, whichChall } = route.params as {
+    challId: number
+    challName: string
+    whichChall: string
+  }
 
-  const [selectedStartDate, setSelectedStartDate] = useState(new Date())
-  const [selectedEndDate, setSelectedEndDate] = useState(new Date())
+  const [selectedDays, setSelectedDays] = useState<Record<string, boolean>>({})
   const [showStartDatePicker, setShowStartDatePicker] = useState(false)
   const [showEndDatePicker, setShowEndDatePicker] = useState(false)
-
-  // NEW: full schedule state from backend
-  const [schedule, setSchedule] = useState<
-    {
-      dayOfWeek: number
-      alarms: { userName: string; alarmTime: string }[]
-      games: { name: string; order: number }[]
-    }[]
-  >([])
-
-  const [selectedDay, setSelectedDay] = useState<number | null>(null)
-
-  // For showing games of selected day
-  const currentDay = schedule.find((d) => d.dayOfWeek === selectedDay)
+  const [selectedStartDate, setSelectedStartDate] = useState(new Date())
+  const [selectedEndDate, setSelectedEndDate] = useState(new Date())
+  const [allGames, setAllGames] = useState<Record<string, string[][]>>({}) 
+  const [visibleGames, setVisibleGames] = useState<string[][]>([])
+  const [activeDay, setActiveDay] = useState<string | null>(null) 
+  const [alarmSchedule, setAlarmSchedule] = useState<{ dayOfWeek: number; alarmTime: string; userName: string }[]>([])
 
   useEffect(() => {
     const fetchSchedule = async () => {
       try {
         const [detailRes, scheduleRes] = await Promise.all([
-          axios.get(endpoints.challengeDetail(challId)),
+          axios.get(endpoints.challengeDetail(challId)), // gets days of week
           axios.get(endpoints.challengeSchedule(challId)),
         ])
 
         const detail = detailRes.data
         const data = scheduleRes.data
 
-        // Parse dates
+        console.log("Challenge detail:", detail)
+        console.log("Schedule data:", data)
+
         const parseLocalDate = (dateStr: string): Date => {
-            if (!dateStr) return new Date() // handle undefined/null
+          const parts = dateStr.split("-")
+          const year = Number(parts[0])
+          const month = Number(parts[1])
+          const day = Number(parts[2])
 
-            const parts = dateStr.split("-")
-            const year = Number(parts[0])
-            const month = Number(parts[1])
-            const day = Number(parts[2])
+          if (isNaN(year) || isNaN(month) || isNaN(day)) {
+            console.warn("Invalid date string:", dateStr)
+            return new Date()
+          }
 
-            // fallback if any part is invalid
-            if (isNaN(year) || isNaN(month) || isNaN(day)) {
-                console.warn("Invalid date string:", dateStr)
-                return new Date()
-            }
-
-            return new Date(year, month - 1, day)
+          return new Date(year, month - 1, day)
         }
-
 
         setSelectedStartDate(parseLocalDate(detail.startDate))
         setSelectedEndDate(parseLocalDate(detail.endDate))
 
-        // Map API response directly into schedule state
-        const parsedSchedule = data.map((day: any) => ({
+        const parsedDays: Record<string, boolean> = {}
+        const gamesByDay: Record<string, string[][]> = {}
+
+        data.forEach((day: any) => {
+          const label = DayOfWeekLabels[day.dayOfWeek as DayOfWeek];
+          if (label) {
+            parsedDays[label] = true;
+  
+            gamesByDay[label] = day.games.map((g: any) => [
+              g.name,
+              g.repeats || "-",
+              g.minutes || "-",
+            ]);
+          }
+        });
+
+        setSelectedDays(parsedDays)
+        setAllGames(gamesByDay)
+
+        // Set first selected day as active
+        const firstSelectedDay = Object.keys(parsedDays).find((day) => parsedDays[day])
+        if (firstSelectedDay) {
+          setActiveDay(firstSelectedDay)
+          setVisibleGames(gamesByDay[firstSelectedDay] || [])
+        }
+
+        const alarmParsed = data.map((day: any) => ({
           dayOfWeek: day.dayOfWeek,
-          alarms: day.alarms || [],
-          games: day.games || [],
+          alarmTime: day.alarmTime,
+          userName: "",
         }))
-
-        setSchedule(parsedSchedule)
-        console.log("schedule: " + parsedSchedule)
-
-        // Pick first day with any alarms or games as default selected
-        const firstDay = parsedSchedule[0]?.dayOfWeek || null
-        setSelectedDay(firstDay)
+        setAlarmSchedule(alarmParsed)
       } catch (err) {
         console.error(err)
       }
@@ -104,57 +99,116 @@ const ChallScheduleCp = ({ navigation }: { navigation: NavigationProp<any> }) =>
     fetchSchedule()
   }, [])
 
-  const onStartDateChange = (event: any, date?: Date) => {
-    if (event?.type === "dismissed") return setShowStartDatePicker(false)
-    if (date) {
-      setSelectedStartDate(date)
-      if (Platform.OS === "android") setShowStartDatePicker(false)
+  const selectDay = (day: string) => {
+    if (selectedDays[day]) {
+      setActiveDay(day)
+      setVisibleGames(allGames[day] || [])
     }
   }
 
-  const onEndDateChange = (event: any, date?: Date) => {
-    if (event?.type === "dismissed") return setShowEndDatePicker(false)
+  const toggleDay = (day: string) => {
+    setSelectedDays((prev) => ({
+      ...prev,
+      [day]: !prev[day],
+    }))
+
+    // If toggling on, make it active
+    if (!selectedDays[day]) {
+      setActiveDay(day)
+      setVisibleGames(allGames[day] || [])
+    }
+    // If toggling off the active day, find another day to make active
+    else if (day === activeDay) {
+      const nextActiveDay = Object.keys(selectedDays).find((d) => d !== day && selectedDays[d])
+      if (nextActiveDay) {
+        setActiveDay(nextActiveDay)
+        setVisibleGames(allGames[nextActiveDay] || [])
+      } else {
+        setActiveDay(null)
+        setVisibleGames([])
+      }
+    }
+  }
+
+  const onStartDateChange = (event: any, date: Date | undefined) => {    
+    if (event?.type === "dismissed") {
+      // Android Cancel
+      setShowStartDatePicker(false)
+      return
+    }
+
+    if (date) {
+      setSelectedStartDate(date)
+      if (Platform.OS === "android") {
+        // Android  OK 
+        setShowStartDatePicker(false)
+      }
+    }
+  }
+
+  const onEndDateChange = (event: any, date: Date | undefined) => {
+    if (event?.type === "dismissed") {
+      // Android Cancel
+      setShowEndDatePicker(false)
+      return
+    }
+
     if (date) {
       setSelectedEndDate(date)
-      if (Platform.OS === "android") setShowEndDatePicker(false)
+      if (Platform.OS === "android") {
+        // Android  OK 
+        setShowEndDatePicker(false)
+      }
     }
+
   }
 
   const addGameToDay = (game: string, attr: string[]) => {
-    // update db??
-    if (!selectedDay) return
-    const newGame = { name: game, order: (currentDay?.games.length || 0) + 1 }
-    setSchedule((prev) =>
-      prev.map((d) =>
-        d.dayOfWeek === selectedDay
-          ? { ...d, games: [...d.games, newGame] }
-          : d
-      )
-    )
+    if (activeDay) {
+      const newGame = [game, attr[0] + "", attr[1] + ""]
+
+      // Update both the visible games and the stored games for the active day
+      setVisibleGames((prev) => [...prev, newGame])
+      setAllGames((prev) => ({
+        ...prev,
+        [activeDay]: [...(prev[activeDay] || []), newGame],
+      }))
+    }
   }
 
   const removeGame = (index: number) => {
-    if (!selectedDay) return
-    setSchedule((prev) =>
-      prev.map((d) =>
-        d.dayOfWeek === selectedDay
-          ? { ...d, games: d.games.filter((_, i) => i !== index) }
-          : d
-      )
-    )
-  }
+    if (activeDay) {
+      // Remove from visible games
+      setVisibleGames((prev) => prev.filter((_, i) => i !== index))
 
-  const handleGamePress = (game: { name: string; order: number }, index: number) => {
-    if (game.name === "Sudoku" || game.name === "Group Sudoku") {
-      navigation.navigate("Sudoku", { challengeId: challId })
-    } else {
-      removeGame(index)
+      // Remove from stored games
+      setAllGames((prev) => ({
+        ...prev,
+        [activeDay]: (prev[activeDay] ?? []).filter((_, i) => i !== index),
+      }))
     }
   }
+
+  const goToMessages = () => navigation.navigate("Messages")
+  const goToGroups = () => navigation.navigate("Groups")
+  const goToProfile = () => navigation.navigate("Profile")
+
+  const goToSudoku = () => {
+    navigation.navigate('Sudoku', { challengeId: challId });
+  };
+
+  const handleGamePress = (game: string[], index: number) => {
+    if (game[0] === "Sudoku" || game[0] === "Group Sudoku") {
+      goToSudoku();
+    } else {
+      removeGame(index);
+    }
+  };
 
   const formatDate = (date: Date) => {
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
     return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`
   }
 
@@ -167,9 +221,14 @@ const ChallScheduleCp = ({ navigation }: { navigation: NavigationProp<any> }) =>
 
         <Text style={styles.title}>{challName}</Text>
 
-        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          {/* Start / End Date Section */}
+        <ScrollView
+          style={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
           <View style={styles.dateSection}>
+
+            {/* Start Date */}
             <View style={styles.dateContainer}>
               <Text style={styles.dateLabel}>Start date</Text>
               <Text style={styles.dateValue}>{formatDate(selectedStartDate)}</Text>
@@ -177,10 +236,27 @@ const ChallScheduleCp = ({ navigation }: { navigation: NavigationProp<any> }) =>
                 <Text style={styles.dateButtonText}>Edit Start Date</Text>
               </TouchableOpacity>
             </View>
+
             {showStartDatePicker && (
-              <DateTimePicker value={selectedStartDate} mode="date" display={Platform.OS === "android" ? "default" : "spinner"} onChange={onStartDateChange} />
+              <View style={Platform.OS === "ios" ? styles.pickerContainer : undefined}>
+                <DateTimePicker
+                  value={selectedStartDate}
+                  mode="date"
+                  display={Platform.OS === "android" ? "default" : "spinner"}
+                  onChange={onStartDateChange}
+                  textColor="#FFF"
+                />
+                {Platform.OS === "ios" && (
+                  <TouchableOpacity style={styles.doneButton} onPress={() => setShowStartDatePicker(false)}>
+                    <Text style={styles.doneButtonText}>Done</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
 
+            <View style={styles.divider} />
+
+            {/* End Date */}
             <View style={styles.dateContainer}>
               <Text style={styles.dateLabel}>End date</Text>
               <Text style={styles.dateValue}>{formatDate(selectedEndDate)}</Text>
@@ -188,67 +264,93 @@ const ChallScheduleCp = ({ navigation }: { navigation: NavigationProp<any> }) =>
                 <Text style={styles.dateButtonText}>Edit End Date</Text>
               </TouchableOpacity>
             </View>
+
             {showEndDatePicker && (
-              <DateTimePicker value={selectedEndDate} mode="date" display={Platform.OS === "android" ? "default" : "spinner"} onChange={onEndDateChange} />
+              <View style={Platform.OS === "ios" ? styles.pickerContainer : undefined}>
+                <DateTimePicker
+                  value={selectedEndDate}
+                  mode="date"
+                  display={Platform.OS === "android" ? "default" : "spinner"}
+                  onChange={onEndDateChange}
+                  textColor="#FFF"
+                />
+                {Platform.OS === "ios" && (
+                  <TouchableOpacity style={styles.doneButton} onPress={() => setShowEndDatePicker(false)}>
+                    <Text style={styles.doneButtonText}>Done</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
           </View>
 
-          {/* Days + Alarms Section */}
           <View style={styles.alarmSection}>
             <Text style={styles.sectionTitle}>Challenge Days</Text>
-            <ScrollView horizontal contentContainerStyle={{ flexDirection: "row", paddingVertical: 8 }}>
-              {DAYS.map((dayLabel, idx) => {
-                const dayData = schedule.find((d) => DayOfWeekLabels[d.dayOfWeek] === dayLabel)
-                const isActive = dayData?.dayOfWeek === selectedDay
+            <View style={styles.calendarContainer}>
+              {DAYS.map((day, index) => {
+                const isSelected = selectedDays[day]
+                const isActive = activeDay === day
+                const alarmItem = alarmSchedule.find((item) => DayOfWeekLabels[item.dayOfWeek as DayOfWeek] === day);
 
                 return (
-                  <View key={idx} style={{ alignItems: "center", marginHorizontal: 6 }}>
+                  <View key={index} style={styles.dayColumn}>
                     <TouchableOpacity
                       style={[
                         styles.dayCircle,
+                        isSelected && styles.selectedDayCircle,
                         isActive && styles.activeDayCircle,
                       ]}
-                      onPress={() => dayData && setSelectedDay(dayData.dayOfWeek)}
+                      onPress={() => (isSelected ? selectDay(day) : toggleDay(day))}
                     >
-                      <Text style={[styles.dayText, isActive && styles.activeDayText]}>{dayLabel}</Text>
+                      <Text
+                        style={[styles.dayText, isSelected && styles.selectedDayText, isActive && styles.activeDayText]}
+                      >
+                        {day}
+                      </Text>
                     </TouchableOpacity>
 
-                    {/* Render all alarms for this day */}
-                    <View style={{ flexDirection: "row", marginTop: 4 }}>
-                      {dayData?.alarms.map((alarm, i) => (
+                    {isSelected && alarmItem?.alarmTime ? (
+                      <View style={styles.dayBarWithAlarm}>
                         <View
-                          key={i}
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 20,
-                            backgroundColor: "#1E90FF",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            marginHorizontal: 2,
-                          }}
-                        >
+                          style={[
+                            styles.dayBar,
+                            styles.selectedDayBar,
+                            isActive && styles.activeDayBar,
+                            extendedDays.has(day) && styles.extendedDayBar, // Added this line to apply extended style
+                          ]}
+                        />
+                        <View style={styles.alarmBadge}>
                           <Ionicons name="alarm" size={14} color="#FFD700" />
-                          <Text style={{ fontSize: 10, color: "#FFF" }}>{alarm.alarmTime}</Text>
+                          <Text style={styles.alarmTimeText}>{alarmItem.alarmTime}</Text>
                         </View>
-                      ))}
-                    </View>
+                      </View>
+                    ) : (
+                      <View
+                        style={[
+                          styles.dayBar,
+                          isSelected && styles.selectedDayBar,
+                          isActive && styles.activeDayBar,
+                          extendedDays.has(day) && styles.extendedDayBar,
+                        ]}
+                      />
+                    )}
                   </View>
                 )
               })}
-            </ScrollView>
+            </View>
           </View>
 
-          {/* Games Section */}
           <View style={styles.gamesSection}>
             <View style={styles.gamesSectionHeader}>
-              <Text style={styles.sectionTitle}>
-                {selectedDay ? `Games for ${DayOfWeekLabels[selectedDay]}` : "Select a day"}
-              </Text>
-              {selectedDay && (
+              <Text style={styles.sectionTitle}>{activeDay ? `Games for ${activeDay}` : "No day selected"}</Text>
+              {activeDay && (
                 <TouchableOpacity
                   style={styles.addGameButtonSmall}
-                  onPress={() => navigation.navigate("GroupChall3", { catType: "Group", onGameSelected: addGameToDay })}
+                  onPress={() => {
+                    navigation.navigate("GroupChall3", {
+                      catType: "Group",
+                      onGameSelected: addGameToDay,
+                    })
+                  }}
                 >
                   <Ionicons name="add-circle" size={24} color="#FFD700" />
                   <Text style={styles.addGameTextSmall}>Add</Text>
@@ -256,26 +358,63 @@ const ChallScheduleCp = ({ navigation }: { navigation: NavigationProp<any> }) =>
               )}
             </View>
 
-            {currentDay?.games.length ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.gamesScrollContainer}>
+            {visibleGames.length > 0 ? (
+              <ScrollView
+                horizontal={true}
+                showsHorizontalScrollIndicator={true}
+                contentContainerStyle={styles.gamesScrollContainer}
+              >
                 <View style={styles.gamesGrid}>
-                  {currentDay.games.map((game, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[styles.gameCard, game.name === "Sudoku" && styles.sudokuGameCard]}
+                  {visibleGames.map((game, index) => (
+                    <TouchableOpacity 
+                      key={index} 
+                      style={[
+                        styles.gameCard,
+                        game[0] === "Sudoku" && styles.sudokuGameCard
+                      ]} 
                       onPress={() => handleGamePress(game, index)}
                     >
-                      <Text style={styles.gameTitle}>{game.name}</Text>
+                      <Text style={styles.gameTitle}>{game[0]}</Text>
+                      {game[0] !== "Sudoku" ? (
+                        <>
+                          <Text style={styles.gameDetail}>Repeats: {game[1]}</Text>
+                          <Text style={styles.gameDetail}>Minutes: {game[2]}</Text>
+                        </>
+                      ) : (
+                        <>
+                          <ImageBackground
+                            source={require("../../images/sudoku.png")}
+                            style={styles.sudokuImage}
+                            resizeMode="contain"
+                          />
+                          <View style={styles.playIndicator}>
+                            <Ionicons name="play-circle" size={24} color="#FFD700" />
+                            <Text style={styles.playText}>Play</Text>
+                          </View>
+                        </>
+                      )}
                     </TouchableOpacity>
                   ))}
                 </View>
               </ScrollView>
             ) : (
               <View style={styles.emptyGamesContainer}>
-                {selectedDay ? (
+                {activeDay ? (
                   <>
                     <Ionicons name="game-controller-outline" size={40} color="rgba(255,255,255,0.5)" />
-                    <Text style={styles.emptyGamesText}>No games for {DayOfWeekLabels[selectedDay]}</Text>
+                    <Text style={styles.emptyGamesText}>No games for {activeDay}</Text>
+                    <TouchableOpacity
+                      style={styles.addGameButton}
+                      onPress={() => {
+                        navigation.navigate("GroupChall3", {
+                          catType: "Group",
+                          onGameSelected: addGameToDay,
+                        })
+                      }}
+                    >
+                      <Ionicons name="add-circle" size={40} color="#FFF" />
+                      <Text style={styles.addGameText}>Add new game</Text>
+                    </TouchableOpacity>
                   </>
                 ) : (
                   <Text style={styles.emptyGamesText}>Select a day to see games</Text>
@@ -284,6 +423,28 @@ const ChallScheduleCp = ({ navigation }: { navigation: NavigationProp<any> }) =>
             )}
           </View>
         </ScrollView>
+      </View>
+
+      <View style={styles.navBar}>
+        <TouchableOpacity style={styles.navButton}>
+          <Ionicons name="star" size={28} color="#FFD700" />
+          <Text style={styles.activeNavText}>Challenges</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navButton} onPress={goToGroups}>
+          <Ionicons name="people-outline" size={28} color="#FFF" />
+          <Text style={styles.navText}>Groups</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navButton} onPress={goToMessages}>
+          <Ionicons name="mail-outline" size={28} color="#FFF" />
+          <Text style={styles.navText}>Messages</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navButton} onPress={goToProfile}>
+          <Ionicons name="person-outline" size={28} color="#FFF" />
+          <Text style={styles.navText}>Profile</Text>
+        </TouchableOpacity>
       </View>
     </ImageBackground>
   )
@@ -631,6 +792,4 @@ const styles = StyleSheet.create({
   },
 })
 
-export default ChallScheduleCp
-
-
+export default ChallScheduleOrig

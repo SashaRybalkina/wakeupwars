@@ -15,13 +15,15 @@ type Props = {
 
 const GameExpanded: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, gameId, gameName, groupId, groupMembers, onGameSelected } = route.params as {
+  const { catType, gameId, gameName, groupId, groupMembers, onGameSelected, challId, challName } = route.params as {
     catType: string;
     gameId: number;
     gameName: string;
     groupId: number;
     groupMembers: { id: number; name: string }[];
     onGameSelected: (game: { id: number; name: string }) => void;
+    challId: number;
+    challName: number;
   };
 
   const selectPressed = () => {
@@ -31,6 +33,7 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
     if (catType == 'Personal') navigation.navigate('PersChall2');
     else if (catType == 'Group') navigation.navigate('GroupChall2', { groupId, groupMembers });
     else if (catType == 'Public') navigation.navigate('CreatePublicChall2', { groupId, groupMembers });
+    else if (catType == 'Schedule') navigation.navigate('ChallSchedule', { challId, challName });
   };
 
   return (

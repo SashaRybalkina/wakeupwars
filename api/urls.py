@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import (LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView, 
+from .views import (LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView, GetChallengeScheduleView, AddGameToScheduleView,
                     UserMessagesView, GroupDetailsView, CatListView, GameListView, ChallengeListView, GetChallengeInitiatorView,
                     ChallengeDetailView, ChallengeGameScheduleView, CreateManualGroupChallengeView, CreatePendingCollaborativeGroupChallengeView, FriendListView, 
                     AddGroupMemberView, SendFriendRequestView, FriendRequestListView, RespondToFriendRequestView, FinalizeCollaborativeGroupChallengeScheduleView,
@@ -24,6 +24,7 @@ urlpatterns = [
     path('challenges/<int:user_id>/<str:which_chall>/', ChallengeListView.as_view(), name='challenge-list'),
     path('challenge-detail/<int:chall_id>/', ChallengeDetailView.as_view(), name='challenge-detail'),
     path('challenge-schedule/<int:chall_id>/', ChallengeGameScheduleView.as_view(), name='challenge-schedule'),
+    path('get-challenge-schedule/<int:chall_id>/', GetChallengeScheduleView.as_view(), name='get-challenge-schedule'),
     path('create-manual-group-challenge/', CreateManualGroupChallengeView.as_view(), name='create-manual-group-challenge'),
     path('create-pending-collaborative-group-challenge/', CreatePendingCollaborativeGroupChallengeView.as_view(), name='create-pending-collaborative-group-challenge'),
     path('finalize-collaborative-group-challenge-schedule/<int:chall_id>/', FinalizeCollaborativeGroupChallengeScheduleView.as_view(), name='finalize-collaborative-group-challenge-schedule'),
@@ -49,4 +50,5 @@ urlpatterns = [
     path('challenge-leaderboard/<int:chall_id>/', ChallengeLeaderboardView.as_view(), name='challenge-leaderboard'),
     path("challenge-leaderboard/<int:chall_id>/history/", ChallengeDailyHistoryView.as_view(), name="challenge-leaderboard-history"),
     path('submit-game-scores/', SubmitGameScoresView.as_view(), name='submit-game-scores'),
+    path('add-game-to-schedule/', AddGameToScheduleView.as_view(), name='add-game-to-schedule'),
 ]
