@@ -195,15 +195,28 @@ const addGameToDay = async (game: { id: number; name: string }) => {
     )
   }
 
-  const handleGamePress = (game: string[], index: number) => {
-    const name = (game[0] || "").trim().toLowerCase();
+  const goToMessages = () => navigation.navigate("Messages")
+  const goToGroups = () => navigation.navigate("Groups")
+  const goToProfile = () => navigation.navigate("Profile")
+
+  const goToSudoku = () => {
+    navigation.navigate('Sudoku', { challengeId: challId });
+  };
+
+  const goToPattern = () => {
+    navigation.navigate('PatternGame', { challengeId: challId});
+  }
 
 
-    if (name.includes("sudoku")) { // If the sudoku exists and matches certain names
+  const handleGamePress = (game: {name: string, order: number}, index: number) => {
+    game.name = game.name.toLowerCase();
+
+
+    if (game.name.includes("sudoku")) { // If the sudoku exists and matches certain names
       goToSudoku();
     }
     // If the pattern game exists and matches certain names
-    else if (name.includes("pattern")) {
+    else if (game.name.includes("pattern")) {
       goToPattern();
     }
     else {
@@ -312,22 +325,64 @@ const addGameToDay = async (game: { id: number; name: string }) => {
       </TouchableOpacity>
     )}
   </View>
+            {visibleGames.length > 0 ? (
+              <ScrollView
+                horizontal={true}
+                showsHorizontalScrollIndicator={true}
+                contentContainerStyle={styles.gamesScrollContainer}
+              >
+                <View style={styles.gamesGrid}>
+                  {visibleGames.map((game, index) => {
+                    // const name = (game[0] || "").trim();
+                    const lower = game.name.toLowerCase();
+                    const isSudoku = lower.includes("sudoku");   
+                    const isPattern = lower.includes("pattern"); 
 
-  {visibleGames.length ? (
-    <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.gamesScrollContainer}>
-      <View style={styles.gamesGrid}>
-        {visibleGames.map((game, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[styles.gameCard, game.name === "Sudoku" && styles.sudokuGameCard]}
-            onPress={() => handleGamePress(game, index)}
-          >
-            <Text style={styles.gameTitle}>{game.name}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </ScrollView>
-  ) : (
+                    return (
+                      <TouchableOpacity
+                        key={index}
+                        style={[styles.gameCard, isSudoku && styles.sudokuGameCard]}
+                        onPress={() => handleGamePress(game, index)}
+                      >
+                        <Text style={styles.gameTitle}>{game.name}</Text>
+
+                        {isSudoku ? (
+                          <>
+                            <ImageBackground
+                              source={require("../../images/sudoku.png")}
+                              style={styles.sudokuImage}
+                              resizeMode="contain"
+                            />
+                            <View style={styles.playIndicator}>
+                              <Ionicons name="play-circle" size={24} color="#FFD700" />
+                              <Text style={styles.playText}>Play</Text>
+                            </View>
+                          </>
+                        ) : isPattern ? (
+                          <>
+                            <ImageBackground
+                              source={require("../../images/patternGame.png")}
+                              style={styles.sudokuImage}
+                              resizeMode="contain"
+                            />
+                            <View style={styles.playIndicator}>
+                              <Ionicons name="play-circle" size={24} color="#FFD700" />
+                              <Text style={styles.playText}>Play</Text>
+                            </View>
+                          </>
+                        ) : (
+                          <>
+                            <Text style={styles.gameDetail}>Repeats: -</Text>
+                            <Text style={styles.gameDetail}>Minutes: -</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            ) : (
+
     <View style={styles.emptyGamesContainer}>
       {selectedDay ? (
         <>

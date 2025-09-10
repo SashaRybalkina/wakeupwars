@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useFocusEffect } from '@react-navigation/native';
 import {
   ImageBackground,
@@ -166,7 +166,7 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
 
     // run every time the screen gains focus
     useFocusEffect(
-      React.useCallback(() => {
+      useCallback(() => {
         loadLeaderboard();
         return () => {};   // no cleanup needed
       }, [challId]),
