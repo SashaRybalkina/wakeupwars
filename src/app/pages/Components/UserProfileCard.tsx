@@ -16,20 +16,24 @@ const UserProfileCard: React.FC<Props> = ({ name, avatarSource }) => {
         style={styles.avatar}
       />
       <Text style={styles.profileName}>{name}</Text>
-      <View style={styles.statsContainer}>
-      {skillLevels.map((s, i) => {
-        const level = s.totalPossible === 0 ? "0.0"
-                     : ((s.totalEarned / s.totalPossible) * 10).toFixed(1);
-          return (
-            <View style={styles.statCard} key={i}>
-              <Text style={styles.stat}>
-                {s.category.categoryName}{' '}
-                <Text style={styles.statValue}>{level} Points</Text>
-              </Text>
-            </View>
-          );
-        })}
+<View style={styles.statsContainer}>
+  {skillLevels.map((s, i) => {
+    const level =
+      s.totalPossible === 0
+        ? "0.0"
+        : ((s.totalEarned / s.totalPossible) * 10).toFixed(1);
+
+    return (
+      <View style={styles.statCard} key={i}>
+        <View style={styles.statRow}>
+          <Text style={styles.stat}>{s.category.categoryName}</Text>
+          <Text style={styles.statValue}>{level} / 10</Text>
+        </View>
       </View>
+    );
+  })}
+</View>
+
     </View>
   );
 };
@@ -81,6 +85,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFD700',
   },
+  statRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+},
+
 });
 
 export default UserProfileCard;
