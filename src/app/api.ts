@@ -40,6 +40,11 @@ export const endpoints = {
   createPersonalChallenge: `${BASE_URL}/api/create-personal-challenge/`,
   leaderboard: (id: number) => `${BASE_URL}/api/challenge-leaderboard/${id}/`,
   submitGameScores: () => `${BASE_URL}/api/submit-game-scores/`,
+  skillLevels: () => `${BASE_URL}/api/skill-levels/`,
+  // Pattern (REST)
+  patternCreate: `${BASE_URL}/api/pattern/create/`,
+  patternValidate: `${BASE_URL}/api/pattern/validate/`,
+  csrfToken: `${BASE_URL}/api/csrf-token/`,
 };
 
 export const leaderboardHistory = (
