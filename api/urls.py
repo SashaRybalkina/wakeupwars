@@ -1,4 +1,5 @@
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 from .views import (LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView,
                     UserMessagesView, GroupDetailsView, CatListView, GameListView,
                     ChallengeListView, GetChallengeInitiatorView,
@@ -10,8 +11,14 @@ from .views import (LoginView, RegisterView, GroupListView, HelloWorldView, User
                     CreateGroupView, CreatePersonalChallengeView, GetChallengeInvitesView,
                     GetAvailabilitiesView, SetAvailabilityView, DeclineChallengeInviteView,
                     ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
-                    SkillLevelsView)
+                    SkillLevelsView, ExternalHandleViewSet, ObligationViewSet, PaymentViewSet,
+                    FinalizeChallengeView)
 from .views import CreateSudokuGameView, ValidateSudokuMoveView, get_csrf_token
+
+router = DefaultRouter()
+router.register(r'external-handles', ExternalHandleViewSet, basename='external-handle')
+router.register(r'obligations', ObligationViewSet, basename='obligation')
+router.register(r'payments', PaymentViewSet, basename='payment')
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
@@ -55,4 +62,5 @@ urlpatterns = [
     path("challenge-leaderboard/<int:chall_id>/history/", ChallengeDailyHistoryView.as_view(), name="challenge-leaderboard-history"),
     path('submit-game-scores/', SubmitGameScoresView.as_view(), name='submit-game-scores'),
     path('skill-levels/', SkillLevelsView.as_view(), name="skill-levels"),
+    path('challenges/<int:challenge_id>/finalize/', FinalizeChallengeView.as_view(), name='finalize-challenge'),
 ]
