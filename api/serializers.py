@@ -4,6 +4,7 @@ from .models import (Group, User, SkillLevel, GameCategory, Challenge, GamePerfo
                      FriendRequest,RewardSetting, ExternalHandle, Obligation, Payment, PaymentProvider, PaymentMethod)
 from django.contrib.auth.hashers import make_password
 import calendar
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -54,28 +55,35 @@ class SkillLevelSerializer(serializers.ModelSerializer):
 class ChallengeSummarySerializer(serializers.ModelSerializer):
     isGroupChallenge = serializers.SerializerMethodField()
     daysOfWeek = serializers.SerializerMethodField()
+    isCompleted = serializers.SerializerMethodField()  # ← add this
 
     class Meta:
         model = Challenge
-        # TODO: may need to update for public/pending stuff
         fields = [
-            'id',
-            'name',
-            'startDate',
-            'endDate',
-            'isGroupChallenge',
-            'daysOfWeek',
-            'daysCompleted'
+            'id', 'name', 'startDate', 'endDate',
+            'isGroupChallenge', 'daysOfWeek', 'daysCompleted',
+            'isCompleted',   # ← include it
         ]
 
     def get_isGroupChallenge(self, obj):
         return obj.groupID is not None
 
     def get_daysOfWeek(self, obj):
-        # Converts integers 0-6 to "Monday", etc.
         day_numbers = obj.gameschedule_set.values_list('dayOfWeek', flat=True)
         return [calendar.day_name[day][0] for day in day_numbers]
 
+    def get_isCompleted(self, obj):
+        # Prefer a real model flag if you have one
+        if hasattr(obj, 'isCompleted') and obj.isCompleted is not None:
+            return bool(obj.isCompleted)
+        # Or infer from status / ended_at / endDate
+        if getattr(obj, 'status', None) == 'COMPLETED':
+            return True
+        if getattr(obj, 'ended_at', None):
+            return True
+        if obj.endDate:
+            return obj.endDate < timezone.now().date()
+        return False
 
 class UserProfileSerializer(serializers.ModelSerializer):
     skill_levels = SkillLevelSerializer(source='skilllevel_set', many=True)
@@ -144,8 +152,9 @@ class ObligationSerializer(serializers.ModelSerializer):
     payments = PaymentSerializer(many=True, read_only=True)
     amount_paid = serializers.DecimalField(max_digits=8, decimal_places=2, read_only=True)
     remaining = serializers.DecimalField(max_digits=8, decimal_places=2, read_only=True)
-    payer_name = serializers.CharField(source='payer.get_full_name', read_only=True)
-    payee_name = serializers.CharField(source='payee.get_full_name', read_only=True)
+
+    payer_name = serializers.SerializerMethodField()
+    payee_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Obligation
@@ -154,6 +163,16 @@ class ObligationSerializer(serializers.ModelSerializer):
             'currency', 'amount', 'amount_paid', 'remaining', 'status',
             'due_at', 'points_penalty_per_day', 'agreement_accepted', 'payments'
         ]
+
+    def _display_name(self, u):
+        # customize order to your model fields
+        return (getattr(u, 'name', '') or u.get_full_name() or u.username)
+
+    def get_payer_name(self, obj):
+        return self._display_name(obj.payer)
+
+    def get_payee_name(self, obj):
+        return self._display_name(obj.payee)
 
 # small “input-only” serializers used when a payer records a new payment
 class CashPaymentCreateSerializer(serializers.Serializer):
