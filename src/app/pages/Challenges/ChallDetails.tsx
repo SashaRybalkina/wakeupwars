@@ -17,10 +17,11 @@ import { useUser } from "../../context/UserContext"
 import { Ionicons } from "@expo/vector-icons"
 import { type NavigationProp, useRoute } from "@react-navigation/native"
 import axios from "axios"
-import { endpoints } from "../../api"
+import { endpoints, BASE_URL } from "../../api"
 import { LinearGradient } from "expo-linear-gradient"
 import { DayOfWeekLabels, type DayOfWeek } from "./DayOfWeek" // Ensure this is imported
 import { Button } from 'tamagui';
+import { Alert } from "react-native";
 
 type Props = {
   navigation: NavigationProp<any>
@@ -80,7 +81,8 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
   const [daysOfWeek, setDaysOfWeek] = useState<string[]>([])
   const [isFavorite, setIsFavorite] = useState(false)
   const [progressAnim] = useState(new Animated.Value(0))
-
+  const [toPay, setToPay] = useState<Obligation[]>([]);
+  const [toReceive, setToReceive] = useState<Obligation[]>([]);
   // leaderboard setup
   type LeaderRow = { name: string; points: number; rank: number }
 
@@ -142,16 +144,30 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
         setLbLoading(true);
         setLbError(null);
 
-        const res = await fetch(endpoints.leaderboard(challId), {
+        const res = await fetch(`${endpoints.leaderboard(challId)}?t=${Date.now()}`, { // cache-buster
           credentials: 'include',
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        const data = await res.json();
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : null;
 
-        setLeaderboard(Array.isArray(data) ? data : data.leaderboard ?? []);
+        const rows = Array.isArray(data) ? data : data?.leaderboard ?? [];
+        setLeaderboard(rows);
         setLbSince(data?.since ?? null);
         setLbUntil(data?.until ?? null);
+
+        if (rows.length === 0) {
+          setTimeout(async () => {
+            try {
+              const res2 = await fetch(`${endpoints.leaderboard(challId)}?t=${Date.now()}`, { credentials: 'include' });
+              const txt2 = await res2.text();
+              const d2 = txt2 ? JSON.parse(txt2) : null;
+              setLeaderboard(Array.isArray(d2) ? d2 : d2?.leaderboard ?? []);
+              setLbSince(d2?.since ?? null);
+              setLbUntil(d2?.until ?? null);
+            } catch {}
+          }, 500);
+        }
       } catch (err) {
         console.error(err);
         setLbError('Failed to load leaderboard');
@@ -159,11 +175,6 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
         setLbLoading(false);
       }
     };
-
-    // run once on the first mount
-    useEffect(() => {
-      loadLeaderboard();
-    }, [challId]);
 
     // run every time the screen gains focus
     useFocusEffect(
@@ -184,14 +195,18 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,   // not strictly required for GET, but safe
+          'X-CSRFToken': csrfToken,
         },
       });
+
+      const data = await res.json();
+      console.log('me payload:', data);
 
       if (!res.ok) {
         throw new Error('Failed to load obligations');
       }
-      return res.json(); // should be { to_pay: [...], to_receive: [...] }
+
+      return data;
     }
 
     useEffect(() => {
@@ -200,22 +215,19 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
           const obligations = await loadMyObligations();
           setToPay(obligations.to_pay);
           setToReceive(obligations.to_receive);
+          console.log("obligations:", obligations);
         } catch (err:any) {
-          Alert.alert('Error', err.message);
+          Alert.alert('Error: ', err.message);
         }
       })();
     }, []);
 
     const finalizeChallenge = async (challId: number) => {
       try {
-        // 1) get CSRF token (session cookie must exist from login)
-        const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-          credentials: 'include',
-        });
+        const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, { credentials: 'include' });
         if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
         const { csrfToken } = await csrfRes.json();
 
-        // 2) POST finalize
         const res = await fetch(`${BASE_URL}/api/challenges/${challId}/finalize/`, {
           method: 'POST',
           credentials: 'include',
@@ -227,14 +239,14 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.detail || err.message || `Finalize failed (${res.status})`);
+          throw new Error(err?.detail || err?.message || `Finalize failed (${res.status})`);
         }
 
-        // 3) re-fetch my obligations so the Settle Up UI updates
-        await loadMyObligations(); // call your existing fetcher for /api/obligations/me/
+        await loadMyObligations();
+        navigation.navigate("Rewards", { challengeId: challId });
 
         Alert.alert('Finalized', 'Obligations created. You can settle up now.');
-      } catch (e:any) {
+      } catch (e: any) {
         Alert.alert('Finalize failed', e.message);
       }
     };
@@ -448,7 +460,7 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
 
         <TouchableOpacity
           style={[styles.scheduleButton, { marginTop: 14 }]}
-          onPress={() => navigation.navigate("Rewards")}>
+          onPress={() => navigation.navigate("Rewards", { challengeId: challId })}>
           <LinearGradient
             colors={["#00C853", "#64DD17"]}
             style={styles.scheduleButtonGradient}>

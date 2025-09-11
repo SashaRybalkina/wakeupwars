@@ -1218,30 +1218,31 @@ class ValidatePatternMoveView(APIView):
 
 # AI was used to help generate this class
 
+
 class ChallengeLeaderboardView(APIView):
     """
     GET /challenge-leaderboard/<chall_id>/
-        -> overall leaderboard (unchanged)
-
+      -> overall leaderboard for start..min(endDate,today)
     GET /challenge-leaderboard/<chall_id>/?history=7
-        -> overall + "history" dict for the last 7 days
+      -> adds daily history for last N days in same window
     """
     def get(self, request, chall_id):
         challenge = get_object_or_404(Challenge, id=chall_id)
 
-        # -------------------- overall window --------------------
+        # Window: challenge start .. min(challenge end, LOCAL today)
         default_since = challenge.startDate
-        default_until = min(challenge.endDate, date.today())
+        default_until = min(challenge.endDate, timezone.localdate())
 
-        rows = (GamePerformance.objects
-                .filter(challenge_id=chall_id,
-                        date__gte=default_since,
-                        date__lte=default_until)
-                .values("user_id", "user__name")
-                .annotate(points=Sum("score"))
-                .order_by("-points", "user__name"))
-        
-        print(rows)
+        # -------- overall --------
+        rows = (
+            GamePerformance.objects
+            .filter(challenge=challenge,
+                    date__gte=default_since,
+                    date__lte=default_until)
+            .values("user__username")
+            .annotate(points=Sum("score"))
+            .order_by("-points", "user__username")
+        )
 
         overall, last_pts, rank = [], None, 0
         for r in rows:
@@ -1249,9 +1250,9 @@ class ChallengeLeaderboardView(APIView):
                 rank += 1
                 last_pts = r["points"]
             overall.append({
-                "name":  r["user__name"] or "Anonymous",
+                "name":   r["user__username"] or "Anonymous",
                 "points": int(r["points"] or 0),
-                "rank":  rank,
+                "rank":   rank,
             })
 
         payload = {
@@ -1260,7 +1261,7 @@ class ChallengeLeaderboardView(APIView):
             "leaderboard": overall,
         }
 
-        # -------------------- optional daily history --------------------
+        # -------- optional daily history --------
         try:
             n_days = int(request.GET.get("history", 0))
         except ValueError:
@@ -1269,36 +1270,33 @@ class ChallengeLeaderboardView(APIView):
         if n_days > 0:
             end_day   = default_until
             start_day = max(default_since, end_day - timedelta(days=n_days-1))
+            daily_qs = (
+                GamePerformance.objects
+                .filter(challenge=challenge, date__gte=start_day, date__lte=end_day)
+                .values("date", "user__username")
+                .annotate(points=Sum("score"))
+                .order_by("date", "-points", "user__username")
+            )
 
-            # fetch all rows for that window once
-            daily_qs = (GamePerformance.objects
-                        .filter(challenge_id=chall_id,
-                                date__gte=start_day,
-                                date__lte=end_day)
-                        .values("date", "user__name")
-                        .annotate(points=Sum("score"))
-                        .order_by("date", "-points", "user__name"))
-
-            # group by day -> list
-            grouped: dict[date, list[dict]] = defaultdict(list)
+            grouped = defaultdict(list)
             for r in daily_qs:
                 grouped[r["date"]].append(r)
 
-            # rank inside each day
-            history: dict[str, list[dict]] = {}
-            for d in (start_day + timedelta(i) for i in range(n_days)):
-                rows = grouped.get(d, [])
-                out, last_pts, rank = [], None, 0
-                for r in rows:
+            history = {}
+            for i in range(n_days):
+                d = start_day + timedelta(days=i)
+                rows_d, last_pts, rank = grouped.get(d, []), None, 0
+                out = []
+                for r in rows_d:
                     if r["points"] != last_pts:
                         rank += 1
                         last_pts = r["points"]
                     out.append({
-                        "name":   r["user__name"] or "Anonymous",
+                        "name":   r["user__username"] or "Anonymous",
                         "points": int(r["points"] or 0),
                         "rank":   rank,
                     })
-                history[str(d)] = out        # even if empty → easier for UI
+                history[str(d)] = out
 
             payload["history"] = history
 
@@ -1308,7 +1306,7 @@ class ChallengeLeaderboardView(APIView):
 class SubmitGameScoresView(APIView):
     """
     POST /submit-game-scores/
-    Body: { challenge_id, game_name|game_id, date?, scores: [{username|user_id, score, ...}] }
+    Body: { challenge_id, game_name|game_id, date?, scores: [{username|user_id, score}] }
     """
     def post(self, request):
         data = request.data
@@ -1321,56 +1319,59 @@ class SubmitGameScoresView(APIView):
         date_str = data.get("date")  # 'YYYY-MM-DD' or null
 
         if not challenge_id or not scores or not (game_id or game_name):
-            logger.warning("[SubmitGameScores] missing required fields")
             return Response({"detail": "Missing required fields."}, status=status.HTTP_400_BAD_REQUEST)
 
         challenge = get_object_or_404(Challenge, id=challenge_id)
 
-        if game_id:
-            game = get_object_or_404(Game, id=game_id)
-            logger.debug(f"[SubmitGameScores] resolved game via id={game_id}")
-        else:
-            qs = Game.objects.filter(name=game_name).order_by('id')
-            if not qs.exists():
-                logger.warning(f"[SubmitGameScores] unknown game_name={game_name}")
-                return Response({"detail": "Unknown game_name"}, status=400)
-            # pick the earliest (or latest) created row deterministically
-            game = qs.first()
-            logger.debug(f"[SubmitGameScores] resolved game via name={game_name} to id={game.id}")
+        game = get_object_or_404(Game, id=game_id) if game_id else (
+            Game.objects.filter(name=game_name).order_by('id').first()
+        )
+        if not game:
+            return Response({"detail": "Unknown game_name"}, status=400)
 
-        play_date = date_cls.fromisoformat(date_str) if date_str else date_cls.today()
+        # Use local date to avoid UTC “today” mismatch
+        play_date = date_cls.fromisoformat(date_str) if date_str else timezone.localdate()
 
         created_or_updated = 0
+        submitted_ids: set[int] = set()
+
         with transaction.atomic():
+            # 1) upsert submitted scores
             for row in scores:
-                user = None
                 if "user_id" in row:
                     user = get_object_or_404(User, id=row["user_id"])
                 elif "username" in row:
                     user = get_object_or_404(User, username=row["username"])
                 else:
-                    logger.error(f"[SubmitGameScores] score row missing user_id/username: {row}")
                     return Response({"detail": "Each score needs username or user_id."}, status=400)
 
                 sc = int(row.get("score", 0))
-
-                # Idempotent upsert: one row per (challenge, game, user, date)
                 obj, created = GamePerformance.objects.update_or_create(
+                    # ⚠️ keep these if your GamePerformance FKs are named challenge/game/user
                     challenge=challenge, game=game, user=user, date=play_date,
                     defaults={"score": sc}
                 )
-                # If prefer to accumulate multiple plays in one day:
-                # if created: obj.score = sc
-                # else: obj.score = F('score') + sc; obj.save(update_fields=['score'])
+                submitted_ids.add(user.id)
                 created_or_updated += 1
 
-                logger.debug(
-                    f"[SubmitGameScores] upsert "
-                    f"user={user.username} score={sc} -> id={obj.id} created={created}"
+            # 2) zero-fill for missing members
+            participant_ids = set(
+                ChallengeMembership.objects
+                .filter(challengeID=challenge)
+                .values_list('uID_id', flat=True)
+            )
+            missing_ids = participant_ids - submitted_ids
+
+            for uid in missing_ids:
+                u = User.objects.get(id=uid)
+                _, created = GamePerformance.objects.update_or_create(
+                    challenge=challenge, game=game, user=u, date=play_date,
+                    defaults={"score": 0}
                 )
+                if created:
+                    created_or_updated += 1
 
-
-        return Response({"ok": True, "count": created_or_updated}, status=status.HTTP_200_OK)
+        return Response({"ok": True, "count": created_or_updated}, status=200)
 
 class ChallengeUpdateView(generics.UpdateAPIView):
     queryset = Challenge.objects.all()
@@ -1380,18 +1381,14 @@ class ChallengeUpdateView(generics.UpdateAPIView):
 class ChallengeDailyHistoryView(APIView):
     """
     GET /api/challenge-leaderboard/<chall_id>/history/
-        → full daily history (challenge start ⟶ min(challenge_end, today))
-
+      → full daily history (challenge start ⟶ min(challenge_end, LOCAL today))
     GET …/history/?start=YYYY-MM-DD&end=YYYY-MM-DD
-        → history for that inclusive window
-        • both params optional
-        • if only one provided we treat it as *both* (single day)
+      → history for that inclusive window (if only one provided, use single-day)
     """
-
     def get(self, request, chall_id):
         challenge = get_object_or_404(Challenge, id=chall_id)
 
-        # ---------- 1. parse & validate date params ----------
+        # ---------- 1) parse & validate ----------
         def parse(d: str) -> date:
             try:
                 return datetime.strptime(d, "%Y-%m-%d").date()
@@ -1400,7 +1397,6 @@ class ChallengeDailyHistoryView(APIView):
 
         start_str = request.GET.get("start")
         end_str   = request.GET.get("end")
-
         if start_str and not end_str:
             end_str = start_str
         if end_str and not start_str:
@@ -1410,53 +1406,50 @@ class ChallengeDailyHistoryView(APIView):
             start = parse(start_str)
             end   = parse(end_str)
         else:
+            # use LOCAL today so “today” matches what SubmitGameScores wrote
             start = challenge.startDate
-            end   = min(challenge.endDate, date.today())
+            end   = min(challenge.endDate, timezone.localdate())
 
         if start < challenge.startDate or end > challenge.endDate or start > end:
             raise ValidationError("Date range outside the challenge window.")
 
         n_days = (end - start).days + 1
 
-        # ---------- 2. one query for the whole window ----------
+        # ---------- 2) one query for whole window ----------
         qs = (
             GamePerformance.objects
-            .filter(challenge_id=chall_id, date__gte=start, date__lte=end)
-            .values("date", "user__name")
+            .filter(challenge=challenge, date__gte=start, date__lte=end)  # <-- FK object
+            .values("date", "user__username")
             .annotate(points=Sum("score"))
-            .order_by("date", "-points", "user__name")
+            .order_by("date", "-points", "user__username")
         )
 
-        # ---------- 3. group + rank per day ----------
-        grouped: Dict[date, List[dict]] = defaultdict(list)
+        # ---------- 3) group + rank per day ----------
+        grouped = defaultdict(list)
         for r in qs:
             grouped[r["date"]].append(r)
 
-        history: Dict[str, List[dict]] = {}
+        history = {}
         for d in (start + timedelta(i) for i in range(n_days)):
             daily = grouped.get(d, [])
-            out: List[dict] = []
-            rank, last_pts = 0, None
+            out, last_pts, rank = [], None, 0
             for r in daily:
                 if r["points"] != last_pts:
                     rank += 1
                     last_pts = r["points"]
-                out.append(
-                    {
-                        "name":   r["user__name"] or "Anonymous",
-                        "points": int(r["points"] or 0),
-                        "rank":   rank,
-                    }
-                )
-            if out:                            # only send non-empty days
+                out.append({
+                    "name":   r["user__username"] or "Anonymous",
+                    "points": int(r["points"] or 0),
+                    "rank":   rank,
+                })
+            if out:                        # keep current “only non-empty days” behavior
                 history[str(d)] = out
 
-        payload = {
+        return Response({
             "since": str(start),
             "until": str(end),
             "history": history,
-        }
-        return Response(payload, status=status.HTTP_200_OK)
+        }, status=status.HTTP_200_OK)
 
 class RecomputeUserSkills(APIView):
     permission_classes = [IsAdminUser]
