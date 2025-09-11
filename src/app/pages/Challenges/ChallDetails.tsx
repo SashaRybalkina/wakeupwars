@@ -379,6 +379,17 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
             </View>
           </View>
 
+        <TouchableOpacity
+          style={[styles.scheduleButton, { marginTop: 14 }]}
+          onPress={() => navigation.navigate("Rewards")}>
+          <LinearGradient
+            colors={["#00C853", "#64DD17"]}
+            style={styles.scheduleButtonGradient}>
+            <Ionicons name="wallet" size={18} color="#FFF" style={styles.scheduleIcon} />
+            <Text style={styles.scheduleButtonText}>Settle Up</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
           {/* Bottom Spacing */}
           <View style={styles.bottomSpacing} />
         </ScrollView>

@@ -12,8 +12,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { NavigationProp } from "@react-navigation/native";
-import { useUser } from "../context/UserContext";
-import { endpoints } from "../api";
+import { useUser } from '../../context/UserContext';
+import { endpoints } from "../../api";
 
 type Props = { navigation: NavigationProp<any> };
 
