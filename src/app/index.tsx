@@ -11,6 +11,7 @@ import ChallDetails from './pages/Challenges/ChallDetails';
 import ChallSchedule from './pages/Challenges/ChallSchedule';
 import CreatePublicChall1 from './pages/Challenges/CreatePublicChall1';
 import LeaderboardDetails from './pages/Challenges/LeaderboardDetails'
+import RewardSettleScreen from './pages/Challenges/RewardSettleScreen';
 import Categories from './pages/Games/Categories';
 import GameExpanded from './pages/Games/GameExpanded';
 import Games from './pages/Games/Games';
@@ -224,6 +225,11 @@ function App() {
         <Stack.Screen
           name="mainPage"
           component={InputOutput}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Rewards"
+          component={RewardSettleScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

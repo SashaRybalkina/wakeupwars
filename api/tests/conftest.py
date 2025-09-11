@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from datetime import date
 from api.models import GameCategory, Game, Challenge
 
@@ -7,6 +8,7 @@ from api.models import GameCategory, Game, Challenge
 
 User = get_user_model()
 
+# --- For skill level testing ---
 @pytest.fixture
 def user(db):
     return User.objects.create_user(username="alice", password="pw")
@@ -25,3 +27,41 @@ def challenge(db):
     from api.models import Group
     g = Group.objects.create(name="Solo")
     return Challenge.objects.create(groupID=g, isPublic=False, startDate=date(2025,1,1), endDate=date(2025,12,31), name="Solo Challenge")
+
+
+# --- For rewards testing ---
+import pytest, uuid
+from django.utils import timezone
+from api.models import (
+    User, Challenge, ChallengeMembership, RewardSetting, RewardType,
+)
+
+def _rand(name):
+    return f"{name}_{uuid.uuid4().hex[:8]}"
+
+@pytest.fixture
+def users(db):
+    """
+    Three unique users each time the DB is flushed:
+    alice_XXXX, bob_XXXX, carl_XXXX
+    """
+    alice = User.objects.create_user(username=_rand("alice"), password="pw")
+    bob   = User.objects.create_user(username=_rand("bob"),   password="pw")
+    carl  = User.objects.create_user(username=_rand("carl"),  password="pw")
+    return alice, bob, carl
+
+
+@pytest.fixture
+def challenge(db, users):
+    """A fresh challenge with a $5 money reward."""
+    alice, bob, carl = users
+    chall = Challenge.objects.create(
+        name=f"Challenge_{uuid.uuid4().hex[:6]}",
+        endDate=timezone.now().date(),
+    )
+    for u in users:
+        ChallengeMembership.objects.create(challengeID=chall, uID=u)
+    RewardSetting.objects.create(
+        challenge=chall, type=RewardType.MONEY, amount=5
+    )
+    return chall

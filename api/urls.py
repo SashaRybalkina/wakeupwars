@@ -15,8 +15,33 @@ from .views import (LoginView, RegisterView, GroupListView, HelloWorldView, User
 
 from .views import CreateSudokuGameView, ValidateSudokuMoveView, get_csrf_token
 from .views import CreatePatternGameView, ValidatePatternMoveView
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import (
+    LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView,
+    UserMessagesView, GroupDetailsView, CatListView, GameListView,
+    ChallengeListView, GetChallengeInitiatorView, ChallengeDetailView,
+    ChallengeGameScheduleView, CreateManualGroupChallengeView,
+    CreatePendingCollaborativeGroupChallengeView, FriendListView,
+    AddGroupMemberView, SendFriendRequestView, FriendRequestListView,
+    RespondToFriendRequestView, FinalizeCollaborativeGroupChallengeScheduleView,
+    SentFriendRequestListView, AllUsersView, CancelFriendRequestView,
+    CreateGroupView, CreatePersonalChallengeView, GetChallengeInvitesView,
+    GetAvailabilitiesView, SetAvailabilityView, DeclineChallengeInviteView,
+    ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
+    SkillLevelsView, ExternalHandleViewSet, ObligationViewSet, PaymentViewSet,
+    FinalizeChallengeView, CreateSudokuGameView, ValidateSudokuMoveView, get_csrf_token,
+)
+
+router = DefaultRouter()
+router.register(r'external-handles', ExternalHandleViewSet, basename='external-handle')
+router.register(r'obligations', ObligationViewSet, basename='obligation')
+router.register(r'payments', PaymentViewSet, basename='payment')
 
 urlpatterns = [
+    path('', include(router.urls)),
+    path('challenges/<int:challenge_id>/finalize/', FinalizeChallengeView.as_view(), name='finalize-challenge'),
+    path('challenges/<int:user_id>/<str:which_chall>/', ChallengeListView.as_view(), name='challenge-list'),
     path('login/', LoginView.as_view(), name='login'),
     path('register/', RegisterView.as_view(), name='register'),
     path('user-groups/<int:user_id>/', GroupListView.as_view(), name='group-list'),
@@ -29,7 +54,7 @@ urlpatterns = [
     path('messages/<int:user_id>/', UserMessagesView.as_view()),
     path('groups/<int:group_id>/', GroupDetailsView.as_view(), name='group-details'),
     path('group-member-add/<int:group_id>/', AddGroupMemberView.as_view(), name='group-mem-add'),
-    path('challenges/<int:user_id>/<str:which_chall>/', ChallengeListView.as_view(), name='challenge-list'),
+
     path('challenge-detail/<int:chall_id>/', ChallengeDetailView.as_view(), name='challenge-detail'),
     path('challenge-schedule/<int:chall_id>/', ChallengeGameScheduleView.as_view(), name='challenge-schedule'),
     path('get-challenge-schedule/<int:chall_id>/', GetChallengeScheduleView.as_view(), name='get-challenge-schedule'),

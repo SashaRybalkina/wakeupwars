@@ -1,5 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Sum
+from django.utils import timezone
+from django.conf import settings
 
 # by default, every model's table gets an auto increment integer id as the primary key. Specify a composite key with unique_together
 
@@ -119,16 +122,35 @@ class Game(models.Model):
 # Challenges: Challenges, either personal or group challenges. might have to enforce that a user can’t have 2 challenges 
 # scheduled on the same day through code instead of the db, it gets weird with the personal and group challenge cases
 class Challenge(models.Model):
-    groupID = models.ForeignKey(Group, null=True, blank=True, on_delete=models.CASCADE) # null if personal or public challenge
-    initiator = models.ForeignKey(User, null=True, on_delete=models.CASCADE) # not null for collab group challenges
-    isPublic = models.BooleanField(default=False)
-    isPending = models.BooleanField(default=False)
-    startDate = models.DateField(null=True)
-    endDate = models.DateField()
-    name = models.CharField(max_length=255, default='Challenge')
+    # ──────── existing columns ───────────────────────────────────────────────
+    groupID     = models.ForeignKey(Group, null=True, blank=True, on_delete=models.CASCADE)
+    initiator   = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    isPublic    = models.BooleanField(default=False)
+    isPending   = models.BooleanField(default=False)  # waiting for invites / availability
+    startDate   = models.DateField(null=True)
+    endDate     = models.DateField()
+    name        = models.CharField(max_length=255, default='Challenge')
     isCompleted = models.BooleanField(default=False)
     daysCompleted = models.IntegerField(default=0)
-    # will be able to calculate total days from the start and end dates
+
+    # ──────── NEW convenience helpers ────────────────────────────────────────
+    members = models.ManyToManyField(
+        User,
+        through='ChallengeMembership',
+        through_fields=('challengeID', 'uID'),
+        related_name='challenges'
+    )
+
+    winner = models.ForeignKey(               # optional denormalised reference
+        User,
+        null=True, blank=True,
+        related_name='challenges_won',
+        on_delete=models.SET_NULL
+    )
+
+    rewards_finalized = models.BooleanField(  # guard so we don’t double-create obligations
+        default=False
+    )
 
     class Meta:
         db_table = 'Challenges'
@@ -136,6 +158,73 @@ class Challenge(models.Model):
 
     def __str__(self):
         return self.name
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Determine the winner (simple “highest total points” example).
+    # ─────────────────────────────────────────────────────────────────────────
+    def get_winner_user(self):
+        """
+        Return User who has the most total points in this challenge.
+        Fallback to None if no participants.
+        """
+
+        qs = (
+            GamePerformance.objects
+            .filter(challenge=self)
+            .values('user')
+            .annotate(total=Sum('score'))
+            .order_by('-total')
+        )
+        top = qs.first()
+        if not top:
+            return None
+        return User.objects.get(id=top['user'])
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Convenience wrapper the API view can call instead of duplicating logic.
+    # Creates RewardSetting/Obligations ONLY once.
+    # ─────────────────────────────────────────────────────────────────────────
+    def finalize_and_create_obligations(self):
+        """
+        Mark the challenge complete, compute winner, create RewardSetting
+        (if it doesn’t exist) + Obligations for every non-winner.
+        """
+        from django.db import transaction
+
+        if self.rewards_finalized:
+            return  # already done
+
+        winner = self.winner or self.get_winner_user()
+        if not winner:
+            raise ValueError("No winner could be determined")
+
+        self.winner = winner
+        self.isCompleted = True
+        self.save(update_fields=['winner', 'isCompleted'])
+
+        rs, _ = RewardSetting.objects.get_or_create(
+            challenge=self,
+            defaults=dict(type=RewardType.MONEY, amount=5)
+        )
+
+        due_at = timezone.now() + timezone.timedelta(days=7)
+
+        with transaction.atomic():
+            for payer in self.members.exclude(id=winner.id):
+                Obligation.objects.get_or_create(
+                    challenge=self,
+                    payer=payer,
+                    payee=winner,
+                    defaults=dict(
+                        currency='USD',
+                        amount=rs.amount,
+                        due_at=due_at,
+                        points_penalty_per_day=5  # tune in settings
+                    )
+                )
+
+            self.rewards_finalized = True
+            self.save(update_fields=['rewards_finalized'])
 
 
 # representing Many-to-many relationship between users and challenges
@@ -334,3 +423,113 @@ class PatternMemorizationGamePlayer(models.Model):
     def __str__(self):
         return f"{self.player.username} in PatternMemorizationGame {self.game_state.id} (Score: {self.score})"
 
+## Below is generated by AI ##
+# Enum for allowed reward types for a challenge.
+class RewardType(models.TextChoices):
+    MONEY = 'money', 'Money'
+    POINTS = 'points', 'Points'
+    CUSTOM = 'custom', 'Custom'
+
+# Enum for lifecycle states of an obligation to pay the winner.
+class ObligationStatus(models.TextChoices):
+    UNPAID = 'unpaid', 'Unpaid'
+    PENDING = 'pending', 'PendingConfirm'
+    PAID = 'paid', 'Paid'
+
+# Enum for how a payment was made (cash vs external app).
+class PaymentMethod(models.TextChoices):
+    CASH = 'cash', 'Cash'
+    EXTERNAL = 'external', 'External'
+
+# Enum for external providers we link out to (e.g., Venmo/PayPal).
+class PaymentProvider(models.TextChoices):
+    VENMO = 'venmo', 'Venmo'
+    PAYPAL = 'paypal', 'PayPal'
+    OTHER = 'other', 'Other'
+
+# Enum for lifecycle states of a payment record.
+class PaymentStatus(models.TextChoices):
+    PENDING = 'pending', 'PendingConfirm'
+    CONFIRMED = 'confirmed', 'Confirmed'
+    REJECTED = 'rejected', 'Rejected'
+
+# Per-challenge configuration for reward type/amount/note.
+class RewardSetting(models.Model):
+    challenge = models.OneToOneField('api.Challenge', on_delete=models.CASCADE, related_name='reward_setting')
+    type = models.CharField(max_length=16, choices=RewardType.choices, default=RewardType.MONEY)
+    amount = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    note = models.CharField(max_length=140, blank=True)
+
+    def __str__(self):
+        return f"{self.challenge_id} - {self.type} {self.amount or ''}".strip()
+
+# User’s saved handle for external payment apps (Venmo/PayPal).
+class ExternalHandle(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='external_handles')
+    provider = models.CharField(max_length=16, choices=PaymentProvider.choices)
+    handle = models.CharField(max_length=128)  # venmo username, paypal.me slug, or email
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [('user', 'provider')]
+
+    def __str__(self):
+        return f"{self.user} {self.provider}:{self.handle}"
+
+# An amount a payer owes the winner for a finished challenge.
+class Obligation(models.Model):
+    challenge = models.ForeignKey('api.Challenge', on_delete=models.CASCADE, related_name='obligations')
+    payer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reward_obligations_to_pay')
+    payee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reward_obligations_to_receive')
+    currency = models.CharField(max_length=8, default='USD')
+    amount = models.DecimalField(max_digits=8, decimal_places=2)
+    status = models.CharField(max_length=16, choices=ObligationStatus.choices, default=ObligationStatus.UNPAID)
+    due_at = models.DateTimeField()
+    points_penalty_per_day = models.IntegerField(default=0)
+    last_penalty_at = models.DateTimeField(null=True, blank=True)
+    agreement_accepted = models.BooleanField(default=False)  # payer accepted agreement?
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [('challenge', 'payer', 'payee')]
+
+    @property
+    def amount_paid(self):
+        agg = self.payments.filter(status=PaymentStatus.CONFIRMED).aggregate(models.Sum('amount'))['amount__sum']
+        return agg or 0
+
+    @property
+    def remaining(self):
+        return max(self.amount - self.amount_paid, 0)
+
+    def recompute_status(self, save=True):
+        new_status = (ObligationStatus.PAID if self.remaining == 0
+                      else (ObligationStatus.PENDING if self.payments.filter(status=PaymentStatus.PENDING).exists()
+                            else ObligationStatus.UNPAID))
+        self.status = new_status
+        if save:
+            self.save(update_fields=['status'])
+        return self.status
+
+# A single payment record (cash or external) toward an obligation.
+class Payment(models.Model):
+    obligation = models.ForeignKey(Obligation, on_delete=models.CASCADE, related_name='payments')
+    method = models.CharField(max_length=16, choices=PaymentMethod.choices)
+    provider = models.CharField(max_length=16, choices=PaymentProvider.choices, blank=True)
+    amount = models.DecimalField(max_digits=8, decimal_places=2)
+    note = models.CharField(max_length=140, blank=True)
+    payer_marked_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=16, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
+    winner_confirmed_at = models.DateTimeField(null=True, blank=True)
+    evidence_photo = models.ImageField(upload_to='reward_evidence/', null=True, blank=True)
+
+    def confirm(self):
+        self.status = PaymentStatus.CONFIRMED
+        self.winner_confirmed_at = timezone.now()
+        self.save(update_fields=['status', 'winner_confirmed_at'])
+        self.obligation.recompute_status()
+
+    def reject(self):
+        self.status = PaymentStatus.REJECTED
+        self.save(update_fields=['status'])
+        self.obligation.recompute_status()

@@ -20,6 +20,7 @@ import axios from "axios"
 import { endpoints } from "../../api"
 import { LinearGradient } from "expo-linear-gradient"
 import { DayOfWeekLabels, type DayOfWeek } from "./DayOfWeek" // Ensure this is imported
+import { Button } from 'tamagui';
 
 type Props = {
   navigation: NavigationProp<any>
@@ -171,6 +172,72 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
         return () => {};   // no cleanup needed
       }, [challId]),
     );
+
+    async function loadMyObligations() {
+      const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
+        credentials: 'include',
+      });
+      const { csrfToken } = await csrfRes.json();
+
+      const res = await fetch(endpoints.myObligations(), {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken,   // not strictly required for GET, but safe
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to load obligations');
+      }
+      return res.json(); // should be { to_pay: [...], to_receive: [...] }
+    }
+
+    useEffect(() => {
+      (async () => {
+        try {
+          const obligations = await loadMyObligations();
+          setToPay(obligations.to_pay);
+          setToReceive(obligations.to_receive);
+        } catch (err:any) {
+          Alert.alert('Error', err.message);
+        }
+      })();
+    }, []);
+
+    const finalizeChallenge = async (challId: number) => {
+      try {
+        // 1) get CSRF token (session cookie must exist from login)
+        const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
+          credentials: 'include',
+        });
+        if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
+        const { csrfToken } = await csrfRes.json();
+
+        // 2) POST finalize
+        const res = await fetch(`${BASE_URL}/api/challenges/${challId}/finalize/`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+          },
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || err.message || `Finalize failed (${res.status})`);
+        }
+
+        // 3) re-fetch my obligations so the Settle Up UI updates
+        await loadMyObligations(); // call your existing fetcher for /api/obligations/me/
+
+        Alert.alert('Finalized', 'Obligations created. You can settle up now.');
+      } catch (e:any) {
+        Alert.alert('Finalize failed', e.message);
+      }
+    };
 
   useEffect(() => {
     // Animate progress bar
@@ -378,6 +445,28 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
               </View>
             </View>
           </View>
+
+        <TouchableOpacity
+          style={[styles.scheduleButton, { marginTop: 14 }]}
+          onPress={() => navigation.navigate("Rewards")}>
+          <LinearGradient
+            colors={["#00C853", "#64DD17"]}
+            style={styles.scheduleButtonGradient}>
+            <Ionicons name="wallet" size={18} color="#FFF" style={styles.scheduleIcon} />
+            <Text style={styles.scheduleButtonText}>Settle Up</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.scheduleButton, { marginTop: 14 }]}
+          onPress={() => finalizeChallenge(challId)}>
+          <LinearGradient
+            colors={["#00C853", "#64DD17"]}
+            style={styles.scheduleButtonGradient}>
+            <Ionicons name="wallet" size={18} color="#FFF" style={styles.scheduleIcon} />
+            <Text style={styles.scheduleButtonText}>Finalize Challenge</Text>
+          </LinearGradient>
+        </TouchableOpacity>
 
           {/* Bottom Spacing */}
           <View style={styles.bottomSpacing} />

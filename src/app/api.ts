@@ -1,5 +1,4 @@
-export const BASE_URL = 'https://18bc5ce77a04.ngrok-free.app';
-
+export const BASE_URL = 'https://eed12b0abe50.ngrok-free.app';
 
 export const endpoints = {
   // getToken
@@ -17,7 +16,6 @@ export const endpoints = {
   challengeDetail: (challId: number) => `${BASE_URL}/api/challenge-detail/${challId}/`,
   challengeList: (userId: number, whichChall: string) => `${BASE_URL}/api/challenges/${userId}/${whichChall}/`,
   challengeSchedule: (challId: number) => `${BASE_URL}/api/challenge-schedule/${challId}/`,
-  getChallengeSchedule: (challId: number) => `${BASE_URL}/api/get-challenge-schedule/${challId}/`,
   createManualGroupChallenge: `${BASE_URL}/api/create-manual-group-challenge/`,
   createPendingCollaborativeGroupChallenge: () => `${BASE_URL}/api/create-pending-collaborative-group-challenge/`,
   finalizeCollaborativeGroupChallengeSchedule: (challId: number) => `${BASE_URL}/api/finalize-collaborative-group-challenge-schedule/${challId}/`,
@@ -47,6 +45,13 @@ export const endpoints = {
   patternCreate: `${BASE_URL}/api/pattern/create/`,
   patternValidate: `${BASE_URL}/api/pattern/validate/`,
   csrfToken: `${BASE_URL}/api/csrf-token/`,
+
+
+  myObligations: () => `${BASE_URL}/api/obligations/me/`,
+  payExternal: (id: number) => `${BASE_URL}/api/obligations/${id}/pay_external/`,
+  payCash: (id: number) => `${BASE_URL}/api/obligations/${id}/pay_cash/`,
+  confirmPayment: (id: number) => `${BASE_URL}/api/payments/${id}/confirm/`,
+  rejectPayment: (id: number) => `${BASE_URL}/api/payments/${id}/reject/`,
 };
 
 export const leaderboardHistory = (
