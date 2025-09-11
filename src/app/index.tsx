@@ -39,6 +39,7 @@ import SignUpScreen from './pages/SignUp';
 import StartScreen from './pages/StartScreen';
 import SudokuScreen from './pages/SudokuScreen';
 import CreateGroup from './pages/Groups/CreateGroup';
+import RewardSettleScreen from "./screens/RewardSettleScreen";
 
 const Stack = createStackNavigator();
 
@@ -217,6 +218,11 @@ function App() {
         <Stack.Screen
           name="mainPage"
           component={InputOutput}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Rewards"
+          component={RewardSettleScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
