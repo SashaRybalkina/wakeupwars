@@ -40,6 +40,12 @@ export const endpoints = {
   leaderboard: (id: number) => `${BASE_URL}/api/challenge-leaderboard/${id}/`,
   submitGameScores: () => `${BASE_URL}/api/submit-game-scores/`,
   skillLevels: () => `${BASE_URL}/api/skill-levels/`,
+
+  myObligations = () => `${BASE_URL}/api/obligations/me/`;
+  payExternal   = (id: number) => `${BASE_URL}/api/obligations/${id}/pay_external/`;
+  payCash       = (id: number) => `${BASE_URL}/api/obligations/${id}/pay_cash/`;
+  confirmPayment = (id: number) => `${BASE_URL}/api/payments/${id}/confirm/`;
+  rejectPayment  = (id: number) => `${BASE_URL}/api/payments/${id}/reject/`;
 };
 
 export const leaderboardHistory = (
