@@ -96,7 +96,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
       const tokenData = await token.json();
       const csrfToken = tokenData.csrfToken;
 
-      const res = await fetch(endpoints.createWordleGame(), {
+      const res = await fetch(endpoints.createWordleGame, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

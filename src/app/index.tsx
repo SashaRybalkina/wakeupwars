@@ -11,6 +11,7 @@ import Chall1 from './pages/Challenges/Chall1';
 import ChallDetails from './pages/Challenges/ChallDetails';
 import ChallSchedule from './pages/Challenges/ChallSchedule';
 import CreatePublicChall1 from './pages/Challenges/CreatePublicChall1';
+import CreatePublicChall2 from './pages/Challenges/CreatePublicChall2';
 import LeaderboardDetails from './pages/Challenges/LeaderboardDetails'
 import RewardSettleScreen from './pages/Challenges/RewardSettleScreen';
 import Categories from './pages/Games/Categories';
@@ -26,7 +27,6 @@ import GroupChall3Old from './pages/Groups/GroupChall3Old';
 import GroupChall4Old from './pages/Groups/GroupChall4Old';
 import GroupDetails from './pages/Groups/GroupDetails';
 import LoginScreen from './pages/Login';
-import InputOutput from './pages/mainPage';
 import Messages from './pages/Messages';
 import Profile from './pages/Profile';
 import AcceptFInvite from './pages/Profile/AcceptFInvite';
@@ -251,8 +251,8 @@ function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="mainPage"
-          component={InputOutput}
+          name="CreatePublicChall2"
+          component={CreatePublicChall2}
           options={{ headerShown: false }}
         />
         <Stack.Screen
@@ -270,8 +270,8 @@ export default App;
 //How to use alarm anywhere in the app
 // import { Alarm } from './Alarm';
 //Schedule for 1:30 PM, have it repeat for 20 seconds, and takes you to the sudoku game
-// Alarm.scheduleBurstNotification('WordleScreen', 11, 45, 20, {
-//   challengeId: 30,
-//   challName: 'Test Challenge',
-//   whichChall: 'wordle',
-// });
+Alarm.scheduleBurstNotification('Wordle', 16, 9, 20, {
+  challengeId: 30,
+  challName: 'Test Challenge',
+  whichChall: 'wordle',
+});

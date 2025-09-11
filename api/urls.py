@@ -31,7 +31,8 @@ from .views import (
     GetAvailabilitiesView, SetAvailabilityView, DeclineChallengeInviteView,
     ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
     SkillLevelsView, ExternalHandleViewSet, ObligationViewSet, PaymentViewSet,
-    FinalizeChallengeView, CreateSudokuGameView, ValidateSudokuMoveView, get_csrf_token,
+    FinalizeChallengeView, CreateSudokuGameView, ValidateSudokuMoveView, 
+    CreateWordleGameView, ValidateWordleMoveView, get_csrf_token,
 )
 
 router = DefaultRouter()

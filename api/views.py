@@ -30,7 +30,7 @@ from .serializers import (UserSerializer, RegisterSerializer, GroupSerializer, U
                           ExternalPaymentCreateSerializer, PaymentSerializer)
 from .models import (Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule,
                      AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship, GroupMembership, FriendRequest,
-                     SkillLevel, PendingGroupChallengeAvailability, GroupChallengeInvite, )
+                     SkillLevel, PendingGroupChallengeAvailability, GroupChallengeInvite, WordleMove, )
 from django.http import JsonResponse
 from typing     import Dict, List
 from rest_framework.exceptions import ValidationError

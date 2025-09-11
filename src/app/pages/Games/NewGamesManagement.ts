@@ -48,8 +48,8 @@ export const GAME_NAME_ALIAS: Record<string, GameKey> = {
   'group sudoku': 'sudoku',
   'pattern memorization': 'pattern',
   'group pattern memorization': 'pattern',
-  'wordle': 'pattern',
-  'group wordle': 'pattern',
+  'wordle': 'wordle',
+  'group wordle': 'wordle',
 };
 
 

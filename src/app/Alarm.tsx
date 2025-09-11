@@ -63,10 +63,7 @@ export class Alarm {
               params,
             },
           },
-          trigger: {
-            type: 'date',
-            timestamp: fireDate.getTime(),
-          },
+          trigger: fireDate
         });
       }
   
