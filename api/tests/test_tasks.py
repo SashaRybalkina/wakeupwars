@@ -30,11 +30,14 @@ def test_auto_confirm_task(db, users, challenge):
         method=PaymentMethod.CASH,
         amount=5,
         status=PaymentStatus.PENDING,
-        payer_marked_at=past_time,
     )
 
+    # override the auto_now_add value so it's >48 h old
+    pay.payer_marked_at = past_time
+    pay.save(update_fields=["payer_marked_at"])
+
     # Run the task (force threshold = 1 hour so our 49-hour payment is caught)
-    auto_confirm_old_payments(hours=1)
+    auto_confirm_old_payments.run(1)
 
     pay.refresh_from_db()
     ob.refresh_from_db()

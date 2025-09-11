@@ -21,7 +21,7 @@ def apply_overdue_penalties():
         # TODO: push notification
 
 @shared_task
-def auto_confirm_old_payments(hours=1):
+def auto_confirm_old_payments(hours=48):
     threshold = timezone.now() - timezone.timedelta(hours=hours)
     for p in Payment.objects.filter(status=PaymentStatus.PENDING,
                                     payer_marked_at__lt=threshold):
