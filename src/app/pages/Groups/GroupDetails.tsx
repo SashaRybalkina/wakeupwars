@@ -83,10 +83,10 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
             data.challenges = data.challenges.map((challenge: Challenge) => ({
               ...challenge,
               totalDays: challenge.totalDays || 30,
-              isCompleted: challenge.endDate ? new Date(challenge.endDate) < now : false,
+              isCompleted: challenge.isCompleted || (challenge.endDate ? new Date(challenge.endDate) < now : false),
             }))
           }
-  
+
           setGroupData(data)
 
           // Check for pending invites
