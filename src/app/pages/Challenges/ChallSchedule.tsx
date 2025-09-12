@@ -647,12 +647,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(50, 50, 60, 0.7)",
     borderRadius: 15,
     padding: 12,
-    width: 120,
+    width: 130,
     marginRight: 12,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
-    height: 120,
+    height: 130,
   },
   sudokuGameCard: {
     borderColor: "rgba(255, 215, 0, 0.3)",
@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
   gameTitle: {
     color: "#FFF",
     fontWeight: "700",
-    fontSize: 16,
+    fontSize: 12,
     marginBottom: 6,
   },
   gameDetail: {
@@ -672,9 +672,9 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   sudokuImage: {
-    width: 80,
-    height: 80,
-    marginTop: 5,
+    width: 50,
+    height: 50,
+    marginTop: 4,
   },
   playIndicator: {
     flexDirection: "row",
