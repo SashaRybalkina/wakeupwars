@@ -34,7 +34,7 @@ from .models import (Group, User, Message, Challenge, ChallengeMembership, Group
 from django.http import JsonResponse
 from typing     import Dict, List
 from rest_framework.exceptions import ValidationError
-
+from django.db.models import Min, Max
 
 #### Sudoku Game Imports ####
 from .models import (SudokuGameState, WordleGameState, Challenge, SudokuGamePlayer, WordleGamePlayer, User, Game, GamePerformance, RewardSetting,
@@ -1353,19 +1353,23 @@ class ChallengeLeaderboardView(APIView):
         challenge = get_object_or_404(Challenge, id=chall_id)
 
         # Window: challenge start .. min(challenge end, LOCAL today)
-        default_since = challenge.startDate
-        default_until = min(challenge.endDate, timezone.localdate())
+        since = challenge.startDate or timezone.localdate()
+        until = min(challenge.endDate, timezone.localdate())
 
-        # -------- overall --------
-        rows = (
-            GamePerformance.objects
-            .filter(challenge=challenge,
-                    date__gte=default_since,
-                    date__lte=default_until)
-            .values("user__username")
-            .annotate(points=Sum("score"))
-            .order_by("-points", "user__username")
-        )
+        bounds = (GamePerformance.objects
+                  .filter(challenge=challenge)
+                  .aggregate(min_d=Min('date'), max_d=Max('date')))
+
+        if bounds['min_d'] and bounds['min_d'] < since:
+            since = bounds['min_d']
+        if bounds['max_d'] and bounds['max_d'] > until:
+            until = bounds['max_d']
+
+        rows = (GamePerformance.objects
+                .filter(challenge=challenge, date__gte=since, date__lte=until)
+                .values("user__username")
+                .annotate(points=Sum("score"))
+                .order_by("-points", "user__username"))
 
         overall, last_pts, rank = [], None, 0
         for r in rows:
@@ -1379,8 +1383,8 @@ class ChallengeLeaderboardView(APIView):
             })
 
         payload = {
-            "since": str(default_since),
-            "until": str(default_until),
+            "since": str(since),
+            "until": str(until),
             "leaderboard": overall,
         }
 
@@ -1391,8 +1395,8 @@ class ChallengeLeaderboardView(APIView):
             n_days = 0
 
         if n_days > 0:
-            end_day   = default_until
-            start_day = max(default_since, end_day - timedelta(days=n_days-1))
+            end_day   = until
+            start_day = max(since, end_day - timedelta(days=n_days-1))
             daily_qs = (
                 GamePerformance.objects
                 .filter(challenge=challenge, date__gte=start_day, date__lte=end_day)
@@ -1446,6 +1450,9 @@ class SubmitGameScoresView(APIView):
 
         challenge = get_object_or_404(Challenge, id=challenge_id)
 
+        if getattr(challenge, "isPending", False):
+            return Response({"detail": "Challenge not active yet."}, status=status.HTTP_400_BAD_REQUEST)
+
         game = get_object_or_404(Game, id=game_id) if game_id else (
             Game.objects.filter(name=game_name).order_by('id').first()
         )
@@ -1470,7 +1477,6 @@ class SubmitGameScoresView(APIView):
 
                 sc = int(row.get("score", 0))
                 obj, created = GamePerformance.objects.update_or_create(
-                    # ⚠️ keep these if your GamePerformance FKs are named challenge/game/user
                     challenge=challenge, game=game, user=user, date=play_date,
                     defaults={"score": sc}
                 )
@@ -1502,22 +1508,16 @@ class ChallengeUpdateView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAdminUser]
 
 class ChallengeDailyHistoryView(APIView):
-    """
-    GET /api/challenge-leaderboard/<chall_id>/history/
-      → full daily history (challenge start ⟶ min(challenge_end, LOCAL today))
-    GET …/history/?start=YYYY-MM-DD&end=YYYY-MM-DD
-      → history for that inclusive window (if only one provided, use single-day)
-    """
     def get(self, request, chall_id):
         challenge = get_object_or_404(Challenge, id=chall_id)
 
-        # ---------- 1) parse & validate ----------
         def parse(d: str) -> date:
             try:
                 return datetime.strptime(d, "%Y-%m-%d").date()
             except ValueError:
                 raise ValidationError(f"Bad date: {d!r} (YYYY-MM-DD expected)")
 
+        # --- requested range (allow single-param) ---
         start_str = request.GET.get("start")
         end_str   = request.GET.get("end")
         if start_str and not end_str:
@@ -1526,32 +1526,49 @@ class ChallengeDailyHistoryView(APIView):
             start_str = end_str
 
         if start_str:
-            start = parse(start_str)
-            end   = parse(end_str)
+            req_start = parse(start_str)
+            req_end   = parse(end_str)
         else:
-            # use LOCAL today so “today” matches what SubmitGameScores wrote
-            start = challenge.startDate
-            end   = min(challenge.endDate, timezone.localdate())
+            req_start = challenge.startDate or timezone.localdate()
+            req_end   = min(challenge.endDate, timezone.localdate())
 
-        if start < challenge.startDate or end > challenge.endDate or start > end:
-            raise ValidationError("Date range outside the challenge window.")
+        # --- base window = challenge window vs. "today" ---
+        base_start = challenge.startDate or timezone.localdate()
+        base_end   = min(challenge.endDate, timezone.localdate())
 
-        n_days = (end - start).days + 1
+        # (optional) widen to actual score dates so accidental early/late rows still show
+        bounds = (GamePerformance.objects
+                  .filter(challenge=challenge)
+                  .aggregate(min_d=Min('date'), max_d=Max('date')))
+        if bounds['min_d'] and bounds['min_d'] < base_start:
+            base_start = bounds['min_d']
+        if bounds['max_d'] and bounds['max_d'] > base_end:
+            base_end = bounds['max_d']
 
-        # ---------- 2) one query for whole window ----------
-        qs = (
-            GamePerformance.objects
-            .filter(challenge=challenge, date__gte=start, date__lte=end)  # <-- FK object
-            .values("date", "user__username")
-            .annotate(points=Sum("score"))
-            .order_by("date", "-points", "user__username")
-        )
+        # --- clamp requested range into the valid window instead of 400 ---
+        start = max(req_start, base_start)
+        end   = min(req_end,   base_end)
 
-        # ---------- 3) group + rank per day ----------
+        # if still inverted, return empty history with 200
+        if start > end:
+            return Response({
+                "since": str(start),
+                "until": str(end),
+                "history": {},
+            }, status=status.HTTP_200_OK)
+
+        # ---------- query & build ----------
+        qs = (GamePerformance.objects
+              .filter(challenge=challenge, date__gte=start, date__lte=end)
+              .values("date", "user__username")
+              .annotate(points=Sum("score"))
+              .order_by("date", "-points", "user__username"))
+
         grouped = defaultdict(list)
         for r in qs:
             grouped[r["date"]].append(r)
 
+        n_days = (end - start).days + 1
         history = {}
         for d in (start + timedelta(i) for i in range(n_days)):
             daily = grouped.get(d, [])
@@ -1565,7 +1582,7 @@ class ChallengeDailyHistoryView(APIView):
                     "points": int(r["points"] or 0),
                     "rank":   rank,
                 })
-            if out:                        # keep current “only non-empty days” behavior
+            if out:
                 history[str(d)] = out
 
         return Response({

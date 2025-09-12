@@ -47,7 +47,7 @@ export default function RootLayout() {
           );
         }
       } catch (err) {
-        console.error('Alarm setup failed:');
+        //console.error('Alarm setup failed:');
       }
     };
 

@@ -247,9 +247,6 @@ const handleSubmit = async () => {
 };
 
 
-
-
-
 //  const handleSubmit = async () => {
 //   // convert pending toggles into payload entries (HH:MM)
 //   const payload = pendingToggles.map(({ dayOfWeek, alarmTime }) => ({
@@ -313,31 +310,49 @@ const handleSubmit = async () => {
   };
 
 
-  
-  const handleFinalizeSchedule = async () => {
+    const handleFinalizeSchedule = async () => {
       try {
-          const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-              credentials: 'include',                      
-      });
-      if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-      const { csrfToken } = await csrfRes.json();   
+        const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, { credentials: 'include' });
+        if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
+        const { csrfToken } = await csrfRes.json();
 
-    const res = await fetch(endpoints.finalizeCollaborativeGroupChallengeSchedule(pendingChallengeId), {
-      method: 'POST',
-      credentials: 'include',                    
-      headers: {
-      'Content-Type': 'application/json',
-      'X-CSRFToken': csrfToken,                
-      },
-    });
+        const res = await fetch(endpoints.finalizeCollaborativeGroupChallengeSchedule(pendingChallengeId), {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+          },
+        });
+        if (!res.ok) throw new Error(`Failed to finalize schedule. (${res.status})`);
 
-    if (!res.ok) throw new Error('Failed to finalize schedule.');
+        let challenge_id: number | null = null;
+        const text = await res.text();
+        if (text) {
+          try {
+            const json = JSON.parse(text);
+            challenge_id = json?.challenge_id ?? null;
+          } catch {
+            // not JSON — ignore; we’ll fall back to pending id
+          }
+        }
 
-    Alert.alert('Success', 'Schedule finalized.');
-  } catch (err: any) {
-    Alert.alert('Error', err.message);
-  }
-};
+        const targetId = challenge_id ?? pendingChallengeId;
+        Alert.alert('Success', 'Schedule finalized.', [
+          {
+            text: 'OK',
+            onPress: () =>
+              navigation.replace('ChallDetails', {
+                challId: targetId,
+                challName: pendingChallengeName,
+                whichChall: 'Group',
+              }),
+          },
+        ]);
+      } catch (err: any) {
+        Alert.alert('Error', err.message);
+      }
+    };
 
 return (
   <ImageBackground

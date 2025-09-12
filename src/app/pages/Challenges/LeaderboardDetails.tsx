@@ -33,6 +33,17 @@ const toISODate = (d: Date) =>
     .toISOString()
     .slice(0, 10);
 
+const startOfLocalDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const todayLocal = () => startOfLocalDay(new Date());
+
+// format YYYY-MM-DD in LOCAL time (avoid toISOString shifting dates)
+const toISODateLocal = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 const LeaderboardDetails: React.FC<Props> = ({ navigation }) => {
   /* ───────────────────────── params ───────────────────────── */
   const { params } = useRoute() as { params: RouteParams };
@@ -246,19 +257,20 @@ const LeaderboardDetails: React.FC<Props> = ({ navigation }) => {
           <DateTimePicker
             value={
               picker === "start"
-                ? (startDate ? parseLocalDate(startDate) : (minDate ?? new Date()))
-                : (endDate   ? parseLocalDate(endDate)   : (maxDate ?? new Date()))
+                ? (startDate ? parseLocalDate(startDate) : (minDate ?? todayLocal()))
+                : (endDate   ? parseLocalDate(endDate)   : (maxDate ?? todayLocal()))
             }
             mode="date"
             display={Platform.OS === "ios" ? "inline" : "default"}
-            minimumDate={minDate ?? new Date()}
-            maximumDate={maxDate ?? new Date()}
+            // ← use the challenge's real range, not clamped to today
+            minimumDate={minDate ?? undefined}
+            maximumDate={maxDate ?? undefined}
             onChange={(_, d) => {
-              if (!d) { setPicker(null); return; }
-              const iso = toISODate(d);          // ← use UTC-midnight date
+              setPicker(null);         // close the picker
+              if (!d) return;
+              const iso = toISODateLocal(d);
               if (picker === "start") setStartDate(iso);
               else                     setEndDate(iso);
-              setPicker(null);
             }}
           />
         )}
