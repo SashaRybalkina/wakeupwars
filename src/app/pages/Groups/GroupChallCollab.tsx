@@ -157,12 +157,12 @@ const convertTo24Hour = (time12: string) => {
 
 
         try {
-            const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-                credentials: 'include',                      
-        });
-        if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-        const { csrfToken } = await csrfRes.json();     
-        console.log('csrfToken:', csrfToken);
+          const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
+            credentials: 'include',                      
+          });
+          if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
+          const { csrfToken } = await csrfRes.json();     
+          console.log('csrfToken:', csrfToken);
 
 
         const res = await fetch(endpoints.createPendingCollaborativeGroupChallenge(), {

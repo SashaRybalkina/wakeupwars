@@ -25,16 +25,17 @@ const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
 
 const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
-  const { categoryId, singOrMult } = route.params as {
-    categoryId: number
+  const { singOrMult, category, isMiscellaneous } = route.params as {
     singOrMult: string
+    category: { id: number; name: string }
+    isMiscellaneous: boolean
   }
 
   const { user } = useUser();
 
   // Note: just inserting this user as "group members" since this is a public challenge
   // they're creating
-  const groupMembers = user ? [{ id: user.id, name: user.name }] : [];
+  const initiatorId = user?.id
 
 
 
@@ -245,7 +246,7 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
       group_id: null,
       start_date: null,
       end_date: selectedDate.toISOString().split("T")[0],
-      members: groupMembers.map((member) => member.id),
+      initiator_id: initiatorId,
       alarm_schedule: alarmSchedule,
       game_schedules: gameSchedules,
       is_public: true,
@@ -262,7 +263,7 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
       console.log('csrfToken:', csrfToken);
   
   
-      const res = await fetch(endpoints.createGroupChallenge, {
+      const res = await fetch(endpoints.createPublicGroupChallenge, {
         method: 'POST',
         credentials: 'include',                    
         headers: {
@@ -422,13 +423,18 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
                 <TouchableOpacity
                   style={styles.addGameButton}
                   onPress={() => {
-                    navigation.navigate("Categories", {
-                      groupId : null,
-                      groupMembers,
+                    navigation.navigate("Games", {
                       catType: "Public",
+                      catId: category ? category.id : null,
+                      catName: category ? category.name : null,
+                      singOrMult: singOrMult,
+                      groupId : null,
+                      groupMembers : null,
                       onGameSelected: (game: { id: number; name: string }) => {
                         handleGameAdd(game)
                       },
+                      challId : null,
+                      challName : null
                     })
                   }}
                 >

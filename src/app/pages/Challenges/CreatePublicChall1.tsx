@@ -11,18 +11,20 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { NavigationProp } from "@react-navigation/native";
-import { endpoints } from "../../api";
+import { BASE_URL, endpoints } from "../../api";
 
 type Props = {
   navigation: NavigationProp<any>;
 };
 
-const CreatePublicChall1: React.FC<Props> = ({ navigation }) => {
-  const [categories, setCategories] = useState<{ id: number; categoryName: string }[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
   const [singOrMult, setSingOrMult] = useState<"singleplayer" | "multiplayer" | null>(null);
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<{ id: number; name: string } | null>();
+  const [miscSelected, setMiscSelected] = useState(false);
 
   useEffect(() => {
+    if (singOrMult) {
     const fetchCats = async () => {
       try {
         // fetch the categories for multiplayer/singleplayer (whatever was selected)
@@ -35,21 +37,24 @@ const CreatePublicChall1: React.FC<Props> = ({ navigation }) => {
     };
   
     fetchCats();
-  }, []);
+    }
+  }, [singOrMult]);
 
   const handleNext = () => {
-    if (!selectedCategory) {
-      Alert.alert("Error", "Please select a category");
+    if (!singOrMult) {
+      Alert.alert("Error", "Please choose Singleplayer or Multiplayer");
       return;
     }
-    if (!singOrMult) {
-      Alert.alert("Error", "Please select Singleplayer or Multiplayer");
+
+    if (!miscSelected && singOrMult === "singleplayer" && !selectedCategory) {
+      Alert.alert("Error", "Please choose a category or select Miscellaneous");
       return;
     }
 
     navigation.navigate("CreatePublicChall2", {
-      categoryId: selectedCategory,
-      singOrMult, // TODO: check what this is set to
+      singOrMult,
+      category: miscSelected ? null : selectedCategory,
+      isMiscellaneous: miscSelected,
     });
   };
 
@@ -67,64 +72,90 @@ const CreatePublicChall1: React.FC<Props> = ({ navigation }) => {
         <Text style={styles.pageTitle}>Configure Public Challenge</Text>
 
         <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
-          {/* Category Selection */}
+          {/* Singleplayer / Multiplayer Choice */}
           <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Choose Category</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoriesScroll}
-            >
-              {categories.map((cat) => (
+            <Text style={styles.sectionTitle}>Game Type</Text>
+            <View style={styles.choiceRow}>
+              {["singleplayer", "multiplayer"].map((type) => (
                 <TouchableOpacity
-                  key={cat.id}
+                  key={type}
                   style={[
                     styles.choiceButton,
-                    selectedCategory === cat.id && styles.choiceButtonSelected,
+                    singOrMult === type && styles.choiceButtonSelected,
                   ]}
                   onPress={() => {
-                    setSelectedCategory(cat.id);
-                    setSingOrMult(null); // reset game type when category changes
+                    setSingOrMult(type as any);
+                    setSelectedCategory(null);
+                    setMiscSelected(false);
                   }}
                 >
                   <Text
                     style={[
                       styles.choiceText,
-                      selectedCategory === cat.id && styles.choiceTextSelected,
+                      singOrMult === type && styles.choiceTextSelected,
                     ]}
                   >
-                    {cat.categoryName}
+                    {type === "singleplayer" ? "Singleplayer" : "Multiplayer"}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </View>
           </View>
 
-          {/* Singleplayer / Multiplayer choice (only shown after category is selected) */}
-          {selectedCategory && (
+          {/* Categories  */}
+          {singOrMult && (
             <View style={styles.formSection}>
-              <Text style={styles.sectionTitle}>Game Type</Text>
+              <Text style={styles.sectionTitle}>Category</Text>
               <View style={styles.choiceRow}>
-                {["singleplayer", "multiplayer"].map((type) => (
+                <TouchableOpacity
+                  style={[
+                    styles.choiceButton,
+                    miscSelected && styles.choiceButtonSelected,
+                  ]}
+                  onPress={() => {
+                    setMiscSelected(true);
+                    setSelectedCategory(null);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.choiceText,
+                      miscSelected && styles.choiceTextSelected,
+                    ]}
+                  >
+                    Miscellaneous
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoriesScroll}
+              >
+                {categories.map((cat) => (
                   <TouchableOpacity
-                    key={type}
+                    key={cat.id}
                     style={[
                       styles.choiceButton,
-                      singOrMult === type && styles.choiceButtonSelected,
+                      selectedCategory?.id === cat.id && styles.choiceButtonSelected,
                     ]}
-                    onPress={() => setSingOrMult(type as any)}
+                    onPress={() => {
+                      setSelectedCategory({id: cat.id, name: cat.name});
+                      setMiscSelected(false);
+                    }}
                   >
                     <Text
                       style={[
                         styles.choiceText,
-                        singOrMult === type && styles.choiceTextSelected,
+                        selectedCategory?.id === cat.id && styles.choiceTextSelected,
                       ]}
                     >
-                      {type === "singleplayer" ? "Singleplayer" : "Multiplayer"}
+                      {cat.name}
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </ScrollView>
             </View>
           )}
 
@@ -193,4 +224,4 @@ const styles = StyleSheet.create({
   createButtonText: { color: "#333", fontSize: 18, fontWeight: "700" },
 });
 
-export default CreatePublicChall1;
+export default CreatePublicChall;
