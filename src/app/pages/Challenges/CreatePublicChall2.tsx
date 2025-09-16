@@ -263,7 +263,7 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
       console.log('csrfToken:', csrfToken);
   
   
-      const res = await fetch(endpoints.createPublicGroupChallenge, {
+      const res = await fetch(endpoints.createPublicChallenge, {
         method: 'POST',
         credentials: 'include',                    
         headers: {

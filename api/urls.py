@@ -11,7 +11,7 @@ from .views import (LoginView, RegisterView, GroupListView, HelloWorldView, User
                     CreateGroupView, CreatePersonalChallengeView, GetChallengeInvitesView,
                     GetAvailabilitiesView, SetAvailabilityView, DeclineChallengeInviteView,
                     ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
-                    SkillLevelsView)
+                    SkillLevelsView, CreatePublicChallengeView)
 
 from .views import CreateSudokuGameView, ValidateSudokuMoveView, get_csrf_token
 from .views import CreatePatternGameView, ValidatePatternMoveView
@@ -32,7 +32,7 @@ from .views import (
     ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
     SkillLevelsView, ExternalHandleViewSet, ObligationViewSet, PaymentViewSet,
     FinalizeChallengeView, CreateSudokuGameView, ValidateSudokuMoveView, 
-    CreateWordleGameView, ValidateWordleMoveView, get_csrf_token,
+    CreateWordleGameView, ValidateWordleMoveView, get_csrf_token, SingOrMultGameListView,
 )
 
 router = DefaultRouter()
@@ -50,6 +50,7 @@ urlpatterns = [
     path('user-friends/<int:user_id>/', FriendListView.as_view(), name='friend-list'),
     path('cats/', CatListView.as_view(), name='cat-list'),
     path('games/<int:cat_id>/<str:sing_or_mult>/', GameListView.as_view(), name='game-list'),
+    path('games/<str:sing_or_mult>/', SingOrMultGameListView.as_view(), name='sing-or-mult-game-list'),
     path('hello/', HelloWorldView.as_view(), name='hello'),
     path('profile/<int:user_id>/', UserProfileView.as_view(), name='user-profile'),
     path('get-initiator/<int:chall_id>/', GetChallengeInitiatorView.as_view(), name='get-initiator'),
@@ -61,6 +62,7 @@ urlpatterns = [
     path('challenge-schedule/<int:chall_id>/', ChallengeGameScheduleView.as_view(), name='challenge-schedule'),
     path('get-challenge-schedule/<int:chall_id>/', GetChallengeScheduleView.as_view(), name='get-challenge-schedule'),
     path('create-manual-group-challenge/', CreateManualGroupChallengeView.as_view(), name='create-manual-group-challenge'),
+    path('create-public-challenge/', CreatePublicChallengeView.as_view(), name='create-public-challenge'),
     path('create-pending-collaborative-group-challenge/', CreatePendingCollaborativeGroupChallengeView.as_view(), name='create-pending-collaborative-group-challenge'),
     path('finalize-collaborative-group-challenge-schedule/<int:chall_id>/', FinalizeCollaborativeGroupChallengeScheduleView.as_view(), name='finalize-collaborative-group-challenge-schedule'),
     path('friend-requests/<int:user_id>/', FriendRequestListView.as_view(), name='friend-requests'),

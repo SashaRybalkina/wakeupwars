@@ -252,6 +252,16 @@ class GameListView(APIView):
         games = Game.objects.filter(category_id=cat_id, isMultiplayer=isMult)
         serializer = GameSerializer(games, many=True)
         return Response(serializer.data)
+    
+
+class SingOrMultGameListView(APIView):
+    def get(self, request, sing_or_mult):
+        isMult = True
+        if sing_or_mult == "Singleplayer":
+            isMult = False
+        games = Game.objects.filter(isMultiplayer=isMult)
+        serializer = GameSerializer(games, many=True)
+        return Response(serializer.data)
 
 
 class GroupDetailsView(APIView):
@@ -637,7 +647,13 @@ class CreateManualGroupChallengeView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
 
-class CreatePublichallengeView(APIView):
+
+
+        
+
+        
+
+class CreatePublicChallengeView(APIView):
     @transaction.atomic
     def post(self, request):
         data = request.data
@@ -647,7 +663,7 @@ class CreatePublichallengeView(APIView):
                 name=data['name'],
                 groupID_id=None,
                 initiator_id=data['initiator_id'],
-                startDate=data['start_date'],
+                startDate=None,
                 endDate=data['end_date'],
                 isPublic=True,
                 isPending=True
@@ -775,6 +791,10 @@ class CreatePendingCollaborativeGroupChallengeView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
+
+
+        
+
 
 
 
