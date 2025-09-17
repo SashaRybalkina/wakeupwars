@@ -87,6 +87,8 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
   const currentChallenges = challenges.filter(c => !c.isCompleted)
   const pastChallenges = challenges.filter(c => c.isCompleted)
 
+
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -125,25 +127,40 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
               ) : (
                 <View style={styles.challengeCardsContainer}>
                   {currentChallenges.map((challenge) => (
-                    <TouchableOpacity
-                      key={challenge.id}
-                      style={styles.challengeCardWrapper}
-                      onPress={() =>
-                        navigation.navigate("ChallDetails", {
-                          challId: challenge.id,
-                          challName: challenge.name,
-                          whichChall: "Personal",
-                        })
-                      }
-                    >
-                      <ChallengeCard
-                        title={challenge.name}
-                        icon={require("../../images/school.png")}
-                        daysComplete={challenge.daysCompleted}
-                        totalDays={challenge.totalDays}
-                        daysOfWeek={challenge.daysOfWeek}
-                      />
-                    </TouchableOpacity>
+                    <View key={challenge.id} style= {styles.challengeRow}>
+                        <TouchableOpacity
+                        //key={challenge.id}
+                        style={styles.challengeCardWrapper}
+                        onPress={() =>
+                          navigation.navigate("ChallDetails", {
+                            challId: challenge.id,
+                            challName: challenge.name,
+                            whichChall: "Personal",
+                          })
+                        }
+                      >
+                        <View style={{ transform: [{ scale: 0.97 }] }}>
+                          <ChallengeCard
+                            title={challenge.name}
+                            icon={require("../../images/school.png")}
+                            daysComplete={challenge.daysCompleted}
+                            totalDays={challenge.totalDays}
+                            daysOfWeek={challenge.daysOfWeek}
+                          />
+                        </View>
+                      </TouchableOpacity>
+
+                       {/* Share Button */}
+                       <TouchableOpacity
+                        style={styles.shareButton}
+                        onPress={() => {
+                          console.log("Share", challenge.name);
+                          navigation.navigate("EditChallengeSharingFriends", { challenge });
+                        }}
+                      >
+                        <Ionicons name="share" size={20} color="#FFF" />
+                      </TouchableOpacity>
+                    </View>                    
                   ))}
                 </View>
               )}
@@ -312,6 +329,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+    flex: 1,
   },
   emptyStateContainer: {
     alignItems: "center",
@@ -370,6 +388,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontWeight: "600",
+  },
+  challengeRow: {
+    position: "relative",
+    marginBottom: 15,
+  },
+  shareButton: {
+    position: "absolute",
+    width: 36,
+    height: 36,
+    top: 10,
+    right: 10,
+    borderRadius: 18,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 2,
   },
 })
 

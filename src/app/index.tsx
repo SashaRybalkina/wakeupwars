@@ -43,6 +43,7 @@ import SudokuScreen from './pages/SudokuScreen';
 import CreateGroup from './pages/Groups/CreateGroup';
 import PatternGameScreen from './pages/PatternGame/PatternGameScreen';
 import WordleScreen from './pages/WordGame/WordleScreen';
+import EditChallengeSharingFriends from './pages/Challenges/EditChallengeSharingFriends';
 
 const Stack = createStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -258,6 +259,11 @@ function App() {
         <Stack.Screen
           name="Rewards"
           component={RewardSettleScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="EditChallengeSharingFriends"
+          component={EditChallengeSharingFriends}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
