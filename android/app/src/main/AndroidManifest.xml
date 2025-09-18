@@ -5,6 +5,8 @@
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+  <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
@@ -29,5 +31,6 @@
         <data android:scheme="com.emilysashavickynatali.tastebuds"/>
       </intent-filter>
     </activity>
+    <receiver android:name=".AlarmReceiver" />
   </application>
 </manifest>

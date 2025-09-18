@@ -1,47 +1,53 @@
 import * as React from 'react';
+import { useState } from 'react';
+import { Alert, NativeModules } from 'react-native';
+import {
+  createNavigationContainerRef,
+  NavigationContainer,
+} from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
 
 import { Alarm } from './Alarm';
-
 import Challenges from './pages/Challenges';
 import Chall1 from './pages/Challenges/Chall1';
 import ChallDetails from './pages/Challenges/ChallDetails';
 import ChallSchedule from './pages/Challenges/ChallSchedule';
 import CreatePublicChall1 from './pages/Challenges/CreatePublicChall1';
 import CreatePublicChall2 from './pages/Challenges/CreatePublicChall2';
-import LeaderboardDetails from './pages/Challenges/LeaderboardDetails'
+import LeaderboardDetails from './pages/Challenges/LeaderboardDetails';
 import RewardSettleScreen from './pages/Challenges/RewardSettleScreen';
 import Categories from './pages/Games/Categories';
 import GameExpanded from './pages/Games/GameExpanded';
 import Games from './pages/Games/Games';
 import GroupScreen from './pages/Groups';
+import CreateGroup from './pages/Groups/CreateGroup';
+import EditAvailability from './pages/Groups/EditAvailability';
 import GroupChall1 from './pages/Groups/GroupChall1';
 import GroupChall2 from './pages/Groups/GroupChall2';
-import GroupChallCollab from './pages/Groups/GroupChallCollab';
-import EditAvailability from './pages/Groups/EditAvailability';
 import GroupChall3 from './pages/Groups/GroupChall3';
 import GroupChall3Old from './pages/Groups/GroupChall3Old';
 import GroupChall4Old from './pages/Groups/GroupChall4Old';
+import GroupChallCollab from './pages/Groups/GroupChallCollab';
 import GroupDetails from './pages/Groups/GroupDetails';
 import LoginScreen from './pages/Login';
 import Messages from './pages/Messages';
+import PatternGameScreen from './pages/PatternGame/PatternGameScreen';
 import Profile from './pages/Profile';
 import AcceptFInvite from './pages/Profile/AcceptFInvite';
 import AcceptGInvite from './pages/Profile/AcceptGInvite';
+import FriendsRequests from './pages/Profile/FriendRequest';
 import Friends1 from './pages/Profile/Friends1';
 import Friends3 from './pages/Profile/Friends3';
-import FriendsRequests from './pages/Profile/FriendRequest';
 import FriendsSearch from './pages/Profile/FriendSearch';
 import PersChall1 from './pages/Profile/PersChall1';
 import PersChall2 from './pages/Profile/PersChall2';
 import SignUpScreen from './pages/SignUp';
 import StartScreen from './pages/StartScreen';
 import SudokuScreen from './pages/SudokuScreen';
-import CreateGroup from './pages/Groups/CreateGroup';
-import PatternGameScreen from './pages/PatternGame/PatternGameScreen';
 import WordleScreen from './pages/WordGame/WordleScreen';
+
+const { AlarmModule } = NativeModules;
 
 const Stack = createStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -54,25 +60,29 @@ function App() {
     //       screen?: string;
     //       params?: Record<string, any>;
     //     };
-  
     //     // stop any burst alarms when tapped
     //     await Alarm.stopAll();
-  
     //     if (screen && navigationRef.isReady()) {
     //       navigationRef.navigate(screen as never, params as never);
     //     }
     //   }
     // );
-  
     // return () => subscription.remove();
   }, []);
+
+  const [seconds, setSeconds] = useState<string>('10');
+  const timestamp = Date.now() + parseInt(seconds, 10) * 1000;
+
+  AlarmModule.setAlarm(timestamp)
+    .then((msg: string) => Alert.alert('Success', msg))
+    .catch((err: any) => Alert.alert('Error', err.message || err));
 
   return (
     <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         initialRouteName="Login"
         //initialRouteName="PatternGame"
-        screenOptions={{ animationEnabled: false, headerShown: false}}
+        screenOptions={{ animationEnabled: false, headerShown: false }}
       >
         <Stack.Screen
           name="Categories"
@@ -269,8 +279,8 @@ export default App;
 //How to use alarm anywhere in the app
 // import { Alarm } from './Alarm';
 //Schedule for 1:30 PM, have it repeat for 20 seconds, and takes you to the sudoku game
-Alarm.scheduleBurstNotification('Wordle', 16, 45, 20, {
-  challengeId: 30,
-  challName: 'Test Challenge',
-  whichChall: 'wordle',
-});
+// Alarm.scheduleBurstNotification('Wordle', 16, 45, 20, {
+//   challengeId: 30,
+//   challName: 'Test Challenge',
+//   whichChall: 'wordle',
+// });
