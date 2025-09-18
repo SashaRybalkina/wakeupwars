@@ -23,6 +23,15 @@ type Props = {
 
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
 
+// reward types allowed by backend
+const REWARD_TYPES = [
+  { key: 'money', label: 'Money $' },
+  { key: 'points', label: 'Points' },
+  { key: 'custom', label: 'Custom' },
+] as const;
+
+type RewardTypeKey = typeof REWARD_TYPES[number]['key'];
+
 const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
   const { singOrMult, category, isMiscellaneous } = route.params as {
@@ -49,6 +58,10 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
   const [selectedDays, setSelectedDays] = useState<string[]>([])
   const [dayTimeMapping, setDayTimeMapping] = useState<Record<string, string>>({})
   const [gamesByDay, setGamesByDay] = useState<Record<string, [string, string][]>>({})
+  // reward state
+  const [rewardType, setRewardType] = useState<RewardTypeKey>('money');
+  const [rewardAmount, setRewardAmount] = useState('5');
+  const [rewardNote, setRewardNote] = useState('');
 
   const goToMessages = () => navigation.navigate("Messages")
   const goToGroups = () => navigation.navigate("Groups")
@@ -198,6 +211,22 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
 
     console.log("Day-Time Mapping:", dayTimeMapping)
     console.log("Games By Day:", JSON.stringify(gamesByDay, null, 2))
+    // reward validation
+    let reward: any = null;
+    if (rewardType === 'custom') {
+      if (!rewardNote.trim()) {
+        Alert.alert('Error', 'Please enter a description for the custom reward');
+        return;
+      }
+      reward = { type: 'custom', note: rewardNote.trim() };
+    } else {
+      const amt = parseFloat(rewardAmount);
+      if (isNaN(amt) || amt <= 0) {
+        Alert.alert('Error', 'Enter a valid positive amount for the reward');
+        return;
+      }
+      reward = { type: rewardType, amount: amt };
+    }
     
     const alarmSchedule = Object.entries(dayTimeMapping)
       .filter(([day, time]) => time && dayToInt[day])
@@ -249,6 +278,7 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
       initiator_id: initiatorId,
       alarm_schedule: alarmSchedule,
       game_schedules: gameSchedules,
+      reward,
       is_public: true,
       is_pending: true
     }
@@ -449,6 +479,40 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
               </View>
             </View>
           )}
+
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>Reward</Text>
+            <View style={styles.choiceRow}>
+              {REWARD_TYPES.map(rt => (
+                <TouchableOpacity
+                  key={rt.key}
+                  style={[styles.choiceButton, rewardType === rt.key && styles.choiceButtonSelected]}
+                  onPress={() => setRewardType(rt.key as RewardTypeKey)}
+                >
+                  <Text style={[styles.choiceText, rewardType === rt.key && styles.choiceTextSelected]}>{rt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {(rewardType === 'money' || rewardType === 'points') && (
+              <TextInput
+                style={[styles.input, { marginTop: 10 }]}
+                placeholder="Amount"
+                placeholderTextColor="rgba(255,255,255,0.6)"
+                keyboardType="numeric"
+                value={rewardAmount}
+                onChangeText={setRewardAmount}
+              />
+            )}
+            {rewardType === 'custom' && (
+              <TextInput
+                style={[styles.input, { marginTop: 10 }]}
+                placeholder="Describe reward"
+                placeholderTextColor="rgba(255,255,255,0.6)"
+                value={rewardNote}
+                onChangeText={setRewardNote}
+              />
+            )}
+          </View>
 
           <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>End Date</Text>
@@ -779,6 +843,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
   },
+  choiceRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 },
+  choiceButton: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)', marginRight: 10, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  choiceButtonSelected: { backgroundColor: 'rgba(255,215,0,0.3)', borderColor: '#FFD700' },
+  choiceText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  choiceTextSelected: { color: '#FFD700' },
+
   navText: {
     color: "#999",
     fontSize: 12,

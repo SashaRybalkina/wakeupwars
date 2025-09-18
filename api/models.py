@@ -190,6 +190,7 @@ class Challenge(models.Model):
         (if it doesn’t exist) + Obligations for every non-winner.
         """
         from django.db import transaction
+        from decimal import Decimal
 
         if self.rewards_finalized:
             return  # already done
@@ -217,7 +218,7 @@ class Challenge(models.Model):
                     payee=winner,
                     defaults=dict(
                         currency='USD',
-                        amount=rs.amount,
+                        amount=rs.amount or Decimal('0'),
                         due_at=due_at,
                         points_penalty_per_day=5  # tune in settings
                     )
