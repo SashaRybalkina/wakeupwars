@@ -75,6 +75,7 @@ function flushPendingNavigation() {
 function App() {
   React.useEffect(() => {
     let subscription: any;
+    let notificationListener: any;
 
     // 1) cold-start intent
     IntentModule.getInitialIntent()
@@ -96,6 +97,15 @@ function App() {
         navigate(data.screen, data);
       }
     });
+
+    // 3) notification tap handler (for foreground/background)
+    notificationListener =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        const data = response.notification.request.content.data;
+        if (data?.screen) {
+          navigate(data.screen, data.params || {});
+        }
+      });
 
     return () => {
       if (subscription && subscription.remove) subscription.remove();
