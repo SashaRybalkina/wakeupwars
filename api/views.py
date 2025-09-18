@@ -1823,36 +1823,41 @@ class ShareChallengeView(APIView):
 
             start_date = request.data.get("startDate")
             end_date = request.data.get("endDate")
-            print(f"[BACKEND] New start={start_date}, end={end_date}")
+            friend_ids = request.data.get("members", [])
 
+            if not friend_ids:
+                return Response({"error": "No member provided"}, status=400)
+
+            # only one friend supported for now
+            friend_id = friend_ids[0]
+            friend = get_object_or_404(User, id=friend_id)
+
+            # new challenge for the friend
             new_challenge = Challenge.objects.create(
                 name=original.name,
                 groupID=original.groupID,
-                initiator_id=request.user.id,
+                initiator=friend,
                 startDate=start_date,
                 endDate=end_date,
                 isPublic=original.isPublic,
                 isPending=False
             )
-            print(f"[BACKEND] New challenge created: {new_challenge.id}")
+            print(f"[BACKEND] New challenge created for friend {friend.id}: {new_challenge.id}")
 
-            # copy members
-            for m in ChallengeMembership.objects.filter(challengeID=original):
-                ChallengeMembership.objects.create(challengeID=new_challenge, uID=m.uID)
-            print(f"[BACKEND] Members copied: {ChallengeMembership.objects.filter(challengeID=new_challenge).count()}")
+            # copy membership for the friend only
+            ChallengeMembership.objects.create(challengeID=new_challenge, uID=friend)
 
-            # copy alarms
+            # copy alarm schedules and their associations
             for cas in ChallengeAlarmSchedule.objects.filter(challenge=original):
                 alarm = cas.alarm_schedule
                 new_alarm = AlarmSchedule.objects.create(
-                    uID=alarm.uID,
+                    uID=friend,  
                     dayOfWeek=alarm.dayOfWeek,
                     alarmTime=alarm.alarmTime
                 )
                 ChallengeAlarmSchedule.objects.create(challenge=new_challenge, alarm_schedule=new_alarm)
-            print(f"[BACKEND] Alarms copied: {ChallengeAlarmSchedule.objects.filter(challenge=new_challenge).count()}")
 
-            # copy games
+            # copy game schedules and their associations
             for gs in GameSchedule.objects.filter(challenge=original):
                 new_gs = GameSchedule.objects.create(challenge=new_challenge, dayOfWeek=gs.dayOfWeek)
                 for assoc in GameScheduleGameAssociation.objects.filter(game_schedule=gs):
@@ -1861,13 +1866,12 @@ class ShareChallengeView(APIView):
                         game=assoc.game,
                         game_order=assoc.game_order
                     )
-            print(f"[BACKEND] Games copied: {GameSchedule.objects.filter(challenge=new_challenge).count()}")
 
             return Response(
                 {"message": "Challenge shared successfully", "id": new_challenge.id},
                 status=201
             )
 
-
         except Exception as e:
             return Response({"error": str(e)}, status=400)
+

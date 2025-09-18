@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import { 
-  ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, 
-  Platform, Alert, Image 
+import React, { useState, useEffect } from "react";
+import {
+  ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  Platform, Alert, Image, ActivityIndicator
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -10,6 +10,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import axios from "axios";
 import { endpoints } from "../../api";
 import { getGameMeta } from "../Games/NewGamesManagement";
+import { useUser } from "../../context/UserContext";
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -18,24 +19,142 @@ type Props = {
 
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"];
 
+
+function normalizeSchedule(raw: any): {
+  dayOfWeek: number;
+  alarms: { userName?: string; alarmTime: string }[];
+  games: { id?: number; name: string; order?: number }[];
+}[] {
+  if (!raw) return [];
+
+
+  if (!Array.isArray(raw) && Array.isArray(raw.schedule)) {
+    return raw.schedule.map((d: any) => ({
+      dayOfWeek: Number(d.dayOfWeek),
+      alarms: Array.isArray(d.alarms) ? d.alarms : [],
+      games: Array.isArray(d.games)
+        ? d.games.map((g: any, idx: number) => ({
+            id: g.id ?? g.gameId,
+            name: g.name ?? String(g),
+            order: g.order ?? idx + 1,
+          }))
+        : [],
+    }));
+  }
+
+
+  if (Array.isArray(raw)) {
+    return raw.map((d: any) => ({
+      dayOfWeek: Number(d.dayOfWeek),
+      alarms: d.alarmTime ? [{ userName: "", alarmTime: d.alarmTime }] : [],
+      games: Array.isArray(d.games)
+        ? d.games.map((g: any, idx: number) => {
+            const name = typeof g === "object"
+              ? (g.name ?? g[0] ?? "")
+              : String(g);
+            const id = typeof g === "object" ? (g.id ?? g.gameId) : undefined;
+            return { id, name, order: idx + 1 };
+          })
+        : [],
+    }));
+  }
+
+  return [];
+}
+
 const EditChallengeSharingFriends: React.FC<Props> = ({ navigation, route }) => {
-  const { challenge } = route.params || {};
-  console.log("[FRONTEND] Entering EditChallengeSharingFriends");
-  console.log("[FRONTEND] Incoming challenge data:", challenge);
+  const { challId, challName } = route.params || {};
+  const { user } = useUser();
+  console.log("[FRONTEND] Entering EditChallengeSharingFriends with challId:", challId, "challName:", challName);
+
+  // Challenge state
+  const [challenge, setChallenge] = useState<any>(null);
+  const [loadingChallenge, setLoadingChallenge] = useState(true);
 
   // Dates
-  const [startDate, setStartDate] = useState(new Date(challenge.startDate));
-  const [endDate, setEndDate] = useState(new Date(challenge.endDate));
-
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
-  // --- Date picker handler ---
-  const onDateChange = (
-    picker: "start" | "end",
-    event: any,
-    date?: Date
-  ) => {
+  // Friends
+  const [friends, setFriends] = useState<any[]>([]);
+  const [selectedFriends, setSelectedFriends] = useState<number[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(true);
+
+  // --- 抓取 detail + schedule 並合併 ---
+  useEffect(() => {
+    if (!challId) return;
+
+    let cancelled = false;
+
+    async function load() {
+      try {
+        setLoadingChallenge(true);
+
+        const detailReq = axios.get(endpoints.challengeDetail(challId), { withCredentials: true });
+
+        // 先試新版 getChallengeSchedule，失敗再退舊版 challengeSchedule
+        let scheduleData: any = null;
+        try {
+          const res = await axios.get(endpoints.getChallengeSchedule(challId), { withCredentials: true });
+          scheduleData = res.data;
+        } catch (e) {
+          console.log("[FRONTEND] getChallengeSchedule failed, fallback to challengeSchedule");
+          const resFallback = await axios.get(endpoints.challengeSchedule(challId), { withCredentials: true });
+          scheduleData = resFallback.data;
+        }
+
+        const [detailRes] = await Promise.all([detailReq]);
+        if (cancelled) return;
+
+        const detail = detailRes.data;
+        const schedule = normalizeSchedule(scheduleData);
+
+        const merged = {
+          ...detail,
+          schedule, 
+          members: Array.isArray(scheduleData?.members) ? scheduleData.members : [],
+        };
+
+        setChallenge(merged);
+
+
+        const sd = detail.startDate ?? scheduleData?.startDate;
+        const ed = detail.endDate ?? scheduleData?.endDate;
+        if (sd) setStartDate(new Date(sd));
+        if (ed) setEndDate(new Date(ed));
+      } catch (err: any) {
+        console.error("[FRONTEND] Failed to load challenge/schedule:", err.response?.data || err.message);
+      } finally {
+        if (!cancelled) setLoadingChallenge(false);
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [challId]);
+
+
+  useEffect(() => {
+    if (!user?.id) return;
+    setLoadingFriends(true);
+    axios.get(endpoints.friends(Number(user.id)), { withCredentials: true })
+      .then(res => {
+        console.log("[FRONTEND] Friends data:", res.data);
+        setFriends(res.data);
+      })
+      .catch(err => {
+        console.error("[FRONTEND] Failed to load friends:", err.response?.data || err.message);
+      })
+      .finally(() => setLoadingFriends(false));
+  }, [user]);
+
+  const toggleFriend = (id: number) => {
+    setSelectedFriends(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const onDateChange = (picker: "start" | "end", event: any, date?: Date) => {
     if (event?.type === "dismissed") {
       picker === "start" ? setShowStartPicker(false) : setShowEndPicker(false);
       return;
@@ -48,89 +167,103 @@ const EditChallengeSharingFriends: React.FC<Props> = ({ navigation, route }) => 
     }
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
+  const formatDate = (date: Date | null) =>
+    date ? date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "N/A";
 
-  // --- Save handler (create new copy with new dates) ---
   const handleSave = async () => {
+    if (!challenge) return;
+
+    if (selectedFriends.length === 0) {
+      Alert.alert("Pick friends", "Please select at least one friend to share with.");
+      return;
+    }
+
     try {
+      const csrfResp = await axios.get(endpoints.csrfToken, { withCredentials: true });
+      const csrfToken = csrfResp.data.csrfToken;
+
       const payload = {
-        startDate: startDate.toISOString().split("T")[0],
-        endDate: endDate.toISOString().split("T")[0],
+        startDate: startDate?.toISOString().split("T")[0],
+        endDate: endDate?.toISOString().split("T")[0],
+        members: selectedFriends, 
       };
 
-      console.log("[FRONTEND] Payload to send:", payload);
+      console.log("[FRONTEND] Share payload:", payload);
 
       const response = await axios.post(
         endpoints.shareChallenge(challenge.id),
         payload,
-        { withCredentials: true } 
+        { withCredentials: true, headers: { "X-CSRFToken": csrfToken } }
       );
 
-      console.log("[FRONTEND] Response from backend:", response.data);
+      console.log("[FRONTEND] Share response:", response.data);
       Alert.alert("Saved", "Challenge shared successfully!");
       navigation.goBack();
     } catch (error: any) {
-      console.error(
-        "[FRONTEND] Error response:",
-        error.response?.data || error.message
-      );
+      console.error("[FRONTEND] Error sharing:", error.response?.data || error.message);
       Alert.alert("Error", "Failed to share challenge.");
     }
   };
 
+  // --- UI states ---
+  if (loadingChallenge) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000" }}>
+        <ActivityIndicator size="large" color="#FFD700" />
+        <Text style={{ color: "#FFF", marginTop: 10 }}>Loading challenge...</Text>
+      </View>
+    );
+  }
+
+  if (!challenge) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000" }}>
+        <Text style={{ color: "red" }}>Error loading challenge</Text>
+      </View>
+    );
+  }
+
   return (
-    <ImageBackground
-      source={require("../../images/secondary.png")}
-      style={styles.background}
-      resizeMode="cover"
-    >
+    <ImageBackground source={require("../../images/secondary.png")} style={styles.background} resizeMode="cover">
       <View style={styles.container}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={28} color="#FFF" />
         </TouchableOpacity>
 
         <Text style={styles.pageTitle}>Share Challenge</Text>
 
-        <ScrollView
-          style={styles.scrollContainer}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Challenge Info */}
           <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>Name</Text>
-            <Text style={styles.readonlyText}>{challenge.name}</Text>
+            <Text style={styles.readonlyText}>{challenge.name ?? challName}</Text>
           </View>
 
           {/* Days & Alarm */}
           <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>Days & Alarm</Text>
-            <View style={styles.daysContainer}>
-              {challenge.daysOfWeek?.map((day: number | string, idx: number) => {
-                const label = typeof day === "number" ? DAYS[day - 1] : day;
-                return (
-                  <View key={idx} style={styles.dayReadonly}>
-                    <Text style={styles.dayText}>{label}</Text>
-                  </View>
-                );
-              })}
-            </View>
 
-            {/* alarms come from schedule */}
-            {challenge.schedule?.map((s: any, idx: number) => {
-              const label = DAYS[s.dayOfWeek - 1] || s.dayOfWeek;
+
+            {!!challenge.daysOfWeek?.length && (
+              <View style={styles.daysContainer}>
+                {challenge.daysOfWeek.map((day: number | string, idx: number) => {
+                  const label = typeof day === "number" ? DAYS[day - 1] : day;
+                  return (
+                    <View key={idx} style={styles.dayReadonly}>
+                      <Text style={styles.dayText}>{label}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+
+            {Array.isArray(challenge.schedule) && challenge.schedule.map((d: any, idx: number) => {
+              const label = DAYS[(d.dayOfWeek ?? 1) - 1] || d.dayOfWeek;
+              const times = (d.alarms || []).map((a: any) => a.alarmTime).filter(Boolean);
               return (
                 <Text key={idx} style={styles.readonlyText}>
-                  {`${label}: ${s.alarmTime || "No alarm"}`}
+                  {`${label}: ${times.length ? times.join(" • ") : "No alarm"}`}
                 </Text>
               );
             })}
@@ -139,14 +272,14 @@ const EditChallengeSharingFriends: React.FC<Props> = ({ navigation, route }) => 
           {/* Games */}
           <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>Games</Text>
-            {challenge.schedule?.some((s: any) => s.games?.length > 0) ? (
+            {Array.isArray(challenge.schedule) && challenge.schedule.some((s: any) => (s.games?.length ?? 0) > 0) ? (
               challenge.schedule.map((s: any, idx: number) => (
                 <View key={idx} style={{ marginBottom: 15 }}>
                   <Text style={[styles.readonlyText, { fontWeight: "700", marginBottom: 5 }]}>
-                    {DAYS[s.dayOfWeek - 1] || s.dayOfWeek}
+                    {DAYS[(s.dayOfWeek ?? 1) - 1] || s.dayOfWeek}
                   </Text>
-                  {s.games.map((g: any, gIdx: number) => {
-                    const meta = getGameMeta(g.id, g.name); 
+                  {(s.games || []).map((g: any, gIdx: number) => {
+                    const meta = getGameMeta(g.id, g.name);
                     return (
                       <View key={gIdx} style={styles.gameRow}>
                         <Image source={meta.image} style={styles.gameIcon} resizeMode="contain" />
@@ -168,65 +301,66 @@ const EditChallengeSharingFriends: React.FC<Props> = ({ navigation, route }) => 
           <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>Start Date</Text>
             <Text style={styles.dateDisplay}>{formatDate(startDate)}</Text>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => setShowStartPicker(true)}
-            >
-              <LinearGradient
-                colors={["rgba(255, 255, 255, 0.2)", "rgba(255, 255, 255, 0.1)"]}
-                style={styles.buttonGradient}
-              >
-                <Ionicons
-                  name="calendar-outline"
-                  size={20}
-                  color="#FFF"
-                  style={styles.buttonIcon}
-                />
+            <TouchableOpacity style={styles.actionButton} onPress={() => setShowStartPicker(true)}>
+              <LinearGradient colors={["rgba(255, 255, 255, 0.2)", "rgba(255, 255, 255, 0.1)"]} style={styles.buttonGradient}>
+                <Ionicons name="calendar-outline" size={20} color="#FFF" style={styles.buttonIcon} />
                 <Text style={styles.buttonText}>Select Start Date</Text>
               </LinearGradient>
             </TouchableOpacity>
-
-            {showStartPicker && (
-              <DateTimePicker
-                value={startDate}
-                mode="date"
-                display="spinner"
-                onChange={(event, date) => onDateChange("start", event, date)}
-              />
+            {showStartPicker && startDate && (
+              <DateTimePicker value={startDate} mode="date" display="spinner" onChange={(e, d) => onDateChange("start", e, d)} />
             )}
           </View>
 
           <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>End Date</Text>
             <Text style={styles.dateDisplay}>{formatDate(endDate)}</Text>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => setShowEndPicker(true)}
-            >
-              <LinearGradient
-                colors={["rgba(255, 255, 255, 0.2)", "rgba(255, 255, 255, 0.1)"]}
-                style={styles.buttonGradient}
-              >
-                <Ionicons
-                  name="calendar-outline"
-                  size={20}
-                  color="#FFF"
-                  style={styles.buttonIcon}
-                />
+            <TouchableOpacity style={styles.actionButton} onPress={() => setShowEndPicker(true)}>
+              <LinearGradient colors={["rgba(255, 255, 255, 0.2)", "rgba(255, 255, 255, 0.1)"]} style={styles.buttonGradient}>
+                <Ionicons name="calendar-outline" size={20} color="#FFF" style={styles.buttonIcon} />
                 <Text style={styles.buttonText}>Select End Date</Text>
               </LinearGradient>
             </TouchableOpacity>
-
-            {showEndPicker && (
-              <DateTimePicker
-                value={endDate}
-                mode="date"
-                display="spinner"
-                onChange={(event, date) => onDateChange("end", event, date)}
-              />
+            {showEndPicker && endDate && (
+              <DateTimePicker value={endDate} mode="date" display="spinner" onChange={(e, d) => onDateChange("end", e, d)} />
             )}
           </View>
 
+          {/* Friends List */}
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>Select Friends</Text>
+            {selectedFriends.length > 0 && (
+              <Text style={styles.selectedCount}>
+                Selected {selectedFriends.length} friend{selectedFriends.length > 1 ? "s" : ""}
+              </Text>
+            )}
+            {loadingFriends ? (
+              <ActivityIndicator size="large" color="#FFD700" />
+            ) : friends.length === 0 ? (
+              <Text style={styles.readonlyText}>No friends available</Text>
+            ) : (
+              friends.map((f) => (
+                <TouchableOpacity
+                  key={f.id}
+                  style={[
+                    styles.friendRow,
+                    selectedFriends.includes(f.id) && styles.friendRowSelected,
+                  ]}
+                  onPress={() => toggleFriend(f.id)}
+                >
+                  <Ionicons
+                    name={selectedFriends.includes(f.id) ? "checkbox" : "square-outline"}
+                    size={22}
+                    color="#FFD700"
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text style={styles.friendName}>{f.name}</Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+
+          {/* Save */}
           <TouchableOpacity style={styles.createButton} onPress={handleSave}>
             <LinearGradient colors={["#FFD700", "#FFC107"]} style={styles.createButtonGradient}>
               <Text style={styles.createButtonText}>Save Challenge</Text>
@@ -247,16 +381,12 @@ const styles = StyleSheet.create({
     justifyContent: "center", alignItems: "center",
     marginLeft: 20, marginBottom: 10,
   },
-  pageTitle: {
-    fontSize: 28, fontWeight: "700", color: "#FFF",
-    textAlign: "center", marginBottom: 20,
-  },
+  pageTitle: { fontSize: 28, fontWeight: "700", color: "#FFF", textAlign: "center", marginBottom: 20 },
   scrollContainer: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 100 },
   formSection: {
     marginBottom: 25, backgroundColor: "rgba(0, 0, 0, 0.2)",
-    borderRadius: 16, padding: 20, borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 16, padding: 20, borderWidth: 1, borderColor: "rgba(255, 255, 255, 0.1)",
   },
   sectionTitle: { fontSize: 20, fontWeight: "600", color: "#FFF", marginBottom: 15 },
   readonlyText: { fontSize: 16, color: "#FFF", marginBottom: 8 },
@@ -276,30 +406,14 @@ const styles = StyleSheet.create({
   createButton: { borderRadius: 12, overflow: "hidden", marginTop: 20, marginBottom: 30 },
   createButtonGradient: { paddingVertical: 15, alignItems: "center", justifyContent: "center" },
   createButtonText: { color: "#333", fontSize: 18, fontWeight: "700" },
-  gameRow: {
-  flexDirection: "row",
-  alignItems: "center",
-  marginBottom: 10,
-  backgroundColor: "rgba(255,255,255,0.05)",
-  borderRadius: 12,
-  padding: 10,
-},
-gameIcon: {
-  width: 40,
-  height: 40,
-  marginRight: 12,
-},
-gameName: {
-  fontSize: 16,
-  fontWeight: "600",
-  color: "#FFF",
-},
-gameDesc: {
-  fontSize: 12,
-  color: "rgba(255,255,255,0.7)",
-  marginTop: 2,
-},
-
+  gameRow: { flexDirection: "row", alignItems: "center", marginBottom: 10, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 10 },
+  gameIcon: { width: 40, height: 40, marginRight: 12 },
+  gameName: { fontSize: 16, fontWeight: "600", color: "#FFF" },
+  gameDesc: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 },
+  selectedCount: { color: "#FFD700", fontSize: 14, marginBottom: 10, fontWeight: "600" },
+  friendRow: { flexDirection: "row", alignItems: "center", padding: 12, marginBottom: 8, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 10 },
+  friendRowSelected: { backgroundColor: "rgba(255,215,0,0.3)", borderWidth: 1, borderColor: "#FFD700" },
+  friendName: { color: "#FFF", fontSize: 16, fontWeight: "500" },
 });
 
 export default EditChallengeSharingFriends;
