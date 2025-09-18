@@ -8,6 +8,7 @@ import android.os.SystemClock;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
@@ -35,6 +36,9 @@ public class AlarmModule extends ReactContextBaseJavaModule {
     public void setAlarm(double timestamp, Promise promise) {
         try {
             AlarmManager alarmManager = (AlarmManager) reactContext.getSystemService(Context.ALARM_SERVICE);
+
+            boolean canSchedule = alarmManager.canScheduleExactAlarms();
+            Log.d("AlarmModule", "Can schedule exact alarms: " + canSchedule);
 
             // ✅ Check permission on Android 12+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

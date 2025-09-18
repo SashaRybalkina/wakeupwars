@@ -70,7 +70,7 @@ function App() {
     // return () => subscription.remove();
   }, []);
 
-  const [seconds, setSeconds] = useState<string>('10');
+  const [seconds, setSeconds] = useState<string>('5');
   const timestamp = Date.now() + parseInt(seconds, 10) * 1000;
 
   AlarmModule.setAlarm(timestamp)
