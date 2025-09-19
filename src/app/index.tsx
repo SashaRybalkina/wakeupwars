@@ -149,7 +149,6 @@ function App() {
     <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
       <Stack.Navigator
         initialRouteName="Login"
-        //initialRouteName="PatternGame"
         screenOptions={{ animationEnabled: false, headerShown: false }}
       >
         <Stack.Screen
