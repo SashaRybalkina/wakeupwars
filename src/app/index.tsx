@@ -8,7 +8,7 @@ import {
 import { createStackNavigator } from '@react-navigation/stack';
 import * as Notifications from 'expo-notifications';
 
-import { Alarm } from './Alarm';
+import { useUser } from './context/UserContext';
 import Challenges from './pages/Challenges';
 import Chall1 from './pages/Challenges/Chall1';
 import ChallDetails from './pages/Challenges/ChallDetails';
@@ -73,6 +73,8 @@ function flushPendingNavigation() {
 }
 
 function App() {
+  const { user } = useUser();
+
   React.useEffect(() => {
     let subscription: any;
     let notificationListener: any;
@@ -82,7 +84,14 @@ function App() {
       .then((data: any) => {
         console.log('getInitialIntent =>', data);
         if (data?.screen) {
-          navigate(data.screen, data);
+          if (!user) {
+            navigate('Login', {
+              redirectTo: data.screen,
+              redirectParams: data,
+            });
+          } else {
+            navigate(data.screen, data.params);
+          }
         }
       })
       .catch((e: any) => {
@@ -94,7 +103,11 @@ function App() {
     subscription = emitter.addListener('NewIntent', (data: any) => {
       console.log('NewIntent event =>', data);
       if (data?.screen) {
-        navigate(data.screen, data);
+        if (!user) {
+          navigate('Login', { redirectTo: data.screen, redirectParams: data });
+        } else {
+          navigate(data.screen, data.params);
+        }
       }
     });
 
@@ -103,26 +116,34 @@ function App() {
       Notifications.addNotificationResponseReceivedListener((response) => {
         const data = response.notification.request.content.data;
         if (data?.screen) {
-          navigate(data.screen, data.params || {});
+          if (!user) {
+            navigate('Login', {
+              redirectTo: data.screen,
+              redirectParams: data.params || {},
+            });
+          } else {
+            navigate(data.screen, data.params || {});
+          }
         }
       });
 
     return () => {
       if (subscription && subscription.remove) subscription.remove();
       else if (subscription) subscription.remove(); // defensive
+      if (notificationListener) notificationListener.remove();
     };
-  }, []);
+  }, [user]);
 
   const [seconds, setSeconds] = useState<string>('5');
   const timestamp = Date.now() + parseInt(seconds, 10) * 1000;
 
-  // AlarmModule.setAlarm(timestamp, 'Wordle', {
-  //   challengeId: 30,
-  //   challName: 'Test Challenge',
-  //   whichChall: 'wordle',
-  // })
-  //   .then((msg: string) => Alert.alert('Success', msg))
-  //   .catch((err: any) => Alert.alert('Error', err.message || err));
+  AlarmModule.setAlarm(timestamp, 'Wordle', {
+    challengeId: 30,
+    challName: 'Test Challenge',
+    whichChall: 'wordle',
+  })
+    .then((msg: string) => Alert.alert('Success', msg))
+    .catch((err: any) => Alert.alert('Error', err.message || err));
 
   return (
     <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>

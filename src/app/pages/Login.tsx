@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { BASE_URL, endpoints } from '../api';
-import { useUser } from '../context/UserContext';
 import {
   Alert,
+  Dimensions,
+  Image,
+  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -10,52 +11,53 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Dimensions,
-  ImageBackground,
-  Image,
-} from "react-native"
-import type { NavigationProp } from "@react-navigation/native"
-import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import type { NavigationProp } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
+
+import { BASE_URL, endpoints } from '../api';
+import { useUser } from '../context/UserContext';
 
 type Props = {
-  navigation: NavigationProp<any>
-}
+  navigation: NavigationProp<any>;
+};
 
-const { width } = Dimensions.get("window")
-const inputWidth = Math.min(width * 0.85, 400)
+const { width } = Dimensions.get('window');
+const inputWidth = Math.min(width * 0.85, 400);
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const { setUser, setCsrfToken } = useUser()
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const { setUser, setCsrfToken } = useUser();
+  const route = useRoute();
 
   const goToSignUp = () => {
     navigation.navigate('SignUp');
   };
 
-
   const handleLogin = async () => {
     if (!username || !password) {
-      Alert.alert("Error", "Please enter both username and password")
-      return
+      Alert.alert('Error', 'Please enter both username and password');
+      return;
     }
 
     try {
       // Step 1: Get CSRF token and store in context
-      console.log("here")
+      console.log('here');
       const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
         credentials: 'include',
       });
       const tokenData = await res.json();
       const csrfToken = tokenData.csrfToken;
-      console.log("token in handleLogin: " + csrfToken);
+      console.log('token in handleLogin: ' + csrfToken);
       // setCsrfToken(csrfToken); // 🔐 Store token in context
-  
+
       // Step 2: Use token to login
       const response = await fetch(endpoints.login, {
-        method: "POST",
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRFToken': csrfToken,
@@ -63,9 +65,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         credentials: 'include',
         body: JSON.stringify({ username, password }),
       });
-  
+
       const data = await response.json();
-  
+
       // Step 3: Check response
       if (response.ok && data.success) {
         setUser({
@@ -73,30 +75,54 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           name: data.name,
           email: data.email,
           username: data.username,
-        })
-        navigation.navigate("Profile")
+        });
+        // If redirected here, go to intended screen
+        if (route.params && route.params.redirectTo) {
+          navigation.replace(
+            route.params.redirectTo,
+            route.params.redirectParams || {},
+          );
+        } else {
+          navigation.navigate('Profile');
+        }
       } else {
         Alert.alert('Login Failed', data.error || 'Login failed');
         console.log('response status:', response.status);
         console.log('response body:', data);
       }
     } catch (error) {
-      console.error("Login error:", error)
-      Alert.alert("Error", "Network error or server is down.")
+      console.error('Login error:', error);
+      Alert.alert('Error', 'Network error or server is down.');
     }
-  }
+  };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
-      <ImageBackground source={require("../images/cgpt3.png")} style={styles.backgroundImage} resizeMode="cover">
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
+      <ImageBackground
+        source={require('../images/cgpt3.png')}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      >
         <View style={styles.contentContainer}>
           <View style={styles.logoContainer}>
-            <Image source={require("../images/wakeupwars.png")} style={styles.logoImage} resizeMode="contain" />
+            <Image
+              source={require('../images/wakeupwars.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
 
           <View style={styles.formContainer}>
             <View style={styles.inputWrapper}>
-              <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
+              <Ionicons
+                name="person-outline"
+                size={20}
+                color="#666"
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 placeholder="Username"
@@ -108,7 +134,12 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             </View>
 
             <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+              <Ionicons
+                name="lock-closed-outline"
+                size={20}
+                color="#666"
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 placeholder="Password"
@@ -117,8 +148,15 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 value={password}
                 onChangeText={setPassword}
               />
-              <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#666" />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color="#666"
+                />
               </TouchableOpacity>
             </View>
 
@@ -126,9 +164,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.loginButton, styles.loginButtonBackground]} 
-              onPress={handleLogin} 
+            <TouchableOpacity
+              style={[styles.loginButton, styles.loginButtonBackground]}
+              onPress={handleLogin}
               activeOpacity={0.9}
             >
               <Text style={styles.loginButtonText}>Login</Text>
@@ -141,13 +179,19 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             </View>
 
             <View style={styles.socialButtonsContainer}>
-              <TouchableOpacity style={[styles.socialButton, styles.googleButton]}>
+              <TouchableOpacity
+                style={[styles.socialButton, styles.googleButton]}
+              >
                 <Ionicons name="logo-google" size={20} color="#DB4437" />
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.socialButton, styles.appleButton]}>
+              <TouchableOpacity
+                style={[styles.socialButton, styles.appleButton]}
+              >
                 <Ionicons name="logo-apple" size={20} color="#000" />
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.socialButton, styles.facebookButton]}>
+              <TouchableOpacity
+                style={[styles.socialButton, styles.facebookButton]}
+              >
                 <Ionicons name="logo-facebook" size={20} color="#4267B2" />
               </TouchableOpacity>
             </View>
@@ -162,8 +206,8 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       </ImageBackground>
     </KeyboardAvoidingView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -171,16 +215,16 @@ const styles = StyleSheet.create({
   },
   backgroundImage: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   contentContainer: {
-    width: "100%",
-    alignItems: "center",
+    width: '100%',
+    alignItems: 'center',
     paddingHorizontal: 20,
   },
   logoContainer: {
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 40,
   },
   logoImage: {
@@ -189,24 +233,24 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: inputWidth,
-    backgroundColor: "rgba(255, 255, 240, 0.45)",
+    backgroundColor: 'rgba(255, 255, 240, 0.45)',
     borderRadius: 20,
     padding: 20,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
     elevation: 5,
   },
   inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,1)",
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,1)',
     borderRadius: 12,
     marginBottom: 15,
     paddingHorizontal: 15,
     height: 55,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -217,110 +261,110 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    height: "100%",
-    color: "#333",
+    height: '100%',
+    color: '#333',
     fontSize: 16,
   },
   eyeIcon: {
     padding: 10,
   },
   forgotPassword: {
-    alignSelf: "flex-end",
+    alignSelf: 'flex-end',
     marginBottom: 20,
   },
   forgotPasswordText: {
-    color: "rgba(50, 50, 60, 0.9)",
+    color: 'rgba(50, 50, 60, 0.9)',
     fontSize: 14,
   },
   loginButton: {
-    width: "100%",
-    color: "rgba(50, 50, 60, 0.5)",
+    width: '100%',
+    color: 'rgba(50, 50, 60, 0.5)',
     height: 55,
     borderRadius: 12,
-    overflow: "hidden",
+    overflow: 'hidden',
     marginBottom: 20,
   },
   loginButtonBackground: {
-    backgroundColor: "rgba(255, 255, 245, 0.8)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(255, 255, 245, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   buttonGradient: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loginButtonText: {
-    color: "rgba(0, 0, 0, 0.8)",
+    color: 'rgba(0, 0, 0, 0.8)',
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   dividerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginVertical: 20,
   },
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: "rgba(245, 226, 186, 1)",
+    backgroundColor: 'rgba(245, 226, 186, 1)',
   },
   dividerText: {
-    color: "#666",
+    color: '#666',
     paddingHorizontal: 10,
     fontSize: 14,
   },
   socialButtonsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   socialButton: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginHorizontal: 10,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
   },
   googleButton: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
   appleButton: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
   facebookButton: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
   signupContainer: {
-    flexDirection: "row",
+    flexDirection: 'row',
     marginTop: 30,
-    alignItems: "center",
+    alignItems: 'center',
   },
   signupText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 19,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginRight: 5,
-    textShadowColor: "rgba(0, 0, 0, 0.9)",
+    textShadowColor: 'rgba(0, 0, 0, 0.9)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
   signupLink: {
-    color: "#FFD700",
+    color: '#FFD700',
     fontSize: 19,
-    fontWeight: "bold",
-    textDecorationLine: "underline",
-    textShadowColor: "rgba(0, 0, 0, 0.8)",
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
-})
+});
 
-export default LoginScreen
+export default LoginScreen;

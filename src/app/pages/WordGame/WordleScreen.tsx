@@ -53,9 +53,11 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
     whichChall: string;
   }) || {
     challengeId: 30,
-    challName: 'Test Challenge',
+    challName: 'Test',
     whichChall: 'wordle',
   };
+
+  console.log('route.params: ', route.params);
 
   const { user } = useUser();
 

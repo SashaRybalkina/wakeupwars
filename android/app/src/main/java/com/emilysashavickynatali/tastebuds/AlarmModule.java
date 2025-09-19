@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
 import android.util.Log;
+import java.util.Map;
 
 import androidx.annotation.NonNull;
 
@@ -53,7 +54,22 @@ public class AlarmModule extends ReactContextBaseJavaModule {
             // Pass data to the receiver
             Intent intent = new Intent(reactContext, AlarmReceiver.class);
             intent.putExtra("screen", screen);
-            intent.putExtra("params", params.toHashMap());
+            android.os.Bundle bundle = new android.os.Bundle();
+            for (Map.Entry<String, Object> entry : params.toHashMap().entrySet()) {
+                Object value = entry.getValue();
+                String key = entry.getKey();
+                if (value instanceof String) {
+                    bundle.putString(key, (String) value);
+                } else if (value instanceof Integer) {
+                    bundle.putInt(key, (Integer) value);
+                } else if (value instanceof Double) {
+                    bundle.putDouble(key, (Double) value);
+                } else if (value instanceof Boolean) {
+                    bundle.putBoolean(key, (Boolean) value);
+                }
+                // Add more types as needed
+            }
+            intent.putExtra("params", bundle);
 
             PendingIntent pendingIntent = PendingIntent.getBroadcast(
                     reactContext,
