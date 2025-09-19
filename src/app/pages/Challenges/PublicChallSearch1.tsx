@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { NavigationProp, useRoute } from '@react-navigation/native';
+import { NavigationProp, useLinkBuilder, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState, useRef, useEffect } from 'react';
 import DateTimePicker from "@react-native-community/datetimepicker"
@@ -64,42 +64,15 @@ const PublicChallSearch1: React.FC<Props> = ({ navigation }) => {
             return
         }
 
-        const payload = {
-          category_id: selectedCategory?.id ?? null, // null if miscellaneous
-          sing_or_mult: singOrMult,
-        };
-
-        console.log("Payload sent to backend:", payload);
-
-
         try {
-          const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-            credentials: 'include',                      
-          });
-          if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-          const { csrfToken } = await csrfRes.json();     
-          console.log('csrfToken:', csrfToken);
+        const res = await fetch(endpoints.getMatchingChallenges(Number(user?.id), selectedCategory?.id ?? undefined, singOrMult === "singleplayer" ? "Singleplayer" : "Multiplayer"));
 
+        const data = await res.json();
+        console.log("DATA MATCHES:", JSON.stringify(data, null, 2));
+        console.log("DATA.MATCHES:", JSON.stringify(data.matches, null, 2));
 
-        const res = await fetch(endpoints.getMatchingChallenges(Number(user?.id)), {
-            method: 'POST',
-            credentials: 'include',                    
-            headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,                
-            },
-            body: JSON.stringify(payload),
-        });
+        navigation.navigate("PublicChallSearch2", { matches: data.matches });
 
-        // if (!res.ok) {
-        //     const error = await res.json();
-        //     throw new Error(error.message || 'Failed');
-        // }
-
-        // const data = await res.json();
-        // Alert.alert('Success', 'Schedule saved successfully', [
-        //     { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId, groupMembers, refresh: Date.now() }) },
-        // ]);
         } catch (err: any) {
             Alert.alert('Error', err.message);
         }

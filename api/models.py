@@ -128,7 +128,8 @@ class Challenge(models.Model):
     isPublic    = models.BooleanField(default=False)
     isPending   = models.BooleanField(default=False)  # waiting for invites / availability
     startDate   = models.DateField(null=True)
-    endDate     = models.DateField()
+    endDate     = models.DateField(null=True)
+    totalDays   = models.IntegerField(null=True)
     name        = models.CharField(max_length=255, default='Challenge')
     isCompleted = models.BooleanField(default=False)
     daysCompleted = models.IntegerField(default=0)

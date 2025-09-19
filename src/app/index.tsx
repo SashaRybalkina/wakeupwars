@@ -13,6 +13,7 @@ import CreatePublicChall1 from './pages/Challenges/CreatePublicChall1';
 import CreatePublicChall2 from './pages/Challenges/CreatePublicChall2';
 import VerifyAvailability from './pages/Challenges/VerifyAvailability';
 import PublicChallSearch1 from './pages/Challenges/PublicChallSearch1';
+import PublicChallSearch2 from './pages/Challenges/PublicChallSearch2';
 import Categories from './pages/Games/Categories';
 import GameExpanded from './pages/Games/GameExpanded';
 import Games from './pages/Games/Games';
@@ -224,6 +225,11 @@ function App() {
         <Stack.Screen
           name="PublicChallSearch1"
           component={PublicChallSearch1}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PublicChallSearch2"
+          component={PublicChallSearch2}
           options={{ headerShown: false }}
         />
         <Stack.Screen

@@ -448,52 +448,32 @@ class GetPendingPublicChallengesView(APIView):
 
 
 class GetMatchingChallengesView(APIView):
-    """
-    POST payload (JSON):
-    {
-      "category_id": <int|null>,         # null => miscellaneous
-      "sing_or_mult": "singleplayer"|"multiplayer",
-      "alarm_schedule": [                # user's availability to match against
-         { "dayOfWeek": 1, "time": "07:15" }, ...
-      ]
-    }
-
-    Response: list of candidate challenges ordered by closeness of skill level:
-    [
-      {
-        "id": <challenge id>,
-        "name": "...",
-        "summary": { ... ChallengeSummarySerializer ... },
-        "distance": 0.12,   # abs(user_skill - challenge.averageSkillLevel)
-      }, ...
-    ]
-    """
-    def post(self, request, user_id):
+    def get(self, request, user_id, category_id, sing_or_mult):
         data = request.data
 
         # --- validate input ---
-        sing_or_mult = data.get("sing_or_mult")
-        if sing_or_mult not in ("singleplayer", "multiplayer"):
-            return Response({"error": "sing_or_mult must be 'singleplayer' or 'multiplayer'."},
+        if sing_or_mult not in ("Singleplayer", "Multiplayer"):
+            return Response({"error": "sing_or_mult must be 'Singleplayer' or 'Multiplayer'."},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # category: either int id or None -> for None we treat as miscellaneous (category is null)
-        category_id = data.get("category_id", None)
-
         user_availabilities = UserAvailability.objects.filter(user_id=user_id)
+        print(user_availabilities)
         user_avail_by_day = {}
         for ua in user_availabilities:
             user_avail_by_day.setdefault(ua.dayOfWeek, set()).add(ua.alarmTime)
+        print(user_avail_by_day)
 
 
         # --- query candidate public pending challenges that match category & isMultiplayer ---
-        is_multiplayer_flag = True if sing_or_mult == "multiplayer" else False
+        is_multiplayer_flag = True if sing_or_mult == "Multiplayer" else False
+        print(is_multiplayer_flag)
 
         q = PublicChallengeConfiguration.objects.filter(
             isMultiplayer=is_multiplayer_flag,
             challenge__isPublic=True,
             challenge__isPending=True
         ).select_related("challenge", "category")
+        print(q.count())
 
         # category filter
         if category_id is None:
@@ -501,6 +481,7 @@ class GetMatchingChallengesView(APIView):
             q = q.filter(category__isnull=True)
         else:
             q = q.filter(category_id=category_id)
+        print(q.count())
 
         # Prefetch the ChallengeAlarmSchedule objects along with their AlarmSchedule and user
         q = q.prefetch_related(
@@ -603,8 +584,9 @@ class GetMatchingChallengesView(APIView):
             serialized = PendingPublicChallengeSummarySerializer(challenge, context={"user": request.user}).data
 
             results.append({
-                "id": challenge.id,
-                "name": challenge.name,
+                # "id": challenge.id,
+                # "name": challenge.name,        
+                # "totalDays": challenge.totalDays,    # already included in serialized
                 "summary": serialized,
                 "distance": float(distance),  # convert Decimal -> float for JSON
                 "averageSkillLevel": float(challenge_skill),
@@ -658,10 +640,13 @@ class ChallengeListView(APIView):
 
             serialized = ChallengeSummarySerializer(challenge, context={'user': request.user}).data
             serialized['daysOfWeek'] = day_labels
+            # TODO: fix this
             if challenge.startDate is not None and challenge.endDate is not None:
                 serialized["totalDays"] = (challenge.endDate - challenge.startDate).days + 1
+            elif challenge.startDate is None and challenge.endDate is None: # public pending
+                serialized["totalDays"] = challenge.totalDays
             else:
-                serialized["totalDays"] = None
+                serialized["totalDays"] = None # just end date is pending collab, update later
 
 
             response_data.append(serialized)
@@ -920,6 +905,7 @@ class CreatePublicChallengeView(APIView):
     @transaction.atomic
     def post(self, request):
         data = request.data
+        print(data)
         try:
             # if No conflicts, continue to create challenge
             challenge = Challenge.objects.create(
@@ -927,12 +913,13 @@ class CreatePublicChallengeView(APIView):
                 groupID_id=None,
                 initiator_id=data['initiator_id'],
                 startDate=None,
-                endDate=data['end_date'],
+                endDate=None,
+                totalDays=data['total_days'],
                 isPublic=True,
                 isPending=True
             )
 
-            # Add membershio
+            # Add membership
             ChallengeMembership.objects.create(
                 challengeID=challenge,
                 uID_id=data['initiator_id']
@@ -962,6 +949,38 @@ class CreatePublicChallengeView(APIView):
                         game_id=game['id'],
                         game_order=game['order']
                     )
+
+            # create the public challenge configuration
+            user_id = data['initiator_id']
+            category_id = data.get('category_id')
+
+            if category_id:
+                # specific category skill
+                sl = SkillLevel.objects.filter(user_id=user_id, category_id=category_id).first()
+                if not sl or sl.totalPossible == 0:
+                    skill_level = Decimal("0.0")
+                else:
+                    skill_level = (Decimal(sl.totalEarned) / Decimal(sl.totalPossible)) * Decimal(10)
+            else:
+                # average across all categories
+                sl_qs = SkillLevel.objects.filter(user_id=user_id)
+                total_earned = Decimal(0)
+                total_possible = Decimal(0)
+                for s in sl_qs:
+                    total_earned += Decimal(s.totalEarned)
+                    total_possible += Decimal(s.totalPossible)
+                if total_possible == 0:
+                    skill_level = Decimal("0.0")
+                else:
+                    skill_level = (total_earned / total_possible) * Decimal(10)
+
+            # --- Create PublicChallengeConfiguration ---
+            PublicChallengeConfiguration.objects.create(
+                challenge=challenge,
+                category_id=category_id,  # can be None
+                isMultiplayer=(data['sing_or_mult'] == 'Multiplayer'),
+                averageSkillLevel=skill_level
+            )
 
             return Response({'message': 'Challenge created successfully', 'challenge_id': challenge.id}, status=status.HTTP_201_CREATED)
 

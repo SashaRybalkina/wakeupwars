@@ -1,11 +1,11 @@
-export const BASE_URL = 'https://b3e9030a0b9a.ngrok-free.app';
+export const BASE_URL = 'https://f801cef548ab.ngrok-free.app';
 
 export const endpoints = {
   // getToken
   login: `${BASE_URL}/api/login/`,
   register: `${BASE_URL}/api/register/`,
   groups: (userId: number) => `${BASE_URL}/api/user-groups/${userId}/`,
-  getMatchingChallenges: (userId: number) => `${BASE_URL}/api/get-matching-challenges/${userId}/`,
+  getMatchingChallenges: (userId: number, categoryId: number | undefined, singOrMult: string) => `${BASE_URL}/api/get-matching-challenges/${userId}/${categoryId}/${singOrMult}/`,
   friends: (userId: number) => `${BASE_URL}/api/user-friends/${userId}/`,
   cats: () => `${BASE_URL}/api/cats/`,
   games: (catId: number, singOrMult: string) => `${BASE_URL}/api/games/${catId}/${singOrMult}/`,

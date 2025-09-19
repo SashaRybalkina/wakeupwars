@@ -95,9 +95,11 @@ class PendingPublicChallengeSummarySerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'name',
-            'endDate',  # TODO: think about setting a duration instead of endDate
+            'startDate',
+            'endDate',  
+            'totalDays',
             'daysOfWeek',
-            'numParticipants',  # include it here
+            'numParticipants',  
         ]
 
     def get_daysOfWeek(self, obj):

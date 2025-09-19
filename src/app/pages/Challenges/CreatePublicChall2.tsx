@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { BASE_URL, endpoints } from "../../api"
 import { Platform } from "react-native"
 import { useUser } from "../../context/UserContext"
+import { Picker } from "@react-native-picker/picker"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -40,8 +41,11 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
 
 
   const [name, setName] = useState("")
-  const [selectedDate, setSelectedDate] = useState(new Date())
-  const [showDatePicker, setShowDatePicker] = useState(false)
+  // const [selectedDate, setSelectedDate] = useState(new Date())
+  // const [showDatePicker, setShowDatePicker] = useState(false)
+  const [durationValue, setDurationValue] = useState(1); // default 1
+  const [durationUnit, setDurationUnit] = useState<"weeks" | "months" | "years">("weeks");
+
 
   const [tempTime, setTempTime] = useState<Date | null>(null)
   const [showTimePicker, setShowTimePicker] = useState(false)
@@ -82,19 +86,19 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
   // }
 
   // Android + IOS version
-  const onDateChange = (event: any, date?: Date) => {
-    if (event?.type === "dismissed") {
-      setShowDatePicker(false)
-      return
-    }
+  // const onDateChange = (event: any, date?: Date) => {
+  //   if (event?.type === "dismissed") {
+  //     setShowDatePicker(false)
+  //     return
+  //   }
   
-    if (date) {
-      setSelectedDate(date)
-      if (Platform.OS === "android") {
-        setShowDatePicker(false)
-      }
-    }
-  }
+  //   if (date) {
+  //     setSelectedDate(date)
+  //     if (Platform.OS === "android") {
+  //       setShowDatePicker(false)
+  //     }
+  //   }
+  // }
 
   // const onTimeChange = (_: any, time?: Date) => {
   //   if (time) setTempTime(time)
@@ -175,21 +179,37 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
     setGamesByDay(updated)
   }
 
-  const formatDate = (date: Date) => {
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'short', 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    }
-    return date.toLocaleDateString(undefined, options)
+  // const formatDate = (date: Date) => {
+  //   const options: Intl.DateTimeFormatOptions = { 
+  //     weekday: 'short', 
+  //     year: 'numeric', 
+  //     month: 'short', 
+  //     day: 'numeric' 
+  //   }
+  //   return date.toLocaleDateString(undefined, options)
+  // }
+
+  const getTotalDays = (value: number, unit: "weeks" | "months" | "years") => {
+  switch (unit) {
+    case "weeks":
+      return value * 7;
+    case "months":
+      return value * 30; // approximate month as 30 days
+    case "years":
+      return value * 365; // ignoring leap years for simplicity
+    default:
+      return value;
   }
+};
+
 
   const handleCreateChallenge = async() => {
     if (!name.trim()) {
       Alert.alert("Error", "Please enter a challenge name")
       return
     }
+
+
 
     if (Object.keys(dayTimeMapping).length === 0) {
       Alert.alert("Error", "Please select at least one day and set an alarm time")
@@ -240,17 +260,21 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
       })
       .filter(Boolean)
 
+    const total_days = getTotalDays(durationValue, durationUnit);
 
     const payload = {
       name,
       group_id: null,
       start_date: null,
-      end_date: selectedDate.toISOString().split("T")[0],
+      end_date: null,
+      total_days,
       initiator_id: initiatorId,
       alarm_schedule: alarmSchedule,
       game_schedules: gameSchedules,
       is_public: true,
-      is_pending: true
+      is_pending: true,
+      sing_or_mult: singOrMult === "singleplayer" ? "Singleplayer" : "Multiplayer",
+      category_id: category?.id ?? null
     }
     console.log(payload)
 
@@ -450,49 +474,29 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
             </View>
           )}
 
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>End Date</Text>
-            <Text style={styles.dateDisplay}>{formatDate(selectedDate)}</Text>
-            
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <LinearGradient
-                colors={["rgba(255, 255, 255, 0.2)", "rgba(255, 255, 255, 0.1)"]}
-                style={styles.buttonGradient}
-              >
-                <Ionicons name="calendar-outline" size={20} color="#FFF" style={styles.buttonIcon} />
-                <Text style={styles.buttonText}>Select Date</Text>
-              </LinearGradient>
-            </TouchableOpacity>
 
-            {showDatePicker && (
-              <View style={styles.pickerContainer}>
-                <DateTimePicker
-                  value={selectedDate}
-                  mode="date"
-                  display="spinner"
-                  onChange={onDateChange}
-                  textColor="#FFF"
-                />
-                {/* <TouchableOpacity
-                  style={styles.doneButton}
-                  onPress={() => setShowDatePicker(false)}
-                >
-                  <Text style={styles.doneButtonText}>Done</Text>
-                </TouchableOpacity> */}
-                {Platform.OS !== "android" && (
-                  <TouchableOpacity
-                    style={styles.doneButton}
-                    onPress={() => setShowDatePicker(false)}
-                  >
-                    <Text style={styles.doneButtonText}>Done</Text>
-                  </TouchableOpacity>
-                )}  
-              </View>
-            )}
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>Challenge Duration</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <TextInput
+                style={[styles.input, { flex: 1, marginRight: 10 }]}
+                keyboardType="numeric"
+                value={String(durationValue)}
+                onChangeText={text => setDurationValue(Number(text) || 0)}
+              />
+
+              <Picker
+                selectedValue={durationUnit}
+                style={{ flex: 1 }}
+                onValueChange={(itemValue) => setDurationUnit(itemValue)}
+              >
+                <Picker.Item label="Weeks" value="weeks" />
+                <Picker.Item label="Months" value="months" />
+                <Picker.Item label="Years" value="years" />
+              </Picker>
+            </View>
           </View>
+
 
           <TouchableOpacity
             style={styles.createButton}
