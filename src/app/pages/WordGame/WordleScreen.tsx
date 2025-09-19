@@ -57,8 +57,6 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
     whichChall: 'wordle',
   };
 
-  console.log('route.params: ', route.params);
-
   const { user } = useUser();
 
   const [grid, setGrid] = useState<string[][]>(
@@ -132,6 +130,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
       const { game_state_id, is_multiplayer } = data;
       setGameStateId(game_state_id);
       console.log('[Wordle] Correct answer is:', data.answer);
+      console.log('route.params: ', route.params);
 
       // if (is_multiplayer) {
       //   console.log('multiplayer');
