@@ -15,35 +15,35 @@ type Props = {
   navigation: NavigationProp<any>;
 };
 
-const Games: React.FC<Props> = ({ navigation }) => {
+const SomeCategories: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, catId, catName, groupId, singOrMult, groupMembers, onGameSelected, challId, challName } = route.params as {
-    catType: string
-    catId: number;
-    catName: string;
-    singOrMult: string;
+  const { catType, categories, singOrMult, groupId, groupMembers, onGameSelected, challId, challName } = route.params as {
+    catType: string;
+    categories: { id: number; name: string }[];
     groupId: number;
     groupMembers: { id: number; name: string }[];
+    singOrMult: string;
     onGameSelected: (game: { id: number; name: string }) => void;
     challId: number;
     challName: number;
   };
 
-  const [games, setGames] = useState<{ id: number; name: String }[]>([]);
-
+  const [cats, setCats] = useState<{ id: number; categoryName: string }[]>([]);
+  
   useEffect(() => {
-    const fetchGames = async () => {
+    const fetchCats = async () => {
       try {
-        // fetch the games in whatever category was selected
-        const response = await fetch(endpoints.games(catId, singOrMult));
+        // fetch the categories for multiplayer/singleplayer (whatever was selected)
+        const response = await fetch(endpoints.someCats(categories.map(c => c.id)));
         const data = await response.json();
-        setGames(data); 
+        setCats(data); 
+        console.log("Data: " + data);
       } catch (error) {
         console.error('Failed to fetch categories:', error);
       }
     };
   
-    fetchGames();
+    fetchCats();
   }, []);
 
   return (
@@ -70,32 +70,32 @@ const Games: React.FC<Props> = ({ navigation }) => {
       </View>
       
       <View style={styles.container}>
-        <Text style={styles.title}>{catName} Games</Text>
+        <Text style={styles.title}>Categories</Text>
         <ScrollView 
           style={styles.scrollViewContainer}
           contentContainerStyle={styles.scrollViewContent}
           showsVerticalScrollIndicator={false}
         >
-          {games.map((game) => (
+          {cats.map((cat, index) => (
             <TouchableOpacity
-              key={game.id}
-              style={styles.gameButton}
-              onPress={() => navigation.navigate('GameExpanded', { 
-                catType, 
-                catId,
-                catName, 
-                category,
-                singOrMult,
-                gameId: game.id, 
-                gameName: game.name, 
-                groupId, 
-                groupMembers, 
-                onGameSelected,
-                challId,
-                challName
-              })}
+              key={cat.id}
+              style={styles.categoryButton}
+                  onPress={() => {
+                    navigation.navigate("Games", {
+                      catType: "Public",
+                      catName: cat.categoryName,
+                      catId: cat.id,
+                      categories,
+                      singOrMult: singOrMult,
+                      groupId : null,
+                      groupMembers : null,
+                      onGameSelected,
+                      challId : null,
+                      challName : null
+                    })
+                  }}
             >
-              <Text style={styles.gameButtonText}>{game.name}</Text>
+              <Text style={styles.categoryButtonText}>{cat.categoryName}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     alignItems: 'center',
   },
-  gameButton: {
+  categoryButton: {
     width: '100%',
     height: 80,
     backgroundColor: 'rgba(80, 90, 140, 0.5)',
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  gameButtonText: {
+  categoryButtonText: {
     color: '#fff',
     fontSize: 28,
     fontWeight: '600',
@@ -189,4 +189,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Games;
+export default SomeCategories;

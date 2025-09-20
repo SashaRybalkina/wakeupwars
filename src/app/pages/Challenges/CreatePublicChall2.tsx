@@ -26,12 +26,12 @@ const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
 
 const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
-  const { singOrMult, category } = route.params as {
+  const { singOrMult, categories } = route.params as {
     singOrMult: string
-    category: { id: number; name: string } | null
+    categories: { id: number; name: string }[]
     // isMiscellaneous: boolean
   }
-  console.log(category)
+  console.log(categories)
 
   const { user } = useUser();
 
@@ -275,7 +275,7 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
       is_public: true,
       is_pending: true,
       sing_or_mult: singOrMult === "singleplayer" ? "Singleplayer" : "Multiplayer",
-      category_id: category?.id ?? null
+      category_ids: categories.map(c => c.id),
     }
     console.log(payload)
 
@@ -448,9 +448,9 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
                 <TouchableOpacity
                   style={styles.addGameButton}
                   onPress={() => {
-                    navigation.navigate("Games", {
+                    navigation.navigate("SomeCategories", {
                       catType: "Public",
-                      category: category,
+                      categoryIds: categories.map(c => c.id),
                       singOrMult: singOrMult,
                       groupId : null,
                       groupMembers : null,
@@ -461,6 +461,20 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
                       challName : null
                     })
                   }}
+                  // onPress={() => {
+                  //   navigation.navigate("Games", {
+                  //     catType: "Public",
+                  //     category: category,
+                  //     singOrMult: singOrMult,
+                  //     groupId : null,
+                  //     groupMembers : null,
+                  //     onGameSelected: (game: { id: number; name: string }) => {
+                  //       handleGameAdd(game)
+                  //     },
+                  //     challId : null,
+                  //     challName : null
+                  //   })
+                  // }}
                 >
                   <LinearGradient
                     colors={["rgba(255, 255, 255, 0.2)", "rgba(255, 255, 255, 0.1)"]}

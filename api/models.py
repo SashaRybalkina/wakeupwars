@@ -236,12 +236,18 @@ class PublicChallengeConfiguration(models.Model):
     # is associated with (for misc, it will correspond to the average of all challenge
     # members skill levels in all categories)
     averageSkillLevel = models.DecimalField(max_digits=4, decimal_places=2)
-    # the corresponding category (null if miscellaneous)
-    category = models.ForeignKey(GameCategory, on_delete=models.CASCADE, null=True)
     isMultiplayer = models.BooleanField()
 
     class Meta:
         db_table = 'PublicChallengeConfigurations'
+
+
+class PublicChallengeCategoryAssociation(models.Model):
+    challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE) # will be a public challenge
+    category = models.ForeignKey(GameCategory, on_delete=models.CASCADE, null=True)
+
+    class Meta:
+        db_table = 'PublicChallengeCategoryAssociations'
     
 
 class UserAvailability(models.Model):

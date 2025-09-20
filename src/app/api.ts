@@ -5,9 +5,12 @@ export const endpoints = {
   login: `${BASE_URL}/api/login/`,
   register: `${BASE_URL}/api/register/`,
   groups: (userId: number) => `${BASE_URL}/api/user-groups/${userId}/`,
-  getMatchingChallenges: (userId: number, categoryId: number | undefined, singOrMult: string) => `${BASE_URL}/api/get-matching-challenges/${userId}/${categoryId}/${singOrMult}/`,
+  getMatchingChallenges: (userId: number, categoryIds: number[], singOrMult: string) =>
+  `${BASE_URL}/api/get-matching-challenges/${userId}/${categoryIds.join(',')}/${singOrMult}/`,
+
   friends: (userId: number) => `${BASE_URL}/api/user-friends/${userId}/`,
   cats: () => `${BASE_URL}/api/cats/`,
+  someCats: (categoryIds: number[]) => `${BASE_URL}/api/some-cats/?ids=${categoryIds.join(",")}`,
   games: (catId: number, singOrMult: string) => `${BASE_URL}/api/games/${catId}/${singOrMult}/`,
   singOrMultGames: (singOrMult: string) => `${BASE_URL}/api/games/${singOrMult}/`,
   messages: (userId: number) => `${BASE_URL}/api/messages/${userId}/`,

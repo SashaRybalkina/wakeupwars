@@ -34,7 +34,7 @@ from .views import (
     FinalizeChallengeView, CreateSudokuGameView, ValidateSudokuMoveView, 
     CreateWordleGameView, ValidateWordleMoveView, get_csrf_token, SingOrMultGameListView,
     GetPendingPublicChallengesView, GetMatchingChallengesView, SetUserAvailabilityView,
-    GetUserAvailabilityView,
+    GetUserAvailabilityView, SomeCatsListView,
 )
 
 router = DefaultRouter()
@@ -47,12 +47,17 @@ urlpatterns = [
     path('challenges/<int:challenge_id>/finalize/', FinalizeChallengeView.as_view(), name='finalize-challenge'),
     path('challenges/<int:user_id>/<str:which_chall>/', ChallengeListView.as_view(), name='challenge-list'),
     path('get-pending-public-challenges/<int:user_id>/', GetPendingPublicChallengesView.as_view(), name='get-pending-public-challenges'),
-    path('get-matching-challenges/<int:user_id>/<int:category_id>/<str:sing_or_mult>/', GetMatchingChallengesView.as_view(), name='get-matching-challenges'),
+    path(
+    'get-matching-challenges/<int:user_id>/<str:category_ids>/<str:sing_or_mult>/',
+    GetMatchingChallengesView.as_view(),
+    name='get-matching-challenges'
+    ),
     path('login/', LoginView.as_view(), name='login'),
     path('register/', RegisterView.as_view(), name='register'),
     path('user-groups/<int:user_id>/', GroupListView.as_view(), name='group-list'),
     path('user-friends/<int:user_id>/', FriendListView.as_view(), name='friend-list'),
     path('cats/', CatListView.as_view(), name='cat-list'),
+    path('some-cats/', SomeCatsListView.as_view(), name='some-cats'),
     path('games/<int:cat_id>/<str:sing_or_mult>/', GameListView.as_view(), name='game-list'),
     path('games/<str:sing_or_mult>/', SingOrMultGameListView.as_view(), name='sing-or-mult-game-list'),
     path('hello/', HelloWorldView.as_view(), name='hello'),

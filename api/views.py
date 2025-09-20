@@ -31,7 +31,7 @@ from .serializers import (UserSerializer, RegisterSerializer, GroupSerializer, U
 from .models import (Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule,
                      AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship, GroupMembership, FriendRequest,
                      SkillLevel, PendingGroupChallengeAvailability, GroupChallengeInvite, WordleMove, PublicChallengeConfiguration,
-                     UserAvailability)
+                     UserAvailability, PublicChallengeCategoryAssociation)
 from django.http import JsonResponse
 from typing     import Dict, List
 from rest_framework.exceptions import ValidationError
@@ -293,6 +293,23 @@ class CatListView(APIView):
         cats = GameCategory.objects.all()
         serializer = CatSerializer(cats, many=True)
         return Response(serializer.data)
+    
+
+class SomeCatsListView(APIView):
+    def get(self, request):
+        ids_param = request.GET.get("ids")  # e.g., "1,2,3"
+        if ids_param:
+            try:
+                ids_list = [int(i) for i in ids_param.split(",")]
+                cats = GameCategory.objects.filter(id__in=ids_list)
+            except ValueError:
+                return Response({"error": "Invalid ids"}, status=400)
+        else:
+            cats = GameCategory.objects.all()
+        
+        serializer = CatSerializer(cats, many=True)
+        return Response(serializer.data)
+    
 
 class GameListView(APIView):
     def get(self, request, cat_id, sing_or_mult):
@@ -448,13 +465,15 @@ class GetPendingPublicChallengesView(APIView):
 
 
 class GetMatchingChallengesView(APIView):
-    def get(self, request, user_id, category_id, sing_or_mult):
+    def get(self, request, user_id, category_ids, sing_or_mult):
         data = request.data
 
         # --- validate input ---
         if sing_or_mult not in ("Singleplayer", "Multiplayer"):
             return Response({"error": "sing_or_mult must be 'Singleplayer' or 'Multiplayer'."},
                             status=status.HTTP_400_BAD_REQUEST)
+        
+        category_ids = [int(cid) for cid in category_ids.split(',')]
 
         user_availabilities = UserAvailability.objects.filter(user_id=user_id)
         print(user_availabilities)
@@ -473,15 +492,13 @@ class GetMatchingChallengesView(APIView):
             isMultiplayer=is_multiplayer_flag,
             challenge__isPublic=True,
             challenge__isPending=True
-        ).select_related("challenge", "category")
+        ).select_related("challenge")
         print(q.count())
 
-        # category filter
-        if category_id is None:
-            # misc: category IS NULL in configuration
-            q = q.filter(category__isnull=True)
-        else:
-            q = q.filter(category_id=category_id)
+        # Only include challenges where every category association is in category_ids
+        q = q.filter(
+            publicchallengecategoryassociation__category_id__in=category_ids
+        ).distinct()
         print(q.count())
 
         # Prefetch the ChallengeAlarmSchedule objects along with their AlarmSchedule and user
@@ -518,35 +535,14 @@ class GetMatchingChallengesView(APIView):
             })
 
 
-        # Helper to compute user skill value (0-10). If exact category specified use category; otherwise average.
-        def compute_user_skill(userId, category_obj):
-            """
-            Return decimal value (0..10). If user or skill rows missing, return 0.0
-            If category_obj is None -> return average across user's categories (or 0)
-            """
-            if userId is None:
-                return Decimal("0.0")
-            try:
-                if category_obj is not None:
-                    sl = SkillLevel.objects.filter(user_id=userId, category=category_obj).first()
-                    if not sl or sl.totalPossible == 0:
-                        return Decimal("0.0")
-                    return (Decimal(sl.totalEarned) / Decimal(sl.totalPossible)) * Decimal(10)
-                else:
-                    # average across all skill rows for the user
-                    sl_qs = SkillLevel.objects.filter(user_id=userId).only("totalEarned", "totalPossible")
-                    total_earned = Decimal(0)
-                    total_possible = Decimal(0)
-                    for s in sl_qs:
-                        total_earned += Decimal(s.totalEarned)
-                        total_possible += Decimal(s.totalPossible)
-                    if total_possible == 0:
-                        return Decimal("0.0")
-                    return (total_earned / total_possible) * Decimal(10)
-            except Exception:
-                return Decimal("0.0")
+        totals = SkillLevel.objects.filter(user_id=user_id, category_id__in=category_ids).aggregate(
+            total_earned=Sum('totalEarned'),
+            total_possible=Sum('totalPossible')
+        )
+        total_earned = Decimal(totals['total_earned'] or 0)
+        total_possible = Decimal(totals['total_possible'] or 0)
+        user_skill_value = (total_earned / total_possible * Decimal(10)) if total_possible else Decimal('0.0')
 
-        user_skill_value = compute_user_skill(user_id, GameCategory.objects.filter(id=category_id).first() if category_id else None)
 
         # Build results list
         results = []
@@ -976,35 +972,38 @@ class CreatePublicChallengeView(APIView):
 
             # create the public challenge configuration
             user_id = data['initiator_id']
-            category_id = data.get('category_id')
+            category_ids = data.get('category_ids', [])  # ensure it's a list
 
-            if category_id:
-                # specific category skill
-                sl = SkillLevel.objects.filter(user_id=user_id, category_id=category_id).first()
-                if not sl or sl.totalPossible == 0:
-                    skill_level = Decimal("0.0")
-                else:
-                    skill_level = (Decimal(sl.totalEarned) / Decimal(sl.totalPossible)) * Decimal(10)
+            # Aggregate sums across all selected categories for the user
+            totals = SkillLevel.objects.filter(
+                user_id=user_id,
+                category_id__in=category_ids
+            ).aggregate(
+                total_earned=Sum('totalEarned'),
+                total_possible=Sum('totalPossible')
+            )
+
+            total_earned = Decimal(totals['total_earned'] or 0)
+            total_possible = Decimal(totals['total_possible'] or 0)
+
+            if total_possible == 0:
+                skill_level = Decimal("0.0")
             else:
-                # average across all categories
-                sl_qs = SkillLevel.objects.filter(user_id=user_id)
-                total_earned = Decimal(0)
-                total_possible = Decimal(0)
-                for s in sl_qs:
-                    total_earned += Decimal(s.totalEarned)
-                    total_possible += Decimal(s.totalPossible)
-                if total_possible == 0:
-                    skill_level = Decimal("0.0")
-                else:
-                    skill_level = (total_earned / total_possible) * Decimal(10)
+                skill_level = (total_earned / total_possible) * Decimal(10)
+
 
             # --- Create PublicChallengeConfiguration ---
             PublicChallengeConfiguration.objects.create(
                 challenge=challenge,
-                category_id=category_id,  # can be None
                 isMultiplayer=(data['sing_or_mult'] == 'Multiplayer'),
                 averageSkillLevel=skill_level
             )
+
+            for category_id in category_ids:
+                PublicChallengeCategoryAssociation.objects.create(
+                    challenge=challenge,
+                    category_id=category_id
+                )
 
             return Response({'message': 'Challenge created successfully', 'challenge_id': challenge.id}, status=status.HTTP_201_CREATED)
 

@@ -29,8 +29,7 @@ const PublicChallSearch1: React.FC<Props> = ({ navigation }) => {
 
   const [singOrMult, setSingOrMult] = useState<"singleplayer" | "multiplayer" | null>(null);
   const [categories, setCategories] = useState<{ id: number; categoryName: string }[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<{ id: number; name: string } | null>();
-  const [miscSelected, setMiscSelected] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<{ id: number; name: string }[]>([]);
 
 
     useEffect(() => {
@@ -59,19 +58,18 @@ const PublicChallSearch1: React.FC<Props> = ({ navigation }) => {
             return
         }
 
-        if (!selectedCategory && !miscSelected) {
-            Alert.alert("Error", "Please choose a game category")
-            return
+        if (selectedCategories.length == 0) {
+          Alert.alert("Error", "Please choose at least one category");
+          return;
         }
 
         try {
-            console.log(selectedCategory)
+            console.log(selectedCategories)
             console.log(singOrMult)
-        const res = await fetch(endpoints.getMatchingChallenges(Number(user?.id), selectedCategory?.id ?? undefined, singOrMult === "singleplayer" ? "Singleplayer" : "Multiplayer"));
+        const res = await fetch(endpoints.getMatchingChallenges(Number(user?.id), selectedCategories.map(c => c.id), singOrMult === "singleplayer" ? "Singleplayer" : "Multiplayer"));
 
         const data = await res.json();
         console.log("DATA MATCHES:", JSON.stringify(data, null, 2));
-        console.log("DATA.MATCHES:", JSON.stringify(data.matches, null, 2));
 
         navigation.navigate("PublicChallSearch2", { matches: data.matches });
 
@@ -107,8 +105,6 @@ const PublicChallSearch1: React.FC<Props> = ({ navigation }) => {
                   ]}
                   onPress={() => {
                     setSingOrMult(type as any);
-                    setSelectedCategory(null);
-                    setMiscSelected(false);
                   }}
                 >
                   <Text
@@ -128,56 +124,46 @@ const PublicChallSearch1: React.FC<Props> = ({ navigation }) => {
           {singOrMult && (
             <View style={styles.formSection}>
               <Text style={styles.sectionTitle}>Category</Text>
-              <View style={styles.choiceRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.choiceButton,
-                    miscSelected && styles.choiceButtonSelected,
-                  ]}
-                  onPress={() => {
-                    setMiscSelected(true);
-                    setSelectedCategory(null);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.choiceText,
-                      miscSelected && styles.choiceTextSelected,
-                    ]}
-                  >
-                    Miscellaneous
-                  </Text>
-                </TouchableOpacity>
-              </View>
 
-                            <ScrollView
-                              horizontal
-                              showsHorizontalScrollIndicator={false}
-                              contentContainerStyle={styles.categoriesScroll}
-                            >
-                              {categories.map((cat) => (
-                                <TouchableOpacity
-                                  key={cat.id}
-                                  style={[
-                                    styles.choiceButton,
-                                    selectedCategory?.id === cat.id && styles.choiceButtonSelected,
-                                  ]}
-                                  onPress={() => {
-                                    setSelectedCategory({id: cat.id, name: cat.categoryName});
-                                    setMiscSelected(false);
-                                  }}
-                                >
-                                  <Text
-                                    style={[
-                                      styles.choiceText,
-                                      selectedCategory?.id === cat.id && styles.choiceTextSelected,
-                                    ]}
-                                  >
-                                    {cat.categoryName}
-                                  </Text>
-                                </TouchableOpacity>
-                              ))}
-                            </ScrollView>
+<ScrollView
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  contentContainerStyle={styles.categoriesScroll}
+>
+  {categories.map((cat) => {
+    const isSelected = selectedCategories.some(c => c.id === cat.id);
+
+    return (
+      <TouchableOpacity
+        key={cat.id}
+        style={[
+          styles.choiceButton,
+          isSelected && styles.choiceButtonSelected,
+        ]}
+        onPress={() => {
+          setSelectedCategories((prev) => {
+            if (isSelected) {
+              // remove if already selected
+              return prev.filter(c => c.id !== cat.id);
+            } else {
+              // add if not selected
+              return [...prev, { id: cat.id, name: cat.categoryName }];
+            }
+          });
+        }}
+      >
+        <Text
+          style={[
+            styles.choiceText,
+            isSelected && styles.choiceTextSelected,
+          ]}
+        >
+          {cat.categoryName}
+        </Text>
+      </TouchableOpacity>
+    );
+  })}
+</ScrollView>
                           </View>
                         )}
 
