@@ -4,7 +4,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import { DayOfWeek, DayOfWeekLabels } from "./DayOfWeek"
 
-interface ChallengeCardProps {
+interface PendingPublicChallengeCardProps {
   title: string
   icon: ImageSourcePropType
 //   daysComplete: number
@@ -24,7 +24,7 @@ export const orderedDayLabels = (): string[] => [
   DayOfWeekLabels[7], // Sunday
 ];
 
-const PendingPublicChallengeCard: React.FC<ChallengeCardProps> = ({ 
+const PendingPublicChallengeCard: React.FC<PendingPublicChallengeCardProps> = ({ 
   title, 
   icon, 
 //   daysComplete,

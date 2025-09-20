@@ -418,7 +418,7 @@ class AddGroupMemberView(APIView):
 
 
 class GetPendingPublicChallengesView(APIView):
-    def get(self, request, user_id, which_chall):
+    def get(self, request, user_id):
         challenges = Challenge.objects.filter(
             id__in=ChallengeMembership.objects.filter(uID=user_id).values_list('challengeID', flat=True),
             isPublic=True,
@@ -436,7 +436,7 @@ class GetPendingPublicChallengesView(APIView):
             )
             day_labels = [numeric_to_label[d] for d in sorted(game_days)]
 
-            serialized = ChallengeSummarySerializer(challenge, context={'user': request.user}).data
+            serialized = PendingPublicChallengeSummarySerializer(challenge, context={'user': request.user}).data
             serialized['daysOfWeek'] = day_labels
             # serialized['totalDays'] = (challenge.endDate - challenge.startDate).days + 1
 
@@ -624,6 +624,7 @@ class GetMatchingChallengesView(APIView):
         
 class ChallengeListView(APIView):
     def get(self, request, user_id, which_chall):
+        print("heeere")
         # TODO: consider only fetching non-pending challenges
         if which_chall == 'Group':
             group_ids = GroupMembership.objects.filter(uID=user_id).values_list('groupID', flat=True)
@@ -635,20 +636,20 @@ class ChallengeListView(APIView):
                 isPublic=False,
                 isPending=False
             )
-        elif which_chall == 'Public':
+        elif which_chall == 'Public': # only get current and past, not pending
             challenges = Challenge.objects.filter(
                 id__in=ChallengeMembership.objects.filter(uID=user_id).values_list('challengeID', flat=True),
                 isPublic=True,
                 isPending=False
             )
-        elif which_chall == 'Personal&Public':
-            challenges = Challenge.objects.filter(
-                id__in=ChallengeMembership.objects.filter(uID=user_id)
-                    .values_list('challengeID', flat=True)
-            ).filter(
-                Q(groupID=None, isPublic=False, isPending=False) |
-                Q(groupID=None, isPublic=True, isPending=True)
-            )
+        # elif which_chall == 'Personal&Public':
+        #     challenges = Challenge.objects.filter(
+        #         id__in=ChallengeMembership.objects.filter(uID=user_id)
+        #             .values_list('challengeID', flat=True)
+        #     ).filter(
+        #         Q(groupID=None, isPublic=False, isPending=False) |
+        #         Q(groupID=None, isPublic=True, isPending=True)
+        #     )
 
         numeric_to_label = {1: "M", 2: "T", 3: "W", 4: "TH", 5: "F", 6: "S", 7: "SU"}
 
@@ -666,8 +667,8 @@ class ChallengeListView(APIView):
             # TODO: fix this
             if challenge.startDate is not None and challenge.endDate is not None:
                 serialized["totalDays"] = (challenge.endDate - challenge.startDate).days + 1
-            elif challenge.startDate is None and challenge.endDate is None: # public pending
-                serialized["totalDays"] = challenge.totalDays
+            # elif challenge.startDate is None and challenge.endDate is None: # public pending
+            #     serialized["totalDays"] = challenge.totalDays
             else:
                 serialized["totalDays"] = None # just end date is pending collab, update later
 

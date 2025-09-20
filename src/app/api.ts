@@ -1,4 +1,4 @@
-export const BASE_URL = 'https://9bf59093fbf5.ngrok-free.app';
+export const BASE_URL = 'https://1b3a56543d3e.ngrok-free.app';
 
 export const endpoints = {
   // getToken
@@ -17,7 +17,8 @@ export const endpoints = {
   addGroupMember: (groupId: number) => `${BASE_URL}/api/group-member-add/${groupId}/`,
   challengeDetail: (challId: number) => `${BASE_URL}/api/challenge-detail/${challId}/`,
   challengeList: (userId: number, whichChall: string) => `${BASE_URL}/api/challenges/${userId}/${whichChall}/`,
-  getPendingPublicChallenges: (userId: number) => `${BASE_URL}/api/challenges/${userId}/`,
+  getPendingPublicChallenges: (userId: number) => `${BASE_URL}/api/get-pending-public-challenges/${userId}/`,
+  // getCurrentPublicChallenges: (userId: number) => `${BASE_URL}/api/challenges/${userId}/`,
   challengeSchedule: (challId: number) => `${BASE_URL}/api/challenge-schedule/${challId}/`,
   getChallengeSchedule: (challId: number) => `${BASE_URL}/api/get-challenge-schedule/${challId}/`,
   createManualGroupChallenge: `${BASE_URL}/api/create-manual-group-challenge/`,

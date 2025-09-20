@@ -94,9 +94,7 @@ class PendingPublicChallengeSummarySerializer(serializers.ModelSerializer):
         model = Challenge
         fields = [
             'id',
-            'name',
-            'startDate',
-            'endDate',  
+            'name', 
             'totalDays',
             'daysOfWeek',
             'numParticipants',  

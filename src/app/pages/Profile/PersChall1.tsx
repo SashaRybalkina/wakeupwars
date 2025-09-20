@@ -24,8 +24,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
       try {
         setLoading(true)
         // TODO: see if this works:
-        const response = await axios.get(endpoints.challengeList(Number(user.id), "Personal&Public"))
-        // const res2 = await axios.get(endpoints.getPendingPublicChallenges(Number(user.id)))
+        const response = await axios.get(endpoints.challengeList(Number(user.id), "Personal"))
         
         // Fetch alarm schedules for each challenge
         const challengesWithAlarms = await Promise.all(

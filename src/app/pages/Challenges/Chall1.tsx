@@ -112,28 +112,13 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.addNewButton}
-          onPress={() => {
-            navigation.navigate("VerifyAvailability");
-          }}
-        >
-          <Text style={styles.addNewButtonText}>Search for Public Challenge</Text>
-        </TouchableOpacity>
+
 
         {challs.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             <Ionicons name="flag-outline" size={70} color="rgba(255,255,255,0.7)" />
             <Text style={styles.emptyStateText}>No challenges yet</Text>
             
-              <TouchableOpacity
-                style={styles.addNewButton}
-                onPress={() => {
-                  navigation.navigate("CreatePublicChall1");
-                }}
-              >
-                <Text style={styles.addNewButtonText}>Add new +</Text>
-              </TouchableOpacity>
           </View>
         ) : (
           <ScrollView
