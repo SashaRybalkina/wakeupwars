@@ -134,17 +134,6 @@ function App() {
     };
   }, [user]);
 
-  const [seconds, setSeconds] = useState<string>('5');
-  const timestamp = Date.now() + parseInt(seconds, 10) * 1000;
-
-  AlarmModule.setAlarm(timestamp, 'Wordle', {
-    challengeId: 30,
-    challName: 'Test Challenge',
-    whichChall: 'wordle',
-  })
-    .then((msg: string) => Alert.alert('Success', msg))
-    .catch((err: any) => Alert.alert('Error', err.message || err));
-
   return (
     <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
       <Stack.Navigator
@@ -342,12 +331,3 @@ function App() {
 }
 
 export default App;
-
-//How to use alarm anywhere in the app
-// import { Alarm } from './Alarm';
-//Schedule for 1:30 PM, have it repeat for 20 seconds, and takes you to the sudoku game
-// Alarm.scheduleBurstNotification('Wordle', 16, 45, 20, {
-//   challengeId: 30,
-//   challName: 'Test Challenge',
-//   whichChall: 'wordle',
-// });
