@@ -20,7 +20,7 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
   console.log("Route params:", route.params);
 
-  const { catType, gameId, gameName, groupId, groupMembers, onGameSelected, challId, challName } = route.params as {
+  const { catType, gameId, gameName, groupId, groupMembers, onGameSelected, challId, challName, friendId } = route.params as {
     catType: string;
     gameId: number;
     gameName: string;
@@ -29,6 +29,7 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
     onGameSelected: (game: { id: number; name: string }) => void;
     challId: number;
     challName: number;
+    friendId?: number;
   };
 
   // Here we use our new mapping system to get the correct image and description.
@@ -42,6 +43,7 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
     else if (catType == 'Group') navigation.navigate('GroupChall2', { groupId, groupMembers });
     else if (catType == 'Public') navigation.navigate('CreatePublicChall2', { groupId, groupMembers });
     else if (catType == 'Schedule') navigation.navigate('ChallSchedule', { challId, challName });
+    else if (catType == 'Friend') navigation.navigate('CreateChallengeForFriend', { friendId }); // here, groupId is actually friendId
   };
 
   return (

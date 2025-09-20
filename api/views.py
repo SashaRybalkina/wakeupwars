@@ -1812,73 +1812,115 @@ class FinalizeChallengeView(View):
 # AI was used to help generate this class
 class ShareChallengeView(APIView):
     @transaction.atomic
-    def post(self, request, chall_id):
+    def post(self, request, chall_id=None):
         print(f"[BACKEND] Incoming share request for challenge {chall_id}")
         print(f"[BACKEND] Request data: {request.data}")
         print(f"[BACKEND] User: {request.user}")
 
         try:
-            original = get_object_or_404(Challenge, id=chall_id)
-            print(f"[BACKEND] Original challenge: {original.id}, {original.name}")
-
             start_date = request.data.get("startDate")
             end_date = request.data.get("endDate")
             friend_ids = request.data.get("members", [])
+            challenge_name = request.data.get("name")
+            schedule = request.data.get("schedule", [])
 
             if not friend_ids:
                 return Response({"error": "No member provided"}, status=400)
 
-            # only one friend supported for now
-            friend_id = friend_ids[0]
-            friend = get_object_or_404(User, id=friend_id)
+            results = []
 
-            # new challenge for the friend
-            new_challenge = Challenge.objects.create(
-                name=original.name,
-                groupID=original.groupID,
-                initiator=friend,
-                startDate=start_date,
-                endDate=end_date,
-                isPublic=original.isPublic,
-                isPending=True
-            )
-            print(f"[BACKEND] New challenge created for friend {friend.id}: {new_challenge.id}")
+            for friend_id in friend_ids:
+                friend = get_object_or_404(User, id=friend_id)
 
-            # copy membership for the friend only
-            ChallengeMembership.objects.create(challengeID=new_challenge, uID=friend)
-
-            # copy alarm schedules and their associations
-            for cas in ChallengeAlarmSchedule.objects.filter(challenge=original):
-                alarm = cas.alarm_schedule
-                new_alarm = AlarmSchedule.objects.create(
-                    uID=friend,  
-                    dayOfWeek=alarm.dayOfWeek,
-                    alarmTime=alarm.alarmTime
-                )
-                ChallengeAlarmSchedule.objects.create(challenge=new_challenge, alarm_schedule=new_alarm)
-
-            # copy game schedules and their associations
-            for gs in GameSchedule.objects.filter(challenge=original):
-                new_gs = GameSchedule.objects.create(challenge=new_challenge, dayOfWeek=gs.dayOfWeek)
-                for assoc in GameScheduleGameAssociation.objects.filter(game_schedule=gs):
-                    GameScheduleGameAssociation.objects.create(
-                        game_schedule=new_gs,
-                        game=assoc.game,
-                        game_order=assoc.game_order
+                # === Case 1: copy old challenge ===
+                if chall_id:
+                    original = get_object_or_404(Challenge, id=chall_id)
+                    new_challenge = Challenge.objects.create(
+                        name=original.name,
+                        groupID=original.groupID,
+                        initiator=friend,
+                        startDate=start_date,
+                        endDate=end_date,
+                        isPublic=original.isPublic,
+                        isPending=True
                     )
 
-            # create the invite record (sender can see the statement)
-            PersonalChallengeInvite.objects.create(
-                chall=new_challenge, sender=request.user, recipient=friend, status=2
-            )
+                    # copy membership
+                    ChallengeMembership.objects.create(challengeID=new_challenge, uID=friend)
 
-            return Response(
-                {"message": "Challenge shared successfully", "id": new_challenge.id},
-                status=201
-            )
+                    # copy alarm schedules
+                    for cas in ChallengeAlarmSchedule.objects.filter(challenge=original):
+                        alarm = cas.alarm_schedule
+                        new_alarm = AlarmSchedule.objects.create(
+                            uID=friend,
+                            dayOfWeek=alarm.dayOfWeek,
+                            alarmTime=alarm.alarmTime
+                        )
+                        ChallengeAlarmSchedule.objects.create(challenge=new_challenge, alarm_schedule=new_alarm)
+
+                    # copy game schedules
+                    for gs in GameSchedule.objects.filter(challenge=original):
+                        new_gs = GameSchedule.objects.create(challenge=new_challenge, dayOfWeek=gs.dayOfWeek)
+                        for assoc in GameScheduleGameAssociation.objects.filter(game_schedule=gs):
+                            GameScheduleGameAssociation.objects.create(
+                                game_schedule=new_gs,
+                                game=assoc.game,
+                                game_order=assoc.game_order
+                            )
+
+                # === Case 2: new challenge create ===
+                else:
+                    if not challenge_name:
+                        return Response({"error": "Challenge name required"}, status=400)
+                    
+                    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
+                    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
+
+                    new_challenge = Challenge.objects.create(
+                        name=challenge_name,
+                        initiator=friend,
+                        startDate=start_date_obj,
+                        endDate=end_date_obj,
+                        isPublic=False,
+                        isPending=True
+                    )
+
+                    # membership
+                    ChallengeMembership.objects.create(challengeID=new_challenge, uID=friend)
+
+                    # schedule from payload
+                    for s in schedule:
+                        alarm_time_obj = datetime.strptime(s["time"], "%I:%M %p").time()
+                        alarm = AlarmSchedule.objects.create(
+                            uID=friend,
+                            dayOfWeek=s["dayOfWeek"],
+                            alarmTime=alarm_time_obj
+                        )
+                        ChallengeAlarmSchedule.objects.create(challenge=new_challenge, alarm_schedule=alarm)
+
+                        gs = GameSchedule.objects.create(
+                            challenge=new_challenge,
+                            dayOfWeek=s["dayOfWeek"]
+                        )
+                        for g in s.get("games", []):
+                            GameScheduleGameAssociation.objects.create(
+                                game_schedule=gs,
+                                game_id=g["id"],
+                                game_order=0
+                            )
+
+                # create invite
+                PersonalChallengeInvite.objects.create(
+                    chall=new_challenge, sender=request.user, recipient=friend, status=2
+                )
+
+                results.append({"friend": friend.id, "challenge": new_challenge.id})
+
+            return Response({"message": "Challenge shared successfully", "results": results}, status=201)
 
         except Exception as e:
             return Response({"error": str(e)}, status=400)
+
         
 
 class GetPersonalChallengeInvites(APIView):

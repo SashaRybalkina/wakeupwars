@@ -1,4 +1,4 @@
-export const BASE_URL = 'https://4f85df0d8433.ngrok-free.app';
+export const BASE_URL = 'https://8993ad741c58.ngrok-free.app';
 
 export const endpoints = {
   // getToken
@@ -59,10 +59,15 @@ export const endpoints = {
   confirmPayment: (id: number) => `${BASE_URL}/api/payments/${id}/confirm/`,
   rejectPayment: (id: number) => `${BASE_URL}/api/payments/${id}/reject/`,
 
-  shareChallenge: (challId: number) => `${BASE_URL}/api/share-challenge/${challId}/`,
+  //shareChallenge: (challId: number) => `${BASE_URL}/api/share-challenge/${challId}/`,
   getPersonalChallengeInvites: (userId: number) =>`${BASE_URL}/api/get-personal-challenge-invites/${userId}/`,
   acceptPersonalChallenge: (userId: number, challId: number) =>`${BASE_URL}/api/accept-personal-challenge/${userId}/${challId}/`,
   declinePersonalChallenge: (userId: number, challId: number) =>`${BASE_URL}/api/decline-personal-challenge/${userId}/${challId}/`,
+  shareChallenge: (challId?: number) =>
+  challId
+    ? `${BASE_URL}/api/share-challenge/${challId}/` // copy模式
+    : `${BASE_URL}/api/share-challenge/`,          // new模式
+
 
 };
 

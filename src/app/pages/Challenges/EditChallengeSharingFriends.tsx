@@ -94,7 +94,6 @@ const EditChallengeSharingFriends: React.FC<Props> = ({ navigation, route }) => 
 
         const detailReq = axios.get(endpoints.challengeDetail(challId), { withCredentials: true });
 
-        // 先試新版 getChallengeSchedule，失敗再退舊版 challengeSchedule
         let scheduleData: any = null;
         try {
           const res = await axios.get(endpoints.getChallengeSchedule(challId), { withCredentials: true });

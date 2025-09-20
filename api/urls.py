@@ -96,6 +96,7 @@ urlpatterns = [
 
     # sending challenge to friends
     path("share-challenge/<int:chall_id>/", ShareChallengeView.as_view()),
+    path("share-challenge/", ShareChallengeView.as_view()),
     path('get-personal-challenge-invites/<int:user_id>/', GetPersonalChallengeInvites.as_view()),
     path('accept-personal-challenge/<int:user_id>/<int:chall_id>/', AcceptPersonalChallenge.as_view()),
     path('decline-personal-challenge/<int:user_id>/<int:chall_id>/', DeclinePersonalChallenge.as_view()),

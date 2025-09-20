@@ -44,6 +44,8 @@ import CreateGroup from './pages/Groups/CreateGroup';
 import PatternGameScreen from './pages/PatternGame/PatternGameScreen';
 import WordleScreen from './pages/WordGame/WordleScreen';
 import EditChallengeSharingFriends from './pages/Challenges/EditChallengeSharingFriends';
+import CreateChallengeForFriend from './pages/Challenges/CreateChallengeForFriend';
+
 
 const Stack = createStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -264,6 +266,11 @@ function App() {
         <Stack.Screen
           name="EditChallengeSharingFriends"
           component={EditChallengeSharingFriends}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CreateChallengeForFriend"
+          component={CreateChallengeForFriend}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
