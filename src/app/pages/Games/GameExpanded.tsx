@@ -20,11 +20,11 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
   console.log("Route params:", route.params);
 
-  const { catType, catId, catName, category, singOrMult, gameId, gameName, groupId, groupMembers, onGameSelected, challId, challName } = route.params as {
+  const { catType, catId, catName, categories, singOrMult, gameId, gameName, groupId, groupMembers, onGameSelected, challId, challName } = route.params as {
     catType: string;
     catId: number;
     catName: string;
-    category: { id: number; name: string } | null;
+    categories: { id: number; name: string }[];
     singOrMult: string;
     gameId: number;
     gameName: string;
@@ -46,8 +46,8 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
     else if (catType == 'Group') navigation.navigate('GroupChall2', { groupId, groupMembers });
     else if (catType === 'Public') {
       navigation.navigate('CreatePublicChall2', { 
-        singOrMult,
-        category,
+        singOrMult: singOrMult,
+        categories: categories,
       });
     }
     else if (catType == 'Schedule') navigation.navigate('ChallSchedule', { challId, challName });

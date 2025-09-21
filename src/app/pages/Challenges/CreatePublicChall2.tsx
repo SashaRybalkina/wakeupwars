@@ -450,7 +450,7 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
                   onPress={() => {
                     navigation.navigate("SomeCategories", {
                       catType: "Public",
-                      categoryIds: categories.map(c => c.id),
+                      categories: categories,
                       singOrMult: singOrMult,
                       groupId : null,
                       groupMembers : null,
