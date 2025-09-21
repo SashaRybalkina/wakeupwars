@@ -183,6 +183,13 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
                       icon={require("../../images/school.png")}
                       onAccept={() => handleAccept(c.id)}
                       onDecline={() => handleDecline(c.id)}
+                      onPress={() =>
+                        navigation.navigate("ChallDetails", {
+                          challId: c.id,
+                          challName: c.name,
+                          whichChall: "Personal",   
+                        })
+                      }
                     />
                   ))}
                 </View>

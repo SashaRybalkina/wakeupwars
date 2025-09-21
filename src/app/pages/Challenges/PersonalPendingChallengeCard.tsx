@@ -7,35 +7,39 @@ interface PendingChallengeActionCardProps {
   icon: ImageSourcePropType
   onAccept?: () => void
   onDecline?: () => void
+  onPress?: () => void
 }
 
 const PendingChallengeActionCard: React.FC<PendingChallengeActionCardProps> = ({
   title,
   icon,
   onAccept,
-  onDecline
+  onDecline,
+  onPress,
 }) => {
   return (
-    <LinearGradient colors={["#FFFFFF", "#F8F9FE"]} style={styles.container}>
-      <View style={styles.contentContainer}>
-        <View style={styles.iconContainer}>
-          <Image source={icon} style={styles.icon} />
-        </View>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+      <LinearGradient colors={["#FFFFFF", "#F8F9FE"]} style={styles.container}>
+        <View style={styles.contentContainer}>
+          <View style={styles.iconContainer}>
+            <Image source={icon} style={styles.icon} />
+          </View>
 
-        <View style={styles.detailsContainer}>
-          <Text style={styles.title}>{title}</Text>
+          <View style={styles.detailsContainer}>
+            <Text style={styles.title}>{title}</Text>
 
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity style={styles.acceptButton} onPress={onAccept}>
-              <Text style={styles.acceptText}>Accept</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.declineButton} onPress={onDecline}>
-              <Text style={styles.declineText}>Decline</Text>
-            </TouchableOpacity>
+            <View style={styles.actionsContainer}>
+              <TouchableOpacity style={styles.acceptButton} onPress={onAccept}>
+                <Text style={styles.acceptText}>Accept</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.declineButton} onPress={onDecline}>
+                <Text style={styles.declineText}>Decline</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
-    </LinearGradient>
+      </LinearGradient>
+    </TouchableOpacity>
   )
 }
 
