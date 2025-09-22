@@ -2,6 +2,7 @@ package com.emilysashavickynatali.tastebuds
 
 import android.os.Build
 import android.os.Bundle
+import android.content.Intent
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -31,13 +32,33 @@ class MainActivity : ReactActivity() {
    */
   override fun createReactActivityDelegate(): ReactActivityDelegate {
     return ReactActivityDelegateWrapper(
-          this,
-          BuildConfig.IS_NEW_ARCHITECTURE_ENABLED,
-          object : DefaultReactActivityDelegate(
-              this,
-              mainComponentName,
-              fabricEnabled
-          ){})
+      this,
+      BuildConfig.IS_NEW_ARCHITECTURE_ENABLED,
+      object : DefaultReactActivityDelegate(
+        this,
+        mainComponentName,
+        fabricEnabled
+      ) {
+        override fun getLaunchOptions(): Bundle? {
+          val intent = intent
+          val bundle = Bundle()
+
+          if (intent != null && intent.hasExtra("screen")) {
+            bundle.putString("screen", intent.getStringExtra("screen"))
+            if (intent.hasExtra("params")) {
+              bundle.putBundle("params", intent.getBundleExtra("params"))
+            }
+          }
+
+          return bundle
+        }
+      }
+    )
+  }
+
+  override fun onNewIntent(intent: Intent?) {
+      super.onNewIntent(intent)
+      setIntent(intent)
   }
 
   /**

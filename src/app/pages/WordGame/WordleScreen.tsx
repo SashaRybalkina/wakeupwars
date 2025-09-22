@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   ImageBackground,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,12 +12,7 @@ import { NavigationProp, useRoute } from '@react-navigation/native';
 
 import { BASE_URL, endpoints } from '../../api';
 import { useUser } from '../../context/UserContext';
-import {
-  evaluateGuess,
-  GuessResult,
-  isWinningGuess,
-  randomWord,
-} from './WordleHelper';
+import { evaluateGuess, GuessResult, isWinningGuess } from './WordleHelper';
 
 const GRID_SIZE = 5;
 const MAX_ATTEMPTS = 5;
@@ -29,10 +25,10 @@ type Props = {
 type ServerToClientMessage =
   | {
       type: 'broadcast_move';
-      cell: number;
-      value: number;
-      color: string;
-      valid: boolean;
+      player: string;
+      row: number;
+      guess: string;
+      evaluation: GuessResult[];
     }
   | {
       type: 'player_joined';
@@ -57,7 +53,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
     whichChall: string;
   }) || {
     challengeId: 30,
-    challName: 'Test Challenge',
+    challName: 'Test',
     whichChall: 'wordle',
   };
 
@@ -69,27 +65,43 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
   const [results, setResults] = useState<GuessResult[][]>([]);
   const [selectedRow, setSelectedRow] = useState(0);
   const [selectedCol, setSelectedCol] = useState(0);
-  const [answer, setAnswer] = useState(randomWord());
+  const [answer, setAnswer] = useState('');
   const [timeLeft, setTimeLeft] = useState(300);
   const [gameOver, setGameOver] = useState(false);
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [first, setFirst] = useState(true);
   const [gameStateId, setGameStateId] = useState<number | null>(null);
+  const [opponentRows, setOpponentRows] = useState<{
+    [player: string]: GuessResult[];
+  }>({});
 
   // 🔄 Reset game
   const resetGame = () => {
-    setGrid(Array.from({ length: MAX_ATTEMPTS }, () => Array(GRID_SIZE).fill('')));
+    setGrid(
+      Array.from({ length: MAX_ATTEMPTS }, () => Array(GRID_SIZE).fill('')),
+    );
     setResults([]);
     setSelectedRow(0);
     setSelectedCol(0);
     setTimeLeft(300);
     setGameOver(false);
+    setOpponentRows({});
+    setAnswer('');
     initGame();
   };
-  
 
   // Initialize game
   const initGame = async () => {
     try {
+      if (!user) {
+        console.warn('[Wordle] User context not loaded');
+        return;
+      }
+      if (typeof challengeId !== 'number' || isNaN(challengeId)) {
+        console.warn('[Wordle] Invalid challengeId:', challengeId);
+        return;
+      }
+
       const token = await fetch(`${BASE_URL}/api/csrf-token/`, {
         credentials: 'include',
       });
@@ -106,77 +118,89 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
         body: JSON.stringify({ challenge_id: challengeId }),
       });
 
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('[Wordle] Backend error:', res.status, errorText);
+        return;
+      }
+
       const data = await res.json();
-      const { game_state_id, is_multiplayer } = data;
-
-      setGameStateId(game_state_id);
-
       setAnswer(data.answer);
+
+      const { game_state_id, is_multiplayer } = data;
+      setGameStateId(game_state_id);
       console.log('[Wordle] Correct answer is:', data.answer);
+      console.log('route.params: ', route.params);
 
-    //   if (is_multiplayer) {
-    //     const ws = new WebSocket(
-    //       `${BASE_URL.replace(/^http/, 'ws')}/ws/wordle/${game_state_id}/`,
-    //     );
-    //     ws.onopen = () => console.log('[WebSocket] connected');
+      // if (is_multiplayer) {
+      //   console.log('multiplayer');
+      //   const ws = new WebSocket(
+      //     `${BASE_URL.replace(/^http/, 'ws')}/ws/wordle/${game_state_id}/`,
+      //   );
+      //   ws.onopen = () => console.log('[WebSocket] connected');
 
-    //     ws.onmessage = (event) => {
-    //       const msg: ServerToClientMessage = JSON.parse(event.data);
+      //   ws.onmessage = (event) => {
+      //     const msg: ServerToClientMessage = JSON.parse(event.data);
 
-    //       switch (msg.type) {
-    //         case 'player_joined':
-    //           console.log(
-    //             `[WebSocket] Player joined: ${msg.player} with color ${msg.color}`,
-    //           );
-    //           break;
-    //         case 'broadcast_move':
-    //           console.log(
-    //             `[WebSocket] Move broadcast: ${msg.cell} = ${msg.value}`,
-    //           );
-    //           break;
-    //         case 'game_complete':
-    //           const leaderboard = msg.scores
-    //             .sort((a, b) => b.score - a.score)
-    //             .map(
-    //               (s) =>
-    //                 `${s.username}: ${s.score} (✅ ${s.accuracy} / ❌ ${s.inaccuracy})`,
-    //             )
-    //             .join('\n');
+      //     switch (msg.type) {
+      //       case 'player_joined':
+      //         console.log(
+      //           `[WebSocket] Player joined: ${msg.player} with color ${msg.color}`,
+      //         );
+      //         break;
+      //       case 'broadcast_move':
+      //         setOpponentRows((prev) => ({
+      //           ...prev,
+      //           [msg.player]: msg.evaluation,
+      //         }));
+      //         break;
+      //       case 'game_complete':
+      //         const leaderboard = msg.scores
+      //           .sort((a, b) => b.score - a.score)
+      //           .map(
+      //             (s) =>
+      //               `${s.username}: ${s.score} (✅ ${s.accuracy} / ❌ ${s.inaccuracy})`,
+      //           )
+      //           .join('\n');
 
-    //           Alert.alert('🎉 Game Complete!', leaderboard, [
-    //             {
-    //               text: 'OK',
-    //               onPress: () =>
-    //                 navigation.navigate('ChallSchedule', {
-    //                   challId: challengeId,
-    //                   challName,
-    //                   whichChall,
-    //                 }),
-    //             },
-    //           ]);
-    //           break;
-    //         default:
-    //           console.warn('Unhandled WebSocket message:', msg);
-    //       }
-    //     };
+      //         Alert.alert('🎉 Game Complete!', leaderboard, [
+      //           {
+      //             text: 'OK',
+      //             onPress: () =>
+      //               navigation.navigate('ChallSchedule', {
+      //                 challId: challengeId,
+      //                 challName,
+      //                 whichChall,
+      //               }),
+      //           },
+      //         ]);
+      //         break;
+      //       default:
+      //         console.warn('Unhandled WebSocket message:', msg);
+      //     }
+      //   };
 
-    //     ws.onerror = (e) => console.error('[WebSocket] error:', e);
-    //     ws.onclose = () => console.log('[WebSocket] closed');
+      //   ws.onerror = (e) => console.error('[WebSocket] error:', e);
+      //   ws.onclose = () => console.log('[WebSocket] closed');
 
-    //     setSocket(ws);
-    //   }
+      //   setSocket(ws);
+      // }
     } catch (err) {
       console.error('[initGame] Failed:', err);
     }
   };
 
   useEffect(() => {
+    if (first) {
+      initGame();
+      setFirst(false);
+    }
     if (gameOver) return;
-  
+
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          clearInterval(timer); // stop countdown
+          clearInterval(timer);
           setGameOver(true);
           Alert.alert('⏰ Time’s up!', `The word was ${answer}`, [
             { text: 'Play Again', onPress: resetGame },
@@ -187,23 +211,24 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
         return prev - 1;
       });
     }, 1000);
-  
+
     return () => clearInterval(timer);
   }, [gameOver, answer]);
 
   const submitGuess = () => {
-    if (gameOver) return;
+    if (gameOver || !answer) return;
     const guess = grid[selectedRow].join('');
     const evaluation = evaluateGuess(guess, answer);
     setResults((prev) => [...prev, evaluation]);
 
-    // WebSocket move
     if (socket) {
       socket.send(
         JSON.stringify({
           type: 'make_move',
-          index: selectedRow,
-          value: guess,
+          player: user.username,
+          row: selectedRow,
+          guess,
+          evaluation,
         }),
       );
     }
@@ -227,7 +252,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleInput = (letter: string) => {
-    if (gameOver) return;
+    if (gameOver || !answer) return;
     const newGrid = [...grid];
     newGrid[selectedRow][selectedCol] = letter.toUpperCase();
     setGrid(newGrid);
@@ -259,7 +284,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
       style={styles.background}
       resizeMode="cover"
     >
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.container}>
         <TouchableOpacity
           style={styles.exitButton}
           onPress={() => navigation.goBack()}
@@ -272,6 +297,35 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
           Time left: {formatTime(timeLeft)}
         </Text>
 
+        {/* Opponent progress */}
+        {Object.keys(opponentRows).length > 0 && (
+          <View style={{ marginVertical: 10, width: '100%' }}>
+            {Object.entries(opponentRows).map(([player, row], idx) => (
+              <View key={idx} style={{ flexDirection: 'row', marginBottom: 4 }}>
+                <Text style={{ width: 70, color: 'white', fontWeight: 'bold' }}>
+                  {player}
+                </Text>
+                {row.map((cell, cIndex) => (
+                  <View
+                    key={cIndex}
+                    style={[
+                      styles.cell,
+                      cell.status === 'correct'
+                        ? styles.correctCell
+                        : cell.status === 'present'
+                          ? styles.presentCell
+                          : styles.absentCell,
+                    ]}
+                  >
+                    <Text style={styles.cellText}>{cell.letter}</Text>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Main grid */}
         <View style={styles.gridContainer}>
           {grid.map((row, rIndex) => (
             <View key={rIndex} style={styles.row}>
@@ -281,7 +335,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
                   <View
                     key={cIndex}
                     style={[
-                      styles.cell, // ✅ always keep base cell style
+                      styles.cell,
                       status === 'correct'
                         ? styles.correctCell
                         : status === 'present'
@@ -304,6 +358,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
           ))}
         </View>
 
+        {/* Keyboard */}
         <View style={styles.keyboard}>
           {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((letter) => (
             <TouchableOpacity
@@ -319,17 +374,15 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.keyText}>⌫</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-  },
+  background: { flex: 1 },
   container: {
-    flex: 1,
+    flexGrow: 1,
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -343,26 +396,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 5,
   },
-  exitText: {
-    fontWeight: 'bold',
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  description: {
-    fontSize: 18,
-    color: 'white',
-    marginVertical: 10,
-  },
-  gridContainer: {
-    marginVertical: 20,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
+  exitText: { fontWeight: 'bold' },
+  title: { fontSize: 30, fontWeight: 'bold', color: 'white' },
+  description: { fontSize: 18, color: 'white', marginVertical: 10 },
+  gridContainer: { marginVertical: 20 },
+  row: { flexDirection: 'row', justifyContent: 'center' },
   cell: {
     width: CELL_SIZE,
     height: CELL_SIZE,
@@ -373,24 +411,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  selectedCell: {
-    borderColor: '#ffbf00',
-    borderWidth: 2,
-  },
-  correctCell: {
-    backgroundColor: '#6aaa64',
-  },
-  presentCell: {
-    backgroundColor: '#c9b458',
-  },
-  absentCell: {
-    backgroundColor: '#787c7e',
-  },
-  cellText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'black',
-  },
+  selectedCell: { borderColor: '#ffbf00', borderWidth: 2 },
+  correctCell: { backgroundColor: '#6aaa64' },
+  presentCell: { backgroundColor: '#c9b458' },
+  absentCell: { backgroundColor: '#787c7e' },
+  cellText: { fontSize: 20, fontWeight: 'bold', color: 'black' },
   keyboard: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -406,10 +431,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 6,
   },
-  keyText: {
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  keyText: { fontWeight: 'bold', fontSize: 16 },
 });
 
 export default WordleScreen;

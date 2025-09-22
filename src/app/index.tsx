@@ -1,78 +1,144 @@
 import * as React from 'react';
+import { useState } from 'react';
+import { Alert, NativeEventEmitter, NativeModules } from 'react-native';
+import {
+  createNavigationContainerRef,
+  NavigationContainer,
+} from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
 
-import { Alarm } from './Alarm';
-
+import { useUser } from './context/UserContext';
 import Challenges from './pages/Challenges';
 import Chall1 from './pages/Challenges/Chall1';
 import ChallDetails from './pages/Challenges/ChallDetails';
 import ChallSchedule from './pages/Challenges/ChallSchedule';
 import CreatePublicChall1 from './pages/Challenges/CreatePublicChall1';
 import CreatePublicChall2 from './pages/Challenges/CreatePublicChall2';
-import LeaderboardDetails from './pages/Challenges/LeaderboardDetails'
+import LeaderboardDetails from './pages/Challenges/LeaderboardDetails';
 import RewardSettleScreen from './pages/Challenges/RewardSettleScreen';
 import Categories from './pages/Games/Categories';
 import GameExpanded from './pages/Games/GameExpanded';
 import Games from './pages/Games/Games';
 import GroupScreen from './pages/Groups';
+import CreateGroup from './pages/Groups/CreateGroup';
+import EditAvailability from './pages/Groups/EditAvailability';
 import GroupChall1 from './pages/Groups/GroupChall1';
 import GroupChall2 from './pages/Groups/GroupChall2';
-import GroupChallCollab from './pages/Groups/GroupChallCollab';
-import EditAvailability from './pages/Groups/EditAvailability';
 import GroupChall3 from './pages/Groups/GroupChall3';
 import GroupChall3Old from './pages/Groups/GroupChall3Old';
 import GroupChall4Old from './pages/Groups/GroupChall4Old';
+import GroupChallCollab from './pages/Groups/GroupChallCollab';
 import GroupDetails from './pages/Groups/GroupDetails';
 import LoginScreen from './pages/Login';
 import Messages from './pages/Messages';
+import PatternGameScreen from './pages/PatternGame/PatternGameScreen';
 import Profile from './pages/Profile';
 import AcceptFInvite from './pages/Profile/AcceptFInvite';
 import AcceptGInvite from './pages/Profile/AcceptGInvite';
+import FriendsRequests from './pages/Profile/FriendRequest';
 import Friends1 from './pages/Profile/Friends1';
 import Friends3 from './pages/Profile/Friends3';
-import FriendsRequests from './pages/Profile/FriendRequest';
 import FriendsSearch from './pages/Profile/FriendSearch';
 import PersChall1 from './pages/Profile/PersChall1';
 import PersChall2 from './pages/Profile/PersChall2';
 import SignUpScreen from './pages/SignUp';
 import StartScreen from './pages/StartScreen';
 import SudokuScreen from './pages/SudokuScreen';
-import CreateGroup from './pages/Groups/CreateGroup';
-import PatternGameScreen from './pages/PatternGame/PatternGameScreen';
 import WordleScreen from './pages/WordGame/WordleScreen';
+
+const { AlarmModule } = NativeModules;
+const { IntentModule } = NativeModules;
 
 const Stack = createStackNavigator();
 export const navigationRef = createNavigationContainerRef();
+let pendingNavigation: { screen: string; params?: any } | null = null;
+
+function navigate(screen: string, params?: any) {
+  if (navigationRef.isReady()) {
+    navigationRef.navigate(screen as never, params as never);
+  } else {
+    pendingNavigation = { screen, params };
+  }
+}
+
+function flushPendingNavigation() {
+  if (pendingNavigation && navigationRef.isReady()) {
+    navigationRef.navigate(
+      pendingNavigation.screen as never,
+      pendingNavigation.params as never,
+    );
+    pendingNavigation = null;
+  }
+}
 
 function App() {
+  const { user } = useUser();
+
   React.useEffect(() => {
-    // const subscription = Notifications.addNotificationResponseReceivedListener(
-    //   async (response) => {
-    //     const { screen, params } = response.notification.request.content.data as {
-    //       screen?: string;
-    //       params?: Record<string, any>;
-    //     };
-  
-    //     // stop any burst alarms when tapped
-    //     await Alarm.stopAll();
-  
-    //     if (screen && navigationRef.isReady()) {
-    //       navigationRef.navigate(screen as never, params as never);
-    //     }
-    //   }
-    // );
-  
-    // return () => subscription.remove();
-  }, []);
+    let subscription: any;
+    let notificationListener: any;
+
+    // 1) cold-start intent
+    IntentModule.getInitialIntent()
+      .then((data: any) => {
+        console.log('getInitialIntent =>', data);
+        if (data?.screen) {
+          if (!user) {
+            navigate('Login', {
+              redirectTo: data.screen,
+              redirectParams: data,
+            });
+          } else {
+            navigate(data.screen, data.params);
+          }
+        }
+      })
+      .catch((e: any) => {
+        console.warn('getInitialIntent error', e);
+      });
+
+    // 2) warm-start intents: subscribe to native event emitter
+    const emitter = new NativeEventEmitter(IntentModule);
+    subscription = emitter.addListener('NewIntent', (data: any) => {
+      console.log('NewIntent event =>', data);
+      if (data?.screen) {
+        if (!user) {
+          navigate('Login', { redirectTo: data.screen, redirectParams: data });
+        } else {
+          navigate(data.screen, data.params);
+        }
+      }
+    });
+
+    // 3) notification tap handler (for foreground/background)
+    notificationListener =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        const data = response.notification.request.content.data;
+        if (data?.screen) {
+          if (!user) {
+            navigate('Login', {
+              redirectTo: data.screen,
+              redirectParams: data.params || {},
+            });
+          } else {
+            navigate(data.screen, data.params || {});
+          }
+        }
+      });
+
+    return () => {
+      if (subscription && subscription.remove) subscription.remove();
+      else if (subscription) subscription.remove(); // defensive
+      if (notificationListener) notificationListener.remove();
+    };
+  }, [user]);
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
       <Stack.Navigator
         initialRouteName="Login"
-        //initialRouteName="PatternGame"
-        screenOptions={{ animationEnabled: false, headerShown: false}}
+        screenOptions={{ animationEnabled: false, headerShown: false }}
       >
         <Stack.Screen
           name="Categories"
@@ -265,12 +331,3 @@ function App() {
 }
 
 export default App;
-
-//How to use alarm anywhere in the app
-// import { Alarm } from './Alarm';
-//Schedule for 1:30 PM, have it repeat for 20 seconds, and takes you to the sudoku game
-Alarm.scheduleBurstNotification('Wordle', 16, 45, 20, {
-  challengeId: 30,
-  challName: 'Test Challenge',
-  whichChall: 'wordle',
-});
