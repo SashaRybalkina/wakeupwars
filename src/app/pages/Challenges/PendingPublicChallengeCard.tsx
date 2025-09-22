@@ -4,13 +4,15 @@ import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import { DayOfWeek, DayOfWeekLabels } from "./DayOfWeek"
 
-interface ChallengeCardProps {
-  title: string
-  icon: ImageSourcePropType
-  daysComplete: number
-  totalDays: number
-  daysOfWeek: string[]
-  alarmSchedule?: { dayOfWeek: number; alarmTime: string; userName: string }[] // Add optional prop for alarm schedule
+interface PendingPublicChallengeCardProps {
+  title: string,
+  icon: ImageSourcePropType,
+  numEnrolledMembers: number,
+  totalDays: number,
+  daysOfWeek: string[],
+  categories: string[],
+  averageSkillLevel: number,
+//   alarmSchedule?: { dayOfWeek: number; alarmTime: string; userName: string }[] // Add optional prop for alarm schedule
 }
 
 export const orderedDayLabels = (): string[] => [
@@ -23,51 +25,41 @@ export const orderedDayLabels = (): string[] => [
   DayOfWeekLabels[7], // Sunday
 ];
 
-const ChallengeCard: React.FC<ChallengeCardProps> = ({ 
+const PendingPublicChallengeCard: React.FC<PendingPublicChallengeCardProps> = ({ 
   title, 
   icon, 
-  daysComplete, 
+  numEnrolledMembers,
   totalDays, 
   daysOfWeek,
-  // alarmSchedule = [] // Default to empty array if not provided
+  categories,
+  averageSkillLevel,
 }) => {
-  
   const dayMap = orderedDayLabels();
-  const progressPercentage = (daysComplete / totalDays) * 100
+  const enrolledPercentage = (numEnrolledMembers / 5) * 100;
 
   return (
     <LinearGradient colors={["#FFFFFF", "#F8F9FE"]} style={styles.container}>
       <View style={styles.contentContainer}>
+        {/* Icon */}
         <View style={styles.iconContainer}>
           <Image source={icon} style={styles.icon} />
         </View>
 
         <View style={styles.detailsContainer}>
+          {/* Title */}
           <Text style={styles.title}>{title}</Text>
 
+          {/* Days of week */}
           <View style={styles.daysContainer}>
             {dayMap.map((day, index) => {
               const isActive = daysOfWeek.includes(day);
-              // const alarmItem = alarmSchedule.find(
-              //   (item) => DayOfWeekLabels[item.dayOfWeek as DayOfWeek] === day
-              // );
-              // const hasAlarm = isActive && alarmItem?.alarmTime;
-              
               return (
                 <View key={index} style={styles.dayWrapper}>
-                  <View style={[
-                    styles.dayCircle, 
-                    isActive ? styles.activeDayCircle : {}
-                  ]}>
-                    <Text style={[
-                      styles.dayText, 
-                      isActive ? styles.activeDayText : {}
-                    ]}>
+                  <View style={[styles.dayCircle, isActive ? styles.activeDayCircle : {}]}>
+                    <Text style={[styles.dayText, isActive ? styles.activeDayText : {}]}>
                       {day}
                     </Text>
                   </View>
-                  
-                  {/* Show alarm indicator if this day has an alarm */}
                   {isActive && (
                     <View style={styles.alarmIndicator}>
                       <Ionicons name="alarm" size={10} color="#FFD700" />
@@ -78,19 +70,32 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({
             })}
           </View>
 
+          {/* Categories */}
+          <View style={styles.categoriesContainer}>
+            {categories.map((cat, idx) => (
+              <View key={idx} style={styles.categoryBadge}>
+                <Text style={styles.categoryText}>{cat}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Average skill level */}
+          <Text style={styles.skillLevelText}>Skill Level: {averageSkillLevel.toFixed(1)}</Text>
+
+          {/* Enrollment progress */}
           <View style={styles.progressContainer}>
             <View style={styles.progressBarBackground}>
-              <View style={[styles.progressBarFill, { width: `${progressPercentage}%` }]} />
+              <View style={[styles.progressBarFill, { width: `${enrolledPercentage}%` }]} />
             </View>
             <Text style={styles.progressText}>
-              {daysComplete}/{totalDays} Days Complete
+              {numEnrolledMembers}/5 Members Enrolled
             </Text>
           </View>
         </View>
       </View>
     </LinearGradient>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -186,6 +191,29 @@ const styles = StyleSheet.create({
     color: "#666",
     fontWeight: "500",
   },
+  categoriesContainer: {
+  flexDirection: "row",
+  flexWrap: "wrap",
+  marginVertical: 4,
+},
+categoryBadge: {
+  backgroundColor: "#E0E0FF",
+  borderRadius: 8,
+  paddingHorizontal: 6,
+  paddingVertical: 2,
+  marginRight: 4,
+  marginBottom: 4,
+},
+categoryText: {
+  fontSize: 12,
+  color: "#333",
+},
+skillLevelText: {
+  fontSize: 14,
+  fontWeight: "500",
+  marginBottom: 6,
+},
+
 })
 
-export default ChallengeCard
+export default PendingPublicChallengeCard

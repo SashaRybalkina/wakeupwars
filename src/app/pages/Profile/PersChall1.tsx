@@ -26,6 +26,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
   const fetchChallenges = async () => {
     try {
       setLoading(true)
+        // TODO: see if this works:
 
       // fetch all personal challenges
       const response = await axios.get(endpoints.challengeList(Number(user!.id), "Personal"))
@@ -46,7 +47,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
               daysCompleted: c.daysCompleted || 0,
               startDate: c.startDate,
               endDate: c.endDate || null,
-              totalDays: c.totalDays ?? 30,
+              totalDays: c.totalDays,
               daysOfWeek: c.daysOfWeek ?? [],
               alarmSchedule,
               isCompleted: c.endDate ? new Date(c.endDate) < new Date() : false,
@@ -58,7 +59,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
               daysCompleted: c.daysCompleted || 0,
               startDate: c.startDate,
               endDate: c.endDate || null,
-              totalDays: c.totalDays ?? 30,
+              totalDays: c.totalDays ?? 30, // TODO: fix this
               daysOfWeek: c.daysOfWeek ?? [],
               alarmSchedule: [],
               isCompleted: c.endDate ? new Date(c.endDate) < new Date() : false,
@@ -223,7 +224,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
                             title={c.name}
                             icon={require("../../images/school.png")}
                             daysComplete={c.daysCompleted}
-                            totalDays={c.totalDays}
+                            totalDays={c.totalDays === null ? "?" : c.totalDays}
                             daysOfWeek={c.daysOfWeek}
                           />
                         </View>
@@ -278,7 +279,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
                         title={c.name}
                         icon={require("../../images/school.png")}
                         daysComplete={c.daysCompleted}
-                        totalDays={c.totalDays}
+                        totalDays={c.totalDays === null ? "?" : c.totalDays}
                         daysOfWeek={c.daysOfWeek}
                       />
                     </TouchableOpacity>

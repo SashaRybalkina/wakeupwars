@@ -19,18 +19,19 @@ type Props = {
 
 const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
   const [singOrMult, setSingOrMult] = useState<"singleplayer" | "multiplayer" | null>(null);
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<{ id: number; name: string } | null>();
-  const [miscSelected, setMiscSelected] = useState(false);
+  const [categories, setCategories] = useState<{ id: number; categoryName: string }[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<{ id: number; name: string }[]>([]);
+  // const [miscSelected, setMiscSelected] = useState(false);
 
   useEffect(() => {
     if (singOrMult) {
     const fetchCats = async () => {
       try {
-        // fetch the categories for multiplayer/singleplayer (whatever was selected)
+        // TODO: fetch only the categories for multiplayer/singleplayer (whatever was selected)
         const response = await fetch(endpoints.cats());
         const data = await response.json();
-        setCategories(data); 
+        setCategories(data);
+        console.log("Data2: " + JSON.stringify(data));
       } catch (error) {
         console.error('Failed to fetch categories:', error);
       }
@@ -46,15 +47,17 @@ const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
-    if (!miscSelected && singOrMult === "singleplayer" && !selectedCategory) {
-      Alert.alert("Error", "Please choose a category or select Miscellaneous");
+    if (selectedCategories.length == 0) {
+      Alert.alert("Error", "Please choose at least one category");
       return;
     }
 
+    console.log("navigating with:")
+    console.log(singOrMult)
+    console.log(selectedCategories)
     navigation.navigate("CreatePublicChall2", {
-      singOrMult,
-      category: miscSelected ? null : selectedCategory,
-      isMiscellaneous: miscSelected,
+      singOrMult: singOrMult,
+      categories: selectedCategories,
     });
   };
 
@@ -85,8 +88,6 @@ const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
                   ]}
                   onPress={() => {
                     setSingOrMult(type as any);
-                    setSelectedCategory(null);
-                    setMiscSelected(false);
                   }}
                 >
                   <Text
@@ -106,7 +107,7 @@ const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
           {singOrMult && (
             <View style={styles.formSection}>
               <Text style={styles.sectionTitle}>Category</Text>
-              <View style={styles.choiceRow}>
+              {/* <View style={styles.choiceRow}>
                 <TouchableOpacity
                   style={[
                     styles.choiceButton,
@@ -126,36 +127,48 @@ const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
                     Miscellaneous
                   </Text>
                 </TouchableOpacity>
-              </View>
+              </View> */}
 
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoriesScroll}
-              >
-                {categories.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.choiceButton,
-                      selectedCategory?.id === cat.id && styles.choiceButtonSelected,
-                    ]}
-                    onPress={() => {
-                      setSelectedCategory({id: cat.id, name: cat.name});
-                      setMiscSelected(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.choiceText,
-                        selectedCategory?.id === cat.id && styles.choiceTextSelected,
-                      ]}
-                    >
-                      {cat.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+<ScrollView
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  contentContainerStyle={styles.categoriesScroll}
+>
+  {categories.map((cat) => {
+    const isSelected = selectedCategories.some(c => c.id === cat.id);
+
+    return (
+      <TouchableOpacity
+        key={cat.id}
+        style={[
+          styles.choiceButton,
+          isSelected && styles.choiceButtonSelected,
+        ]}
+        onPress={() => {
+          setSelectedCategories((prev) => {
+            if (isSelected) {
+              // remove if already selected
+              return prev.filter(c => c.id !== cat.id);
+            } else {
+              // add if not selected
+              return [...prev, { id: cat.id, name: cat.categoryName }];
+            }
+          });
+        }}
+      >
+        <Text
+          style={[
+            styles.choiceText,
+            isSelected && styles.choiceTextSelected,
+          ]}
+        >
+          {cat.categoryName}
+        </Text>
+      </TouchableOpacity>
+    );
+  })}
+</ScrollView>
+
             </View>
           )}
 

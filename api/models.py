@@ -128,7 +128,8 @@ class Challenge(models.Model):
     isPublic    = models.BooleanField(default=False)
     isPending   = models.BooleanField(default=False)  # waiting for invites / availability
     startDate   = models.DateField(null=True)
-    endDate     = models.DateField()
+    endDate     = models.DateField(null=True)
+    totalDays   = models.IntegerField(null=True)
     name        = models.CharField(max_length=255, default='Challenge')
     isCompleted = models.BooleanField(default=False)
     daysCompleted = models.IntegerField(default=0)
@@ -239,6 +240,37 @@ class Challenge(models.Model):
             self.save(update_fields=['rewards_finalized'])
 
 
+    
+
+class PublicChallengeConfiguration(models.Model):
+    challenge  = models.ForeignKey(Challenge, on_delete=models.CASCADE)
+    # this skill level will correspond to the specific category the challenge
+    # is associated with (for misc, it will correspond to the average of all challenge
+    # members skill levels in all categories)
+    averageSkillLevel = models.DecimalField(max_digits=4, decimal_places=2)
+    isMultiplayer = models.BooleanField()
+
+    class Meta:
+        db_table = 'PublicChallengeConfigurations'
+
+
+class PublicChallengeCategoryAssociation(models.Model):
+    challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE) # will be a public challenge
+    category = models.ForeignKey(GameCategory, on_delete=models.CASCADE, null=True)
+
+    class Meta:
+        db_table = 'PublicChallengeCategoryAssociations'
+    
+
+class UserAvailability(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    dayOfWeek = models.IntegerField()  # Integer field to store day of the week (1-7)
+    alarmTime = models.TimeField()
+
+    class Meta:
+        db_table = 'UserAvailabilities'
+
+
 # representing Many-to-many relationship between users and challenges
 class ChallengeMembership(models.Model):
     challengeID = models.ForeignKey(Challenge, on_delete=models.CASCADE)
@@ -327,6 +359,13 @@ class GameScheduleGameAssociation(models.Model):
         return f"Game {self.game.name} in schedule {self.game_schedule.id} played {self.game_order}"
 
 
+
+
+
+
+
+
+
 # Game Performances: Users' performances in every game they play
 class GamePerformance(models.Model):
     challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE)
@@ -338,13 +377,6 @@ class GamePerformance(models.Model):
     class Meta:
         db_table = 'GamePerformances'
         unique_together = ('challenge', 'game', 'user', 'date')
-        indexes = [
-            models.Index(fields=['user']),
-            models.Index(fields=['game']),
-            models.Index(fields=['date']),
-            models.Index(fields=['user', 'date']),
-            models.Index(fields=['game', 'date']),
-        ]
 
     def __str__(self):
         return f"Performance by {self.user.username} in {self.game.name} on {self.date}"
@@ -354,8 +386,9 @@ class GamePerformance(models.Model):
 class SkillLevel(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     category = models.ForeignKey(GameCategory, on_delete=models.CASCADE)
-    totalEarned = models.FloatField(default=0.0)    # was IntegerField
-    totalPossible = models.FloatField(default=0.0)  # was IntegerField
+    totalEarned = models.IntegerField()
+    totalPossible = models.IntegerField()
+    # the skill level is just (totalEarned / totalPossible) x 10 to get numbers from 1-10
 
     class Meta:
         db_table = 'SkillLevels'
@@ -363,6 +396,7 @@ class SkillLevel(models.Model):
 
     def __str__(self):
         return f"Skill level of {self.user.username} in {self.category.categoryName}"
+
 
 # stores the states of currently running sudoku games (what the puzzle currently looks like, the solution, who's playing)
 class SudokuGameState(models.Model):
@@ -402,6 +436,8 @@ class FriendRequest(models.Model):
 
     def __str__(self):
         return f"{self.sender.username} → {self.recipient.username}"
+    
+
 
 # Pattern Memorization Game: stores the state of currently running Pattern Memorization games
 class PatternMemorizationGameState(models.Model):
@@ -548,6 +584,7 @@ class Payment(models.Model):
         self.obligation.recompute_status()
 
 
+
 # stores the states of currently running wordle games (what the puzzle currently looks like, the solution, who's playing)
 class WordleGameState(models.Model):
       game = models.ForeignKey(Game, on_delete=models.CASCADE)
@@ -598,3 +635,5 @@ class PersonalChallengeInvite(models.Model):
     class Meta:
         db_table = 'PersonalChallengeInvites'
         unique_together = ('chall', 'recipient')
+
+

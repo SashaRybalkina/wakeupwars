@@ -5,8 +5,12 @@ export const endpoints = {
   login: `${BASE_URL}/api/login/`,
   register: `${BASE_URL}/api/register/`,
   groups: (userId: number) => `${BASE_URL}/api/user-groups/${userId}/`,
+  getMatchingChallenges: (userId: number, categoryIds: number[], singOrMult: string) =>
+  `${BASE_URL}/api/get-matching-challenges/${userId}/${categoryIds.join(',')}/${singOrMult}/`,
+
   friends: (userId: number) => `${BASE_URL}/api/user-friends/${userId}/`,
   cats: () => `${BASE_URL}/api/cats/`,
+  someCats: (categoryIds: number[]) => `${BASE_URL}/api/some-cats/?ids=${categoryIds.join(",")}`,
   games: (catId: number, singOrMult: string) =>
     `${BASE_URL}/api/games/${catId}/${singOrMult}/`,
   singOrMultGames: (singOrMult: string) =>
@@ -23,6 +27,11 @@ export const endpoints = {
   challengeReward: (challId:number)=> `${BASE_URL}/api/challenges/${challId}/reward/`,
   challengeList: (userId: number, whichChall: string) =>
     `${BASE_URL}/api/challenges/${userId}/${whichChall}/`,
+  getPendingPublicChallenges: (userId: number) => `${BASE_URL}/api/get-pending-public-challenges/${userId}/`,
+  getPublicChallenges: (userId: number) => `${BASE_URL}/api/get-public-challenges/${userId}/`,
+  joinPublicChallenge: (userId: number) => `${BASE_URL}/api/join-public-challenge/${userId}/`,
+  finalizePublicChallenge: () => `${BASE_URL}/api/finalize-public-challenge/`,
+  // getCurrentPublicChallenges: (userId: number) => `${BASE_URL}/api/challenges/${userId}/`,
   challengeSchedule: (challId: number) =>
     `${BASE_URL}/api/challenge-schedule/${challId}/`,
   getChallengeSchedule: (challId: number) =>
@@ -44,8 +53,10 @@ export const endpoints = {
   // pendingChallenges: (groupId: number) => `${BASE_URL}/api/get-pending-challenges/${groupId}/`,
   getAvailabilities: (challId: number) =>
     `${BASE_URL}/api/get-availabilities/${challId}/`,
-  setUserAvailability: (userId: number, challId: number) =>
-    `${BASE_URL}/api/set-availability/${userId}/${challId}/`,
+  setUserAvailability: (userId: number) => `${BASE_URL}/api/set-user-availability/${userId}/`,
+  getUserAvailability: (userId: number) => `${BASE_URL}/api/get-user-availability/${userId}/`,
+  setChallAvailability: (userId: number, challId: number) =>
+    `${BASE_URL}/api/set-chall-availability/${userId}/${challId}/`,
   declineChallengeInvite: (userId: number, challId: number) =>
     `${BASE_URL}/api/decline-challenge-invite/${userId}/${challId}/`,
 

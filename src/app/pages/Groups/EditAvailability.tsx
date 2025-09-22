@@ -223,7 +223,7 @@ const handleSubmit = async () => {
     const { csrfToken } = await csrfRes.json();
 
     const res = await fetch(
-      endpoints.setUserAvailability(Number(user?.id), pendingChallengeId),
+      endpoints.setChallAvailability(Number(user?.id), pendingChallengeId),
       {
         method: 'POST',
         credentials: 'include',
@@ -261,7 +261,7 @@ const handleSubmit = async () => {
 //     if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
 //     const { csrfToken } = await csrfRes.json();
 
-//     const res = await fetch(endpoints.setUserAvailability(Number(user?.id), pendingChallengeId), {
+//     const res = await fetch(endpoints.setChallAvailability(Number(user?.id), pendingChallengeId), {
 //       method: 'POST',
 //       credentials: 'include',
 //       headers: {

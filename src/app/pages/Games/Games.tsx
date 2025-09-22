@@ -17,10 +17,11 @@ type Props = {
 
 const Games: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, catId, catName, groupId, singOrMult, groupMembers, onGameSelected, challId, challName, friendId } = route.params as {
+  const { catType, catId, catName, categories, groupId, singOrMult, groupMembers, onGameSelected, challId, challName, friendId } = route.params as {
     catType: string
     catId: number;
     catName: string;
+    categories: { id: number; name: string }[];
     singOrMult: string;
     groupId: number;
     groupMembers: { id: number; name: string }[];
@@ -83,6 +84,10 @@ const Games: React.FC<Props> = ({ navigation }) => {
               style={styles.gameButton}
               onPress={() => navigation.navigate('GameExpanded', { 
                 catType, 
+                catId,
+                catName, 
+                categories: categories,
+                singOrMult: singOrMult,
                 gameId: game.id, 
                 gameName: game.name, 
                 groupId, 

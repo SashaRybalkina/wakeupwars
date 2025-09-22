@@ -16,6 +16,7 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
   const { whichChall } = route.params as {
     whichChall: string
+    // whichCall will be "Personal", "Group", or "Public"
   }
   const { user } = useUser()
   const [challs, setChalls] = useState<
@@ -111,19 +112,13 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
 
+
+
         {challs.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             <Ionicons name="flag-outline" size={70} color="rgba(255,255,255,0.7)" />
             <Text style={styles.emptyStateText}>No challenges yet</Text>
             
-              <TouchableOpacity
-                style={styles.addNewButton}
-                onPress={() => {
-                  navigation.navigate("CreatePublicChall1");
-                }}
-              >
-                <Text style={styles.addNewButtonText}>Add new +</Text>
-              </TouchableOpacity>
           </View>
         ) : (
           <ScrollView

@@ -15,18 +15,20 @@ type Props = {
   navigation: NavigationProp<any>;
 };
 
-const Categories: React.FC<Props> = ({ navigation }) => {
+const SomeCategories: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, groupId, groupMembers, onGameSelected, challId, challName, friendId } = route.params as {
+  const { catType, categories, singOrMult, groupId, groupMembers, challId, challName, onGameSelected } = route.params as {
     catType: string;
+    categories: { id: number; name: string }[];
     groupId: number;
     groupMembers: { id: number; name: string }[];
-    // singOrMult: string;
+    singOrMult: string;
     onGameSelected: (game: { id: number; name: string }) => void;
     challId: number;
     challName: number;
-    friendId?: number;
   };
+
+  console.log("Route params:", route.params);
 
   const [cats, setCats] = useState<{ id: number; categoryName: string }[]>([]);
   
@@ -34,7 +36,7 @@ const Categories: React.FC<Props> = ({ navigation }) => {
     const fetchCats = async () => {
       try {
         // fetch the categories for multiplayer/singleplayer (whatever was selected)
-        const response = await fetch(endpoints.cats());
+        const response = await fetch(endpoints.someCats(categories.map(c => c.id)));
         const data = await response.json();
         setCats(data); 
         console.log("Data: " + data);
@@ -80,17 +82,20 @@ const Categories: React.FC<Props> = ({ navigation }) => {
             <TouchableOpacity
               key={cat.id}
               style={styles.categoryButton}
-              onPress={() => navigation.navigate('GroupChall3', { 
-                catType, 
-                catId: cat.id, 
-                catName: cat.categoryName, 
-                groupId, 
-                groupMembers, 
-                onGameSelected,
-                challId,
-                challName,
-                ...(catType === 'Friend' && { friendId }),
-              })}
+                  onPress={() => {
+                    navigation.navigate("Games", {
+                      catType: catType,
+                      catName: cat.categoryName,
+                      catId: cat.id,
+                      categories: categories,
+                      singOrMult: singOrMult,
+                      groupId : null,
+                      groupMembers : null,
+                      onGameSelected,
+                      challId : null,
+                      challName : null
+                    })
+                  }}
             >
               <Text style={styles.categoryButtonText}>{cat.categoryName}</Text>
             </TouchableOpacity>
@@ -186,4 +191,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Categories;
+export default SomeCategories;

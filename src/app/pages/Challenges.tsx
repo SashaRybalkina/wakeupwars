@@ -35,6 +35,11 @@ const Challenges: React.FC<Props> = ({ navigation }) => {
     navigation.navigate("Chall1", { whichChall })
   }
 
+  const goToPublicChallenges = () => {
+    console.log("here")
+    navigation.navigate("PublicChallenges")
+  }
+
   const goToChallenges = () => navigation.navigate('Challenges');
 
   const goToGroups = () => {
@@ -64,7 +69,7 @@ const Challenges: React.FC<Props> = ({ navigation }) => {
 
           <ChallengeButton title="Group" icon="people-outline" onPress={() => goToChall1("Group")} />
 
-          <ChallengeButton title="Public" icon="people-outline" onPress={() => goToChall1("Public")} />
+          <ChallengeButton title="Public" icon="people-outline" onPress={() => goToPublicChallenges()} />
 
         </View>
       </View>

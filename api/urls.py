@@ -9,7 +9,7 @@ from .views import (AcceptPersonalChallenge, DeclinePersonalChallenge, GetPerson
                     RespondToFriendRequestView, FinalizeCollaborativeGroupChallengeScheduleView,
                     SentFriendRequestListView, AllUsersView, CancelFriendRequestView,
                     CreateGroupView, CreatePersonalChallengeView, GetChallengeInvitesView,
-                    GetAvailabilitiesView, SetAvailabilityView, DeclineChallengeInviteView,
+                    GetAvailabilitiesView, DeclineChallengeInviteView,
                     ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
                     SkillLevelsView, CreatePublicChallengeView, RewardSettingView)
 
@@ -28,11 +28,14 @@ from .views import (
     RespondToFriendRequestView, FinalizeCollaborativeGroupChallengeScheduleView,
     SentFriendRequestListView, AllUsersView, CancelFriendRequestView,
     CreateGroupView, CreatePersonalChallengeView, GetChallengeInvitesView,
-    GetAvailabilitiesView, SetAvailabilityView, DeclineChallengeInviteView,
+    GetAvailabilitiesView, SetChallAvailabilityView, DeclineChallengeInviteView,
     ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
     SkillLevelsView, ExternalHandleViewSet, ObligationViewSet, PaymentViewSet,
     FinalizeChallengeView, CreateSudokuGameView, ValidateSudokuMoveView, 
     CreateWordleGameView, ValidateWordleMoveView, get_csrf_token, SingOrMultGameListView, ShareChallengeView
+    GetPendingPublicChallengesView, GetMatchingChallengesView, SetUserAvailabilityView,
+    GetUserAvailabilityView, SomeCatsListView, JoinPublicChallengeView, FinalizePublicChallengeView,
+    GetPublicChallengesView,
 )
 
 router = DefaultRouter()
@@ -45,11 +48,19 @@ urlpatterns = [
     path('challenges/<int:challenge_id>/finalize/', FinalizeChallengeView.as_view(), name='finalize-challenge'),
     path('challenges/<int:chall_id>/reward/', RewardSettingView.as_view(), name='challenge-reward'),
     path('challenges/<int:user_id>/<str:which_chall>/', ChallengeListView.as_view(), name='challenge-list'),
+    path('get-pending-public-challenges/<int:user_id>/', GetPendingPublicChallengesView.as_view(), name='get-pending-public-challenges'),
+    path('get-public-challenges/<int:user_id>/', GetPublicChallengesView.as_view(), name='get-public-challenges'),
+    path(
+    'get-matching-challenges/<int:user_id>/<str:category_ids>/<str:sing_or_mult>/',
+    GetMatchingChallengesView.as_view(),
+    name='get-matching-challenges'
+    ),
     path('login/', LoginView.as_view(), name='login'),
     path('register/', RegisterView.as_view(), name='register'),
     path('user-groups/<int:user_id>/', GroupListView.as_view(), name='group-list'),
     path('user-friends/<int:user_id>/', FriendListView.as_view(), name='friend-list'),
     path('cats/', CatListView.as_view(), name='cat-list'),
+    path('some-cats/', SomeCatsListView.as_view(), name='some-cats'),
     path('games/<int:cat_id>/<str:sing_or_mult>/', GameListView.as_view(), name='game-list'),
     path('games/<str:sing_or_mult>/', SingOrMultGameListView.as_view(), name='sing-or-mult-game-list'),
     path('hello/', HelloWorldView.as_view(), name='hello'),
@@ -58,7 +69,8 @@ urlpatterns = [
     path('messages/<int:user_id>/', UserMessagesView.as_view()),
     path('groups/<int:group_id>/', GroupDetailsView.as_view(), name='group-details'),
     path('group-member-add/<int:group_id>/', AddGroupMemberView.as_view(), name='group-mem-add'),
-
+    path('join-public-challenge/<int:user_id>/', JoinPublicChallengeView.as_view(), name='join-public-challenge'),
+    path('finalize-public-challenge/', FinalizePublicChallengeView.as_view(), name='finalize-public-challenge'),
     path('challenge-detail/<int:chall_id>/', ChallengeDetailView.as_view(), name='challenge-detail'),
     path('challenge-schedule/<int:chall_id>/', ChallengeGameScheduleView.as_view(), name='challenge-schedule'),
     path('get-challenge-schedule/<int:chall_id>/', GetChallengeScheduleView.as_view(), name='get-challenge-schedule'),
@@ -75,7 +87,9 @@ urlpatterns = [
     
     # path('get-pending-challenges/<int:group_id>/', GetPendingChallengesView.as_view(), name='get-pending-challenges'),
     path('get-availabilities/<int:chall_id>/', GetAvailabilitiesView.as_view(), name='get-availabilities'),
-    path('set-availability/<int:user_id>/<int:chall_id>/', SetAvailabilityView.as_view(), name='set-availability'),
+    path('set-user-availability/<int:user_id>/', SetUserAvailabilityView.as_view(), name='set-user-availability'),
+    path('get-user-availability/<int:user_id>/', GetUserAvailabilityView.as_view(), name='get-user-availability'),
+    path('set-chall-availability/<int:user_id>/<int:chall_id>/', SetChallAvailabilityView.as_view(), name='set-chall-availability'),
     path('decline-challenge-invite/<int:user_id>/<int:chall_id>/', DeclineChallengeInviteView.as_view(), name='decline-challenge-invite'),
 
     path('profile/all/', AllUsersView.as_view(), name='all-users'),

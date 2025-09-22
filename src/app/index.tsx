@@ -8,7 +8,10 @@ import {
 import { createStackNavigator } from '@react-navigation/stack';
 import * as Notifications from 'expo-notifications';
 
+import 'expo-router/entry';
+
 import { useUser } from './context/UserContext';
+
 import Challenges from './pages/Challenges';
 import Chall1 from './pages/Challenges/Chall1';
 import ChallDetails from './pages/Challenges/ChallDetails';
@@ -17,7 +20,13 @@ import CreatePublicChall1 from './pages/Challenges/CreatePublicChall1';
 import CreatePublicChall2 from './pages/Challenges/CreatePublicChall2';
 import LeaderboardDetails from './pages/Challenges/LeaderboardDetails';
 import RewardSettleScreen from './pages/Challenges/RewardSettleScreen';
+import VerifyAvailability from './pages/Challenges/VerifyAvailability';
+import PublicChallSearch1 from './pages/Challenges/PublicChallSearch1';
+import PublicChallSearch2 from './pages/Challenges/PublicChallSearch2';
+import PublicChallenges from './pages/Challenges/PublicChallenges';
+import Wordle from './pages/WordGame/Wordle';
 import Categories from './pages/Games/Categories';
+import SomeCategories from './pages/Games/SomeCategories';
 import GameExpanded from './pages/Games/GameExpanded';
 import Games from './pages/Games/Games';
 import GroupScreen from './pages/Groups';
@@ -31,6 +40,7 @@ import GroupChall4Old from './pages/Groups/GroupChall4Old';
 import GroupChallCollab from './pages/Groups/GroupChallCollab';
 import GroupDetails from './pages/Groups/GroupDetails';
 import LoginScreen from './pages/Login';
+import InputOutput from './pages/mainPage';
 import Messages from './pages/Messages';
 import PatternGameScreen from './pages/PatternGame/PatternGameScreen';
 import Profile from './pages/Profile';
@@ -45,7 +55,6 @@ import PersChall2 from './pages/Profile/PersChall2';
 import SignUpScreen from './pages/SignUp';
 import StartScreen from './pages/StartScreen';
 import SudokuScreen from './pages/SudokuScreen';
-import WordleScreen from './pages/WordGame/WordleScreen';
 import EditChallengeSharingFriends from './pages/Challenges/EditChallengeSharingFriends';
 import CreateChallengeForFriend from './pages/Challenges/CreateChallengeForFriend';
 
@@ -149,6 +158,11 @@ function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
+          name="SomeCategories"
+          component={SomeCategories}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
           name="Games"
           component={Games}
           options={{ headerShown: false }}
@@ -179,24 +193,9 @@ function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="LeaderboardDetails"
-          component={LeaderboardDetails}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
           name="Sudoku"
           component={SudokuScreen}
           options={{ animationEnabled: false }}
-        />
-        <Stack.Screen
-          name="Wordle"
-          component={WordleScreen}
-          options={{ animationEnabled: false }}
-        />
-        <Stack.Screen
-          name="PatternGame"
-          component={PatternGameScreen}
-          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Messages"
@@ -321,6 +320,51 @@ function App() {
         <Stack.Screen
           name="CreatePublicChall2"
           component={CreatePublicChall2}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="VerifyAvailability"
+          component={VerifyAvailability}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PublicChallSearch1"
+          component={PublicChallSearch1}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PublicChallSearch2"
+          component={PublicChallSearch2}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PublicChallenges"
+          component={PublicChallenges}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LeaderboardDetails"
+          component={LeaderboardDetails}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Wordle"
+          component={Wordle}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="mainPage"
+          component={InputOutput}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="EditChallengeSharingFriends"
+          component={EditChallengeSharingFriends}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CreateChallengeForFriend"
+          component={CreateChallengeForFriend}
           options={{ headerShown: false }}
         />
         <Stack.Screen
