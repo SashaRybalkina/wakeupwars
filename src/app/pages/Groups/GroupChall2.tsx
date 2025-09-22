@@ -26,7 +26,7 @@ type Props = {
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
 
 const REWARD_TYPES = [
-  { key: 'money', label: 'Money $' },
+  { key: 'money', label: 'Money' },
   { key: 'points', label: 'Points' },
   { key: 'custom', label: 'Custom' },
 ] as const;
@@ -193,6 +193,10 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
     }
     return date.toLocaleDateString(undefined, options)
   }
+
+  const showRewardInfo = () => {
+    Alert.alert('Rewards', 'Choose the reward the winner will get. \n\nMoney: Send a USD amount. \nPoints: In-app points. \nCustom: Any creative prize. \n\nAfter saving, rewards are locked.');
+  };
 
   const handleCreateChallenge = async() => {
     if (!name.trim()) {
@@ -468,7 +472,12 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
           )}
 
           <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Reward</Text>
+            <View style={styles.rewardHeader}>
+              <Text style={styles.sectionTitle}>Set Reward</Text>
+              <TouchableOpacity style={{marginLeft:6, marginBottom: 13}} onPress={showRewardInfo}>
+                <Ionicons name="help-circle-outline" size={22} color="#FFD700" />
+              </TouchableOpacity>
+            </View>
             <View style={styles.choiceRow}>
               {REWARD_TYPES.map(rt => (
                 <TouchableOpacity
@@ -836,10 +845,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   choiceRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 },
-  choiceButton: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)', marginRight: 10, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  choiceButton: { marginTop:-20, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)', marginRight: 10, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
   choiceButtonSelected: { backgroundColor: 'rgba(255,215,0,0.3)', borderColor: '#FFD700' },
   choiceText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
   choiceTextSelected: { color: '#FFD700' },
+  rewardHeader:{flexDirection:'row',alignItems:'center',marginBottom:12},
 
   activeNavText: {
     color: "#FFD700",

@@ -12,6 +12,7 @@ import {
   View,
   Dimensions,
   Animated,
+  TextInput,
 } from "react-native"
 import { useUser } from "../../context/UserContext"
 import { Ionicons } from "@expo/vector-icons"
@@ -81,8 +82,13 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
   const [daysOfWeek, setDaysOfWeek] = useState<string[]>([])
   const [isFavorite, setIsFavorite] = useState(false)
   const [progressAnim] = useState(new Animated.Value(0))
+  type Obligation = {
+    id:number; challenge:number; payer:any; payee:any; currency:string; amount:string; remaining:string; status:string;
+    reward_type?:string; reward_note?:string;
+  };
   const [toPay, setToPay] = useState<Obligation[]>([]);
   const [toReceive, setToReceive] = useState<Obligation[]>([]);
+  const [canEditReward,setCanEditReward]=useState<boolean>(false);
   // leaderboard setup
   type LeaderRow = { name: string; points: number; rank: number }
 
@@ -92,9 +98,13 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
   const [lbSince, setLbSince] = useState<string | null>(null)
   const [lbUntil, setLbUntil] = useState<string | null>(null)
 
+  // reward editor
+  const [reward, setReward] = useState<any|null>(null);   // fetched reward_setting
+  const [rewardType, setRewardType] = useState<'money'|'points'|'custom'>('money');
+  const [rewardAmount, setRewardAmount] = useState('');
+  const [rewardNote, setRewardNote] = useState('');
+
   const getDayLabel = (day: number): string => {
-    console.log("Day passed to getDayLabel:", day)
-    console.log("Mapped label:", DayOfWeekLabels[day as DayOfWeek])
     return DayOfWeekLabels[day as DayOfWeek] || ""
   }
 
@@ -126,9 +136,10 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
 
         setDaysComplete(data.daysCompleted)
         setTotalDays(data.totalDays)
-        setMembers(data.members)
-
-        console.log("Parsed daysOfWeek array:", parsedDaysOfWeek)
+        setMembers(data.members);
+        setCanEditReward(!!data.initiator_id);
+        setReward(data.reward_setting);
+        console.log('reward setting??',!!data.reward_setting)
       } catch (err) {
         console.error(err)
       }
@@ -149,19 +160,19 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
         });
 
         const text = await res.text();
-        const data = text ? JSON.parse(text) : null;
+        const d: any = text ? JSON.parse(text) : null;
 
-        const rows = Array.isArray(data) ? data : data?.leaderboard ?? [];
+        const rows = Array.isArray(d) ? d : d?.leaderboard ?? [];
         setLeaderboard(rows);
-        setLbSince(data?.since ?? null);
-        setLbUntil(data?.until ?? null);
+        setLbSince(d?.since ?? null);
+        setLbUntil(d?.until ?? null);
 
         if (rows.length === 0) {
           setTimeout(async () => {
             try {
               const res2 = await fetch(`${endpoints.leaderboard(challId)}?t=${Date.now()}`, { credentials: 'include' });
               const txt2 = await res2.text();
-              const d2 = txt2 ? JSON.parse(txt2) : null;
+              const d2: any = txt2 ? JSON.parse(txt2) : null;
               setLeaderboard(Array.isArray(d2) ? d2 : d2?.leaderboard ?? []);
               setLbSince(d2?.since ?? null);
               setLbUntil(d2?.until ?? null);
@@ -200,7 +211,6 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
       });
 
       const data = await res.json();
-      console.log('me payload:', data);
 
       if (!res.ok) {
         throw new Error('Failed to load obligations');
@@ -215,14 +225,17 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
           const obligations = await loadMyObligations();
           setToPay(obligations.to_pay);
           setToReceive(obligations.to_receive);
-          console.log("obligations:", obligations);
         } catch (err:any) {
           Alert.alert('Error: ', err.message);
         }
       })();
     }, []);
 
-    const finalizeChallenge = async (challId: number) => {
+    const showRewardInfo = () => {
+    Alert.alert('Rewards', 'Choose the reward the winner will get. \n\nMoney: Send a USD amount. \nPoints: In-app points. \nCustom: Any creative prize. \n\nAfter saving, rewards are locked.');
+  };
+
+  const finalizeChallenge = async (challId: number) => {
       try {
         const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, { credentials: 'include' });
         if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
@@ -435,6 +448,73 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
               </LinearGradient>
             </TouchableOpacity>
           </View>
+
+          {/* Reward config (only if collaborative and not set) */}
+          {reward === null && canEditReward && (
+            <View style={styles.rewardCard}>
+              <View style={styles.rewardHeader}>
+              <Text style={styles.sectionTitle}>Set Reward</Text>
+              <TouchableOpacity style={styles.infoIcon} onPress={showRewardInfo}>
+                <Ionicons name="help-circle-outline" size={22} color="#FFD700" />
+              </TouchableOpacity>
+            </View>
+              <View style={styles.choiceRow}>
+                {['money','points','custom'].map(rt=> (
+                  <TouchableOpacity key={rt}
+                     style={[styles.choiceButton, rewardType===rt && styles.choiceButtonSelected]}
+                     onPress={()=>setRewardType(rt as any)}>
+                     <Text style={[styles.choiceText, rewardType===rt && styles.choiceTextSelected]}>{rt}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {rewardType!=='custom' && (
+                <TextInput
+                  style={styles.input}
+                  placeholder="Amount"
+                  keyboardType="numeric"
+                  value={rewardAmount}
+                  onChangeText={setRewardAmount}
+                  placeholderTextColor="#ccc"
+                />
+              )}
+              {rewardType==='custom' && (
+                <TextInput
+                  style={styles.input}
+                  placeholder="Describe reward"
+                  value={rewardNote}
+                  onChangeText={setRewardNote}
+                  placeholderTextColor="#ccc"
+                />
+              )}
+              <TouchableOpacity style={styles.saveBtn} onPress={async()=>{
+                try{
+                  const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`,{credentials:'include'});
+                  const {csrfToken} = await csrfRes.json();
+                  const payload:any={ type:rewardType };
+                  if(rewardType!=='custom') payload.amount=parseFloat(rewardAmount||'0');
+                  if(rewardNote) payload.note=rewardNote;
+                  const res = await fetch(endpoints.challengeReward(challId),{
+                    method:'PUT',credentials:'include',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},
+                    body: JSON.stringify(payload)
+                  });
+                  if(!res.ok){const e=await res.json(); throw new Error(e.detail||'Failed');}
+                  const saved=await res.json();
+                  setReward(saved);
+                  Alert.alert('Saved','Reward configured');
+                }catch(e:any){Alert.alert('Error',e.message)}
+              }}>
+                <LinearGradient
+                  colors={["#FFD700", "#FFA500"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.saveBtnGradient}
+                >
+                  <Ionicons name="checkmark" size={18} color="#000" style={styles.scheduleIcon} />
+                  <Text style={styles.saveBtnText}>Save Reward</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Challenge Stats */}
           <View style={styles.statsCard}>
@@ -792,6 +872,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "rgba(255, 255, 255, 0.7)",
   },
+  rewardCard:{backgroundColor:'rgba(50,50,60,0.3)',borderRadius:20,padding:20,marginBottom:20,borderWidth:1,borderColor:'rgba(255,255,255,0.2)'},
+  choiceRow:{flexDirection:'row',marginTop:10},
+  choiceButton:{paddingVertical:8,paddingHorizontal:14,borderColor:'#fff',borderWidth:1,borderRadius:18,marginRight:8, marginTop: -23},
+  choiceButtonSelected:{backgroundColor:'#FFD700',borderColor:'#FFD700'},
+  choiceText:{color:'#fff'},
+  choiceTextSelected:{color:'#000',fontWeight:'700'},
+  rewardHeader:{flexDirection:'row',alignItems:'center',marginBottom:12},
+  infoIcon:{marginLeft:6, marginBottom: 13},
+  input:{borderWidth:1,borderColor:'rgba(255,255,255,0.3)',borderRadius:10,color:'#fff',padding:10,marginTop:12,backgroundColor:'rgba(255,255,255,0.1)'},
+  saveBtn:{width:'100%',height:45,borderRadius:22.5,overflow:'hidden',marginTop:16},
+  saveBtnGradient:{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'center'},
+  saveBtnText:{color:'#000',fontWeight:'600',fontSize:16},
   bottomSpacing: {
     height: 100,
   },

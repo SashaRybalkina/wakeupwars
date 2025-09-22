@@ -11,7 +11,7 @@ from .views import (LoginView, RegisterView, GroupListView, HelloWorldView, User
                     CreateGroupView, CreatePersonalChallengeView, GetChallengeInvitesView,
                     GetAvailabilitiesView, SetAvailabilityView, DeclineChallengeInviteView,
                     ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
-                    SkillLevelsView, CreatePublicChallengeView)
+                    SkillLevelsView, CreatePublicChallengeView, RewardSettingView)
 
 from .views import CreateSudokuGameView, ValidateSudokuMoveView, get_csrf_token
 from .views import CreatePatternGameView, ValidatePatternMoveView
@@ -43,6 +43,7 @@ router.register(r'payments', PaymentViewSet, basename='payment')
 urlpatterns = [
     path('', include(router.urls)),
     path('challenges/<int:challenge_id>/finalize/', FinalizeChallengeView.as_view(), name='finalize-challenge'),
+    path('challenges/<int:chall_id>/reward/', RewardSettingView.as_view(), name='challenge-reward'),
     path('challenges/<int:user_id>/<str:which_chall>/', ChallengeListView.as_view(), name='challenge-list'),
     path('login/', LoginView.as_view(), name='login'),
     path('register/', RegisterView.as_view(), name='register'),

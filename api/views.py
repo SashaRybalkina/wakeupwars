@@ -426,12 +426,16 @@ class ChallengeDetailView(APIView):
         ).values_list("dayOfWeek", flat=True).distinct()
 
         days_of_week = sorted([numeric_to_label[day] for day in alarm_schedules if day in numeric_to_label])
+        
+        initiator_id = challenge.initiator_id
 
         return Response({
             **serializer.data,
             'members': members,
             'totalDays': (challenge.endDate - challenge.startDate).days + 1,
-            'daysOfWeek': days_of_week
+            'daysOfWeek': days_of_week,
+            'initiator_id': initiator_id,
+            'reward_setting': RewardSettingSerializer(getattr(challenge,'reward_setting',None)).data if hasattr(challenge,'reward_setting') else None
         })
         
         
@@ -1649,6 +1653,30 @@ class RecomputeUserSkills(APIView):
         skills = recompute_skill_for_user(user)
         return Response({"success": True, "skills": skills})
 
+class RewardSettingView(APIView):
+    """Allow participants of a collaborative challenge to set the reward settings once."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def put(self, request, chall_id: int):
+        # fetch chall
+        chall = get_object_or_404(Challenge, id=chall_id)
+        # only collaborative (group) challenges editable
+        if chall.groupID is None:
+            return Response({'detail': 'Reward cannot be changed for manual challenges.'}, status=403)
+        # participant check
+        if not chall.members.filter(id=request.user.id).exists() and not request.user.is_staff:
+            return Response({'detail': 'Only participants can edit reward.'}, status=403)
+
+        # once reward has note or amount set, lock
+        if getattr(chall, 'reward_setting', None):
+            return Response({'detail': 'Reward already configured.'}, status=400)
+
+        serializer = RewardSettingSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(challenge=chall)
+        return Response(serializer.data, status=200)
+
+
 class SkillLevelsView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1694,7 +1722,7 @@ class ObligationViewSet(mixins.ListModelMixin,
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        qs = Obligation.objects.select_related('challenge', 'payer', 'payee').prefetch_related('payments')
+        qs = Obligation.objects.select_related('challenge', 'challenge__reward_setting', 'payer', 'payee').prefetch_related('payments')
         challenge_id = self.request.query_params.get('challenge')
         mine = self.request.query_params.get('mine')
         if challenge_id:
@@ -1711,7 +1739,9 @@ class ObligationViewSet(mixins.ListModelMixin,
         Return obligations relevant to the current user, grouped as
         things they need to pay and things they should receive.
         """
-        base = Obligation.objects.select_related('challenge', 'payer', 'payee').prefetch_related('payments')
+        base = (Obligation.objects
+                .select_related('challenge', 'challenge__reward_setting', 'payer', 'payee')
+                .prefetch_related('payments'))
         to_pay = base.filter(payer=request.user)
         to_receive = base.filter(payee=request.user)
 
@@ -1751,6 +1781,24 @@ class ObligationViewSet(mixins.ListModelMixin,
             ob.recompute_status()
         return Response(PaymentSerializer(p).data, status=201)
 
+    @action(detail=True, methods=['post'], url_path='pay_custom')
+    def pay_custom(self, request, pk=None):
+        ob = self.get_object()
+        if ob.payer != request.user:
+            return Response({'detail':'Only payer can mark payment.'}, status=403)
+        note = request.data.get('note', '')
+        with transaction.atomic():
+            p = Payment.objects.create(
+                obligation=ob,
+                method=PaymentMethod.CUSTOM,
+                provider=PaymentProvider.OTHER,
+                amount=0,
+                note=note,
+                status=PaymentStatus.PENDING,
+            )
+            ob.recompute_status()
+        return Response(PaymentSerializer(p).data, status=201)
+
     @action(detail=True, methods=['post'], url_path='pay_external')
     def pay_external(self, request, pk=None):
         ob = self.get_object()
@@ -1786,7 +1834,7 @@ class ObligationViewSet(mixins.ListModelMixin,
 
 # winner can confirm or reject a specific payment
 class PaymentViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    queryset = Payment.objects.select_related('obligation', 'obligation__payee', 'obligation__payer')
+    queryset = Payment.objects.select_related('obligation', 'obligation__challenge', 'obligation__challenge__reward_setting', 'obligation__payee', 'obligation__payer')
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
 

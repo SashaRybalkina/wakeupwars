@@ -1,4 +1,4 @@
-export const BASE_URL = 'https://06395e888ab1.ngrok-free.app';
+export const BASE_URL = 'https://77bd6e941337.ngrok-free.app';
 
 export const endpoints = {
   // getToken
@@ -15,6 +15,7 @@ export const endpoints = {
   groupProfile: (groupId: number) => `${BASE_URL}/api/groups/${groupId}/`,
   addGroupMember: (groupId: number) => `${BASE_URL}/api/group-member-add/${groupId}/`,
   challengeDetail: (challId: number) => `${BASE_URL}/api/challenge-detail/${challId}/`,
+  challengeReward: (challId:number)=> `${BASE_URL}/api/challenges/${challId}/reward/`,
   challengeList: (userId: number, whichChall: string) => `${BASE_URL}/api/challenges/${userId}/${whichChall}/`,
   challengeSchedule: (challId: number) => `${BASE_URL}/api/challenge-schedule/${challId}/`,
   getChallengeSchedule: (challId: number) => `${BASE_URL}/api/get-challenge-schedule/${challId}/`,
@@ -56,6 +57,7 @@ export const endpoints = {
   myObligations: () => `${BASE_URL}/api/obligations/me/`,
   payExternal: (id: number) => `${BASE_URL}/api/obligations/${id}/pay_external/`,
   payCash: (id: number) => `${BASE_URL}/api/obligations/${id}/pay_cash/`,
+  payCustom: (id: number) => `${BASE_URL}/api/obligations/${id}/pay_custom/`,
   confirmPayment: (id: number) => `${BASE_URL}/api/payments/${id}/confirm/`,
   rejectPayment: (id: number) => `${BASE_URL}/api/payments/${id}/reject/`,
 };

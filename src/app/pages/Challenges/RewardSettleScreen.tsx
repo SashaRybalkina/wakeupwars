@@ -23,10 +23,13 @@ type Props = { navigation: NavigationProp<any> };
 type Obligation = {
   id: number;
   challenge: number;
-  payer: number;           // number id (from API)
+  payer: number | { id: number; username: string };  // can be id or object
   payer_name?: string;     // added
-  payee: number;           // number id
+  payee: number | { id: number; username: string };  // can be id or object
   payee_name?: string;     // added
+  currency: string;
+  reward_type?: 'money' | 'points' | 'custom';
+  reward_note?: string;
   amount: string;
   status: "unpaid" | "pending" | "paid";
   remaining: string;
@@ -35,9 +38,10 @@ type Obligation = {
 
 type Payment = {
   id: number;
-  method: "cash" | "external";
-  provider: "venmo" | "paypal" | "other";
+  method: "cash" | "external" | "custom";
+  provider: string | null;
   amount: string;
+  note?: string;
   status: "pending" | "confirmed" | "rejected";
 };
 
@@ -124,7 +128,30 @@ const RewardSettleScreen: React.FC<Props> = ({ navigation }) => {
       }
     };
 
-    const handlePayCash = async (
+    const handleCustomDone = async (ob: Obligation) => {
+    Alert.alert(
+      'Confirm',
+      'Have you already fulfilled the custom reward for the winner? Make sure you have completed it before confirming.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Yes, I did', onPress: async () => {
+          try {
+            const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, { credentials:'include'});
+            const { csrfToken } = await csrfRes.json();
+            await fetch(endpoints.payCustom(ob.id), {
+              method:'POST',
+              credentials:'include',
+              headers:{ 'Content-Type':'application/json', 'X-CSRFToken': csrfToken },
+              body: JSON.stringify({ note: ob.reward_note || 'Custom reward fulfilled'})
+            });
+            await refresh();
+          } catch(e:any){ Alert.alert('Error', e.message) }
+        } },
+      ]
+    );
+  };
+
+  const handlePayCash = async (
       ob: Obligation,
       opts?: { amount?: number | string; note?: string }
     ) => {
@@ -221,10 +248,16 @@ const RewardSettleScreen: React.FC<Props> = ({ navigation }) => {
 
   /** ---------- render ---------- */
   const renderOb = ({ item }: { item: Obligation }) => {
+    const isCustom = item.reward_type === 'custom' || item.currency === 'CST' || parseFloat(item.amount) === 0;
+    const isPoints = item.reward_type === 'points' || item.currency === 'PTS';
+
+    const payerObj = typeof item.payer === 'object' ? item.payer : null;
+    const payeeObj = typeof item.payee === 'object' ? item.payee : null;
+
     const payerId   = typeof item.payer === 'number' ? item.payer : item.payer.id;
     const payeeId   = typeof item.payee === 'number' ? item.payee : item.payee.id;
-    const payerName = (item as any).payer_name ?? (typeof item.payer === 'object' ? item.payer.username : 'Unknown');
-    const payeeName = (item as any).payee_name ?? (typeof item.payee === 'object' ? item.payee.username : 'Unknown');
+    const payerName = (item as any).payer_name ?? (payerObj?.username ?? `User #${payerId}`);
+    const payeeName = (item as any).payee_name ?? (payeeObj?.username ?? `User #${payeeId}`);
 
     const iamPayer  = payerId === user?.id;
     const iamWinner = payeeId === user?.id;
@@ -234,22 +267,33 @@ const RewardSettleScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={styles.title}>
           {iamPayer ? `You → ${payeeName}` : `${payerName} → You`}
         </Text>
+        {isCustom && item.reward_note ? (
+          <Text style={styles.customTitle}>{item.reward_note}</Text>
+        ) : null}
         <Text style={styles.subtitle}>
-          ${item.remaining} / ${item.amount} &nbsp;({item.status})
+          {isCustom ? ('Custom reward') : isPoints ? `${item.remaining} pts / ${item.amount} pts` : `$${item.remaining} / $${item.amount}`} ({item.status})
         </Text>
 
         {/* payer actions */}
+
         {iamPayer && item.status === "unpaid" && (
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.btn} onPress={() => handlePayExt(item)}>
-              <Ionicons name="card" size={18} color="#fff" />
-              <Text style={styles.btnText}>Pay Venmo/PayPal</Text>
+          isCustom ? (
+            <TouchableOpacity style={[styles.btn,{marginTop:6}]} onPress={() => handleCustomDone(item)}>
+              <Ionicons name="checkmark" size={18} color="#000" />
+              <Text style={styles.btnText}>Confirm custom reward done</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.btn} onPress={() => handlePayCash(item)}>
-              <Ionicons name="cash" size={18} color="#fff" />
-              <Text style={styles.btnText}>Record Cash</Text>
-            </TouchableOpacity>
-          </View>
+          ) : (
+            <View style={styles.actionRow}>
+              <TouchableOpacity style={styles.btn} onPress={() => handlePayExt(item)}>
+                <Ionicons name="card" size={18} color="#fff" />
+                <Text style={styles.btnText}>Pay Venmo/PayPal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.btn} onPress={() => handlePayCash(item)}>
+                <Ionicons name="cash" size={18} color="#fff" />
+                <Text style={styles.btnText}>Record Cash</Text>
+              </TouchableOpacity>
+            </View>
+          )
         )}
 
         {/* winner actions */}
@@ -259,7 +303,7 @@ const RewardSettleScreen: React.FC<Props> = ({ navigation }) => {
             .map((p) => (
               <View key={p.id} style={styles.actionRow}>
                 <Text style={styles.pendingTxt}>
-                  {item.payer.username} sent ${p.amount} ({p.method})
+                  {payerName} sent {isCustom ? (item.reward_note || 'custom reward') : isPoints ? `${p.amount} pts` : `$${p.amount} (${p.method})`}
                 </Text>
                 <TouchableOpacity style={styles.iconBtn} onPress={() => handleConfirm(p)}>
                   <Ionicons name="checkmark-circle" size={26} color="#4caf50" />
@@ -321,6 +365,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   title: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  customTitle: { fontSize:18, color:'#ffd700', fontWeight:'600', marginBottom:4, marginTop:4 },
   subtitle: { color: "#aaa", marginBottom: 8 },
   actionRow: { flexDirection: "row", alignItems: "center", marginTop: 6 },
   btn: {
