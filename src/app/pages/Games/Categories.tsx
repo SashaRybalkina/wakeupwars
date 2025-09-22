@@ -17,7 +17,7 @@ type Props = {
 
 const Categories: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, groupId, groupMembers, onGameSelected, challId, challName } = route.params as {
+  const { catType, groupId, groupMembers, onGameSelected, challId, challName, friendId } = route.params as {
     catType: string;
     groupId: number;
     groupMembers: { id: number; name: string }[];
@@ -25,6 +25,7 @@ const Categories: React.FC<Props> = ({ navigation }) => {
     onGameSelected: (game: { id: number; name: string }) => void;
     challId: number;
     challName: number;
+    friendId?: number;
   };
 
   const [cats, setCats] = useState<{ id: number; categoryName: string }[]>([]);
@@ -86,7 +87,8 @@ const Categories: React.FC<Props> = ({ navigation }) => {
                 groupMembers, 
                 onGameSelected,
                 challId,
-                challName
+                challName,
+                ...(catType === 'Friend' && { friendId }),
               })}
             >
               <Text style={styles.categoryButtonText}>{cat.categoryName}</Text>

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import (LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView, GetChallengeScheduleView, AddGameToScheduleView,
+from .views import (AcceptPersonalChallenge, DeclinePersonalChallenge, GetPersonalChallengeInvites, LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView, GetChallengeScheduleView, AddGameToScheduleView,
                     UserMessagesView, GroupDetailsView, CatListView, GameListView,
                     ChallengeListView, GetChallengeInitiatorView,
                     ChallengeDetailView, ChallengeGameScheduleView, CreateManualGroupChallengeView,
@@ -32,7 +32,7 @@ from .views import (
     ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
     SkillLevelsView, ExternalHandleViewSet, ObligationViewSet, PaymentViewSet,
     FinalizeChallengeView, CreateSudokuGameView, ValidateSudokuMoveView, 
-    CreateWordleGameView, ValidateWordleMoveView, get_csrf_token, SingOrMultGameListView,
+    CreateWordleGameView, ValidateWordleMoveView, get_csrf_token, SingOrMultGameListView, ShareChallengeView
 )
 
 router = DefaultRouter()
@@ -94,4 +94,12 @@ urlpatterns = [
     path('submit-game-scores/', SubmitGameScoresView.as_view(), name='submit-game-scores'),
     path('add-game-to-schedule/', AddGameToScheduleView.as_view(), name='add-game-to-schedule'),
     path('skill-levels/', SkillLevelsView.as_view(), name="skill-levels"),
+
+    # sending challenge to friends
+    path("share-challenge/<int:chall_id>/", ShareChallengeView.as_view()),
+    path("share-challenge/", ShareChallengeView.as_view()),
+    path('get-personal-challenge-invites/<int:user_id>/', GetPersonalChallengeInvites.as_view()),
+    path('accept-personal-challenge/<int:user_id>/<int:chall_id>/', AcceptPersonalChallenge.as_view()),
+    path('decline-personal-challenge/<int:user_id>/<int:chall_id>/', DeclinePersonalChallenge.as_view()),
+
 ]

@@ -586,3 +586,15 @@ class WordleMove(models.Model):
 
     def __str__(self):
         return f"{self.player.username} guessed {self.guess} in game {self.gameState.id} (row {self.row})"
+
+class PersonalChallengeInvite(models.Model):
+    chall = models.ForeignKey(Challenge, on_delete=models.CASCADE, related_name='personal_invite')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_personal_chall_invites')
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_personal_chall_invites')
+    # 2: pending, 1: accepted, 0: declined
+    status = models.IntegerField(default=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'PersonalChallengeInvites'
+        unique_together = ('chall', 'recipient')

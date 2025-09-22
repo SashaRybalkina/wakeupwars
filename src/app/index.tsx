@@ -46,6 +46,9 @@ import SignUpScreen from './pages/SignUp';
 import StartScreen from './pages/StartScreen';
 import SudokuScreen from './pages/SudokuScreen';
 import WordleScreen from './pages/WordGame/WordleScreen';
+import EditChallengeSharingFriends from './pages/Challenges/EditChallengeSharingFriends';
+import CreateChallengeForFriend from './pages/Challenges/CreateChallengeForFriend';
+
 
 const { AlarmModule } = NativeModules;
 const { IntentModule } = NativeModules;
@@ -323,6 +326,16 @@ function App() {
         <Stack.Screen
           name="Rewards"
           component={RewardSettleScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="EditChallengeSharingFriends"
+          component={EditChallengeSharingFriends}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CreateChallengeForFriend"
+          component={CreateChallengeForFriend}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

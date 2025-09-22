@@ -7,6 +7,7 @@ import type { NavigationProp } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import { useUser } from "../../context/UserContext"
 import { BASE_URL, endpoints } from '../../api';
+import { getMetaFromTuple } from "../Games/NewGamesManagement"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -302,28 +303,32 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
                   <View key={day} style={styles.dayGamesSection}>
                     <Text style={styles.dayTitle}>{day}</Text>
                     <View style={styles.gamesList}>
-                      {(gamesByDay[day] || []).map((game, index) => (
-                        <TouchableOpacity
-                          key={index}
-                          style={styles.gameCard}
-                          onPress={() => handleGameRemove(day, index)}
-                        >
-                          <View style={styles.gameContent}>
-                            <Text style={styles.gameTitle}>{game[1]}</Text>
-                            <Ionicons
-                              name="close-circle"
-                              size={20}
-                              color="rgba(255,255,255,0.7)"
-                              style={styles.removeIcon}
-                            />
-                          </View>
-                          <ImageBackground
-                            source={require("../../images/sudoku.png")}
-                            style={styles.gameImage}
-                            resizeMode="contain"
-                          />
-                        </TouchableOpacity>
-                      ))}
+                      {(gamesByDay[day] || []).map((game, index) => {
+                          const { image } = getMetaFromTuple(game);
+
+                          return (
+                            <TouchableOpacity
+                              key={index}
+                              style={styles.gameCard}
+                              onPress={() => handleGameRemove(day, index)}
+                            >
+                              <View style={styles.gameContent}>
+                                <Text style={styles.gameTitle}>{game[1]}</Text>
+                                <Ionicons
+                                  name="close-circle"
+                                  size={20}
+                                  color="rgba(255,255,255,0.7)"
+                                  style={styles.removeIcon}
+                                />
+                              </View>
+                              <ImageBackground
+                                source={image}
+                                style={styles.gameImage}
+                                resizeMode="contain"
+                              />
+                            </TouchableOpacity>
+                          );
+                        })}
                     </View>
                   </View>
                 ))}

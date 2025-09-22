@@ -138,6 +138,20 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
           </Animated.View>
         </View>
       )}
+      {/* Create Challenge for Friend Button */}
+      {profileData && (
+        <TouchableOpacity
+          style={styles.createChallengeButton}
+          onPress={() => navigation.navigate("CreateChallengeForFriend", { friendId })}
+        >
+          <LinearGradient
+            colors={["#FFD700", "#FFA500"]}
+            style={styles.createButtonGradient}
+          >
+            <Text style={styles.createButtonText}>Create Challenge </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
 
       {/* Navigation Bar */}
       <View style={styles.navBar}>
@@ -281,6 +295,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontWeight: "600",
+  },
+   createChallengeButton: {
+    marginTop: 20,
+    borderRadius: 12,
+    overflow: "hidden",
+    width: "80%",
+    alignSelf: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  createButtonGradient: {
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+  },
+  createButtonText: {
+    color: "#FFF",
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
   },
 })
 

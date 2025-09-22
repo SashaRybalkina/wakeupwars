@@ -28,7 +28,7 @@ from .serializers import (UserSerializer, RegisterSerializer, GroupSerializer, U
                           CatSerializer, GameSerializer, FriendSerializer, FriendRequestSerializer, CreateGroupSerializer, SkillLevelSerializer,
                           RewardSettingSerializer, ExternalHandleSerializer,ObligationSerializer, CashPaymentCreateSerializer,
                           ExternalPaymentCreateSerializer, PaymentSerializer)
-from .models import (Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule,
+from .models import (Group, PersonalChallengeInvite, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule,
                      AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship, GroupMembership, FriendRequest,
                      SkillLevel, PendingGroupChallengeAvailability, GroupChallengeInvite, WordleMove, )
 from django.http import JsonResponse
@@ -1886,3 +1886,169 @@ class FinalizeChallengeView(View):
     # any verb other than POST → 405
     def http_method_not_allowed(self, request, *args, **kwargs):
         return HttpResponseNotAllowed(["POST"])
+    
+# AI was used to help generate this class
+class ShareChallengeView(APIView):
+    @transaction.atomic
+    def post(self, request, chall_id=None):
+        print(f"[BACKEND] Incoming share request for challenge {chall_id}")
+        print(f"[BACKEND] Request data: {request.data}")
+        print(f"[BACKEND] User: {request.user}")
+
+        try:
+            start_date = request.data.get("startDate")
+            end_date = request.data.get("endDate")
+            friend_ids = request.data.get("members", [])
+            challenge_name = request.data.get("name")
+            schedule = request.data.get("schedule", [])
+
+            if not friend_ids:
+                return Response({"error": "No member provided"}, status=400)
+
+            results = []
+
+            for friend_id in friend_ids:
+                friend = get_object_or_404(User, id=friend_id)
+
+                # === Case 1: copy old challenge ===
+                if chall_id:
+                    original = get_object_or_404(Challenge, id=chall_id)
+                    new_challenge = Challenge.objects.create(
+                        name=original.name,
+                        groupID=original.groupID,
+                        initiator=friend,
+                        startDate=start_date,
+                        endDate=end_date,
+                        isPublic=original.isPublic,
+                        isPending=True
+                    )
+
+                    # copy membership
+                    ChallengeMembership.objects.create(challengeID=new_challenge, uID=friend)
+
+                    # copy alarm schedules
+                    for cas in ChallengeAlarmSchedule.objects.filter(challenge=original):
+                        alarm = cas.alarm_schedule
+                        new_alarm = AlarmSchedule.objects.create(
+                            uID=friend,
+                            dayOfWeek=alarm.dayOfWeek,
+                            alarmTime=alarm.alarmTime
+                        )
+                        ChallengeAlarmSchedule.objects.create(challenge=new_challenge, alarm_schedule=new_alarm)
+
+                    # copy game schedules
+                    for gs in GameSchedule.objects.filter(challenge=original):
+                        new_gs = GameSchedule.objects.create(challenge=new_challenge, dayOfWeek=gs.dayOfWeek)
+                        for assoc in GameScheduleGameAssociation.objects.filter(game_schedule=gs):
+                            GameScheduleGameAssociation.objects.create(
+                                game_schedule=new_gs,
+                                game=assoc.game,
+                                game_order=assoc.game_order
+                            )
+
+                # === Case 2: new challenge create ===
+                else:
+                    if not challenge_name:
+                        return Response({"error": "Challenge name required"}, status=400)
+                    
+                    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
+                    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
+
+                    new_challenge = Challenge.objects.create(
+                        name=challenge_name,
+                        initiator=friend,
+                        startDate=start_date_obj,
+                        endDate=end_date_obj,
+                        isPublic=False,
+                        isPending=True
+                    )
+
+                    # membership
+                    ChallengeMembership.objects.create(challengeID=new_challenge, uID=friend)
+
+                    # schedule from payload
+                    for s in schedule:
+                        alarm_time_obj = datetime.strptime(s["time"], "%I:%M %p").time()
+                        alarm = AlarmSchedule.objects.create(
+                            uID=friend,
+                            dayOfWeek=s["dayOfWeek"],
+                            alarmTime=alarm_time_obj
+                        )
+                        ChallengeAlarmSchedule.objects.create(challenge=new_challenge, alarm_schedule=alarm)
+
+                        gs = GameSchedule.objects.create(
+                            challenge=new_challenge,
+                            dayOfWeek=s["dayOfWeek"]
+                        )
+                        for g in s.get("games", []):
+                            GameScheduleGameAssociation.objects.create(
+                                game_schedule=gs,
+                                game_id=g["id"],
+                                game_order=0
+                            )
+
+                # create invite
+                PersonalChallengeInvite.objects.create(
+                    chall=new_challenge, sender=request.user, recipient=friend, status=2
+                )
+
+                results.append({"friend": friend.id, "challenge": new_challenge.id})
+
+            return Response({"message": "Challenge shared successfully", "results": results}, status=201)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
+        
+
+class GetPersonalChallengeInvites(APIView):
+    def get(self, request, user_id):
+       
+        invites = (PersonalChallengeInvite.objects
+                   .filter(recipient_id=user_id, status=2)
+                   .select_related('chall'))
+        data = [
+            {
+                "id": inv.chall.id,
+                "name": inv.chall.name,
+                "endDate": inv.chall.endDate,
+                "inviteId": inv.id,
+                "status": inv.status,  # 2
+            }
+            for inv in invites
+        ]
+        return Response(data, status=200)
+
+
+class AcceptPersonalChallenge(APIView):
+    @transaction.atomic
+    def post(self, request, user_id, chall_id):
+        inv = get_object_or_404(PersonalChallengeInvite,
+                                recipient_id=user_id,
+                                chall_id=chall_id,
+                                status=2)
+        chall = inv.chall
+        chall.isPending = False
+        chall.save(update_fields=['isPending'])
+
+        inv.status = 1  # accepted
+        inv.save(update_fields=['status'])
+        return Response({"ok": True}, status=200)
+
+
+# only one challenge per invite, so deleting the challenge is fine
+class DeclinePersonalChallenge(APIView):
+    @transaction.atomic
+    def post(self, request, user_id, chall_id):
+        inv = get_object_or_404(PersonalChallengeInvite,
+                                recipient_id=user_id,
+                                chall_id=chall_id,
+                                status=2)
+       
+        inv.status = 0  # declined
+        inv.save(update_fields=['status'])
+
+        inv.chall.delete()
+        return Response({"ok": True}, status=200)
+
+
