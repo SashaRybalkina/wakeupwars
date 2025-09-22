@@ -8,14 +8,14 @@ interface ChallengeMatch {
   summary: {
     id: number;
     name: string;
-    startDate: string;
-    endDate: string;
     totalDays: number;
     daysOfWeek: string[]; 
     numParticipants: number;
+    categories: string[],
+    averageSkillLevel: number;
   };
+  userAverageSkillLevel: number;
   distance: number;
-  averageSkillLevel: number;
 }
 
 const PublicChallSearch2: React.FC<Props> = ({ navigation }) => {
@@ -33,6 +33,8 @@ const PublicChallSearch2: React.FC<Props> = ({ navigation }) => {
             navigation.navigate("ChallSchedule", {
                 challId: m.summary.id,
                 challName: m.summary.name,
+                fromSearch: true,
+                userAverageSkillLevel: m.userAverageSkillLevel
             })
             }
             style={styles.challengeContainer}
@@ -44,6 +46,8 @@ const PublicChallSearch2: React.FC<Props> = ({ navigation }) => {
                 numEnrolledMembers={m.summary.numParticipants}
                 totalDays={m.summary.totalDays}
                 daysOfWeek={m.summary.daysOfWeek}
+                categories={m.summary.categories}
+                averageSkillLevel={m.summary.averageSkillLevel}
             />
         </TouchableOpacity>
       ))}

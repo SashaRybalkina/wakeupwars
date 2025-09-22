@@ -11,6 +11,7 @@ import { useFocusEffect } from "@react-navigation/native"
 import { ActivityIndicator } from "react-native"
 import { useUser } from "../../context/UserContext"
 import Categories from "../Games/Categories"
+import { INTERNAL_CALLSITES_REGEX } from "expo/metro-config"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -25,6 +26,8 @@ type PublicChallenge = {
   daysCompleted: number
   totalDays: number
   isCompleted: boolean
+  categories: string[]
+  averageSkillLevel: number
 }
 
 type PendingPublicChallenge = {
@@ -35,6 +38,7 @@ type PendingPublicChallenge = {
   daysOfWeek: string[]
   categories: string[],
   averageSkillLevel: number,
+  initiator_id: number
 }
 
 
@@ -73,7 +77,8 @@ const PublicChallenges: React.FC<Props> = ({ navigation }) => {
         //     'daysOfWeek',
         //     'numParticipants',  
         //     'categories',
-        //     'averageSkillLevel'
+        //     'averageSkillLevel',
+        //     'initiator_id'
         //   ]
         console.log(data)
         const formattedData = data.map(
@@ -85,20 +90,27 @@ const PublicChallenges: React.FC<Props> = ({ navigation }) => {
                 daysOfWeek: item.daysOfWeek,
                 categories: item.categories,
                 averageSkillLevel: item.averageSkillLevel,
+                initiator_id: item.initiator_id,
             })
         )
   
           setPendingChallenges(formattedData)
 
-const url = endpoints.challengeList(Number(user.id), "Public");
-console.log("CHALLENGE LIST URL:", url);
-          const response2 = await fetch(endpoints.challengeList(Number(user.id), "Public"));
+
+          const response2 = await fetch(endpoints.getPublicChallenges(Number(user.id)));
           const data2 = await response2.json();
-        //           fields = [
-        //     'id', 'name', 'startDate', 'endDate',
-        //     'isGroupChallenge', 'daysOfWeek', 'daysCompleted',
-        //     'isCompleted', 'totalDays'
-        // ]
+// type PublicChallenge = {
+//   id: number
+//   name: string
+//   startDate: string
+//   endDate: string
+//   daysOfWeek: string[]
+//   daysCompleted: number
+//   totalDays: number
+//   isCompleted: boolean
+//   categories: string[]
+//   averageSkillLevel: number
+// }
 
           const formattedData2 = data2.map(
             (item: PublicChallenge) => ({
@@ -109,7 +121,9 @@ console.log("CHALLENGE LIST URL:", url);
                 daysOfWeek: item.daysOfWeek,
                 daysCompleted: item.daysCompleted,
                 totalDays: item.totalDays,
-                isCompleted: item.isCompleted
+                isCompleted: item.isCompleted,
+                categories: item.categories,
+                averageSkillLevel: item.averageSkillLevel
             })
           );
           setChallenges(formattedData2);
@@ -185,6 +199,13 @@ console.log("CHALLENGE LIST URL:", url);
                     <TouchableOpacity
                       key={challenge.id}
                       style={styles.challengeCardWrapper}
+                      onPress={() =>
+                        navigation.navigate("ChallSchedule", {
+                          challId: challenge.id,
+                          challName: challenge.name,
+                          isInitiator: challenge.initiator_id == user?.id
+                        })
+                      }
                     >
                       <PendingPublicChallengeCard
                         title={challenge.name}

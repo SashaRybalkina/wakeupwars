@@ -21,6 +21,8 @@ import { type NavigationProp, useRoute } from "@react-navigation/native"
 import axios from "axios"
 import { BASE_URL, endpoints } from "../../api"
 import ChallengeCard from "./ChallengeCard"
+import { LinearGradient } from "expo-linear-gradient"
+import { useUser } from "../../context/UserContext"
 // import { DayOfWeek, DayOfWeekLabels } from "./DayOfWeek";
 
 type Alarm = { userName: string; alarmTime: string }
@@ -37,12 +39,20 @@ const DayOfWeekLabels: Record<number, string> = { 1: "M", 2: "T", 3: "W", 4: "TH
 
 const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const route = useRoute()
-  const { challId, challName } = route.params as { challId: number; challName: string }
+  const { challId, challName, fromSearch, userAverageSkillLevel, isInitiator } = route.params as { 
+    challId: number; 
+    challName: string, 
+    fromSearch: boolean,
+    userAverageSkillLevel: number,
+    isInitiator: boolean
+  }
 
   const [selectedStartDate, setSelectedStartDate] = useState<Date>(new Date())
   const [selectedEndDate, setSelectedEndDate] = useState<Date>(new Date())
   const [showStartDatePicker, setShowStartDatePicker] = useState(false)
   const [showEndDatePicker, setShowEndDatePicker] = useState(false)
+
+  const { user } = useUser()
 
   // Full schedule from backend (contains both alarms and games)
   const [schedule, setSchedule] = useState<
@@ -231,6 +241,88 @@ const addGameToDay = async (game: { id: number; name: string }) => {
     }
   }
 
+    const handleJoinPublicChallenge = async () => {
+  
+          try {
+            const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
+              credentials: 'include',                      
+            });
+            if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
+            const { csrfToken } = await csrfRes.json();     
+            console.log('csrfToken:', csrfToken);
+
+            const payload = {
+              challenge_id: challId,
+              user_average_skill_level: userAverageSkillLevel
+            }
+  
+          
+          const res = await fetch(endpoints.joinPublicChallenge(Number(user?.id)), {
+              method: 'POST',
+              credentials: 'include',                    
+              headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken,                
+              },
+              body: JSON.stringify(payload),
+          });
+  
+          if (!res.ok) {
+              const error = await res.json();
+              throw new Error(error.message || 'Failed to join challenge');
+          }
+  
+          const data = await res.json();
+          Alert.alert('Success', 'Joined Challenge', [
+              { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
+          ]);
+          } catch (err: any) {
+              Alert.alert('Error', err.message);
+          }
+  
+      }
+
+
+        const handleFinalizePublicChallenge = async () => {
+  
+          try {
+            const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
+              credentials: 'include',                      
+            });
+            if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
+            const { csrfToken } = await csrfRes.json();     
+            console.log('csrfToken:', csrfToken);
+
+            const payload = {
+              challenge_id: challId,
+            }
+  
+          
+          const res = await fetch(endpoints.finalizePublicChallenge(), {
+              method: 'POST',
+              credentials: 'include',                    
+              headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken,                
+              },
+              body: JSON.stringify(payload),
+          });
+  
+          if (!res.ok) {
+              const error = await res.json();
+              throw new Error(error.message || 'Failed to join challenge');
+          }
+  
+          const data = await res.json();
+          Alert.alert('Success', 'Joined Challenge', [
+              { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
+          ]);
+          } catch (err: any) {
+              Alert.alert('Error', err.message);
+          }
+  
+      }
+
 
   const formatDate = (date: Date) => {
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -400,8 +492,33 @@ const addGameToDay = async (game: { id: number; name: string }) => {
         <Text style={styles.emptyGamesText}>Select a day to see games</Text>
       )}
     </View>
+    
   )}
+
 </View>
+
+{fromSearch === true && (
+  <TouchableOpacity style={styles.createButton} onPress={handleJoinPublicChallenge}>
+    <LinearGradient
+      colors={['#FFD700', '#FFC107']}
+      style={styles.createButtonGradient}
+    >
+      <Text style={styles.createButtonText}>Join Challenge</Text>
+    </LinearGradient>
+  </TouchableOpacity>
+)}
+
+{isInitiator === true && (
+  <TouchableOpacity style={styles.createButton} onPress={handleFinalizePublicChallenge}>
+    <LinearGradient
+      colors={['#FFD700', '#FFC107']}
+      style={styles.createButtonGradient}
+    >
+      <Text style={styles.createButtonText}>Finalize Challenge</Text>
+    </LinearGradient>
+  </TouchableOpacity>
+)}
+
         </ScrollView>
       </View>
     </ImageBackground>
@@ -747,6 +864,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontWeight: "600",
+  },
+    createButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 10,
+  },
+  createButtonGradient: {
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createButtonText: {
+    color: '#333',
+    fontSize: 18,
+    fontWeight: '700',
   },
 })
 

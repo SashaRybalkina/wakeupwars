@@ -27,7 +27,7 @@ from django.contrib.auth import authenticate, get_user_model
 from .serializers import (UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer,
                           CatSerializer, GameSerializer, FriendSerializer, FriendRequestSerializer, CreateGroupSerializer, SkillLevelSerializer,
                           RewardSettingSerializer, ExternalHandleSerializer,ObligationSerializer, CashPaymentCreateSerializer,
-                          ExternalPaymentCreateSerializer, PaymentSerializer, PendingPublicChallengeSummarySerializer)
+                          ExternalPaymentCreateSerializer, PaymentSerializer, PendingPublicChallengeSummarySerializer, PublicChallengeSummarySerializer)
 from .models import (Group, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule,
                      AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship, GroupMembership, FriendRequest,
                      SkillLevel, PendingGroupChallengeAvailability, GroupChallengeInvite, WordleMove, PublicChallengeConfiguration,
@@ -403,6 +403,118 @@ class DeclineChallengeInviteView(APIView):
 
         except GroupChallengeInvite.DoesNotExist:
             return Response({"error": "Invite not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+
+
+class JoinPublicChallengeView(APIView):
+    def post(self, request, user_id):
+        try:
+            challenge_id = request.data.get("challenge_id")
+            user_avg_skill = Decimal(request.data.get("user_average_skill_level"))
+
+            if not challenge_id:
+                return Response({"error": "challenge_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # --- get challenge ---
+            try:
+                challenge = Challenge.objects.get(id=challenge_id)
+            except Challenge.DoesNotExist:
+                return Response({"error": "Challenge not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            user = User.objects.get(id=user_id)
+
+            # --- replicate challenge alarm schedule for this user ---
+            challenge_alarms = ChallengeAlarmSchedule.objects.filter(challenge=challenge)
+
+            for cas in challenge_alarms:
+                # create/find alarm schedule for this user with same day/time
+                alarm, created = AlarmSchedule.objects.get_or_create(
+                    uID=user,
+                    dayOfWeek=cas.alarm_schedule.dayOfWeek,
+                    alarmTime=cas.alarm_schedule.alarmTime,
+                )
+
+                # link user’s alarm to challenge
+                ChallengeAlarmSchedule.objects.get_or_create(
+                    challenge=challenge,
+                    alarm_schedule=alarm
+                )
+
+            # --- add membership ---
+            ChallengeMembership.objects.get_or_create(
+                challengeID=challenge,
+                uID=user
+            )
+
+            # --- update challenge average skill ---
+            cfg = PublicChallengeConfiguration.objects.get(challenge=challenge)
+            old_avg = cfg.averageSkillLevel
+            print(old_avg)
+            print("to")
+            new_avg = (old_avg + user_avg_skill) / 2
+            print(new_avg)
+            cfg.averageSkillLevel = new_avg
+            cfg.save()
+
+            return Response({
+                "message": "User joined challenge successfully",
+                "newAverageSkillLevel": float(new_avg)
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+class FinalizePublicChallengeView(APIView):
+    def post(self, request):
+        try:
+            challenge_id = request.data.get("challenge_id")
+
+            if not challenge_id:
+                return Response({"error": "challenge_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
+            challenge = Challenge.objects.get(id=challenge_id)
+
+            # Get the alarm schedules tied to this challenge
+            alarm_schedules = AlarmSchedule.objects.filter(
+                challengealarmschedule__challenge=challenge
+            ).order_by("dayOfWeek", "alarmTime")
+
+            if not alarm_schedules.exists():
+                return Response(
+                    {"error": "No alarm schedules found for challenge"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # dayOfWeek is 1–7 (Mon–Sun)
+            first_alarm = alarm_schedules.first()
+
+            today = timezone.now().date()
+            weekday_today = today.isoweekday()  # 1–7
+            offset_days = (first_alarm.dayOfWeek - weekday_today) % 7
+            start_date = today + timedelta(days=offset_days)
+
+            # End date = start_date + totalDays - 1
+            end_date = start_date + timedelta(days=challenge.totalDays - 1)
+
+            # Update challenge
+            challenge.isPending = False
+            challenge.startDate = start_date
+            challenge.endDate = end_date
+            challenge.save()
+
+            return Response(
+                {
+                    "message": "Challenge finalized",
+                    "startDate": str(start_date),
+                    "endDate": str(end_date),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
@@ -442,18 +554,10 @@ class GetPendingPublicChallengesView(APIView):
             isPending=True
         )
 
-        numeric_to_label = {1: "M", 2: "T", 3: "W", 4: "TH", 5: "F", 6: "S", 7: "SU"}
-
         response_data = []
         for challenge in challenges:
-            game_days = (
-                GameSchedule.objects.filter(challenge=challenge)
-                .values_list('dayOfWeek', flat=True)
-                .distinct()
-            )
-            day_labels = [numeric_to_label[d] for d in sorted(game_days)]
-
             serialized = PendingPublicChallengeSummarySerializer(challenge, context={'user': request.user}).data
+            serialized["initiator_id"] = challenge.initiator_id
             # serialized['daysOfWeek'] = day_labels
             # serialized['totalDays'] = (challenge.endDate - challenge.startDate).days + 1
 
@@ -461,6 +565,23 @@ class GetPendingPublicChallengesView(APIView):
 
         return Response(response_data)
     
+
+
+class GetPublicChallengesView(APIView):
+    def get(self, request, user_id):
+        challenges = Challenge.objects.filter(
+            id__in=ChallengeMembership.objects.filter(uID=user_id).values_list('challengeID', flat=True),
+            isPublic=True,
+            isPending=False
+        )
+
+        response_data = []
+        for challenge in challenges:
+            serialized = PublicChallengeSummarySerializer(challenge, context={'user': request.user}).data
+
+            response_data.append(serialized)
+
+        return Response(response_data)
 
 
 
@@ -501,7 +622,12 @@ class GetMatchingChallengesView(APIView):
         # ).distinct()
         q = q.filter(challenge__publicchallengecategoryassociation__category_id__in=category_ids).distinct()
 
-        print(q.count())
+        # Exclude challenges where the user is already a member
+        q = q.exclude(
+            challenge__challengemembership__uID_id=user_id
+        )
+
+        # HANNAH TODO: filter where enrolled cap hasn't been reached?
 
         # Prefetch the ChallengeAlarmSchedule objects along with their AlarmSchedule and user
         q = q.prefetch_related(
@@ -515,39 +641,39 @@ class GetMatchingChallengesView(APIView):
 
         candidates = list(q)
 
-        for c in candidates:
-            alarms = []
-            if hasattr(c.challenge, "prefetched_cas"):
-                alarms = [
-                    {
-                        "user": cas.alarm_schedule.uID.username,
-                        "day": cas.alarm_schedule.dayOfWeek,
-                        "time": cas.alarm_schedule.alarmTime.strftime("%H:%M"),
-                    }
-                    for cas in c.challenge.prefetched_cas
-                ]
+        # for c in candidates:
+        #     alarms = []
+        #     if hasattr(c.challenge, "prefetched_cas"):
+        #         alarms = [
+        #             {
+        #                 "user": cas.alarm_schedule.uID.username,
+        #                 "day": cas.alarm_schedule.dayOfWeek,
+        #                 "time": cas.alarm_schedule.alarmTime.strftime("%H:%M"),
+        #             }
+        #             for cas in c.challenge.prefetched_cas
+        #         ]
             
-            categories = GameCategory.objects.filter(
-                publicchallengecategoryassociation__challenge=c.challenge
-            )
+        #     categories = GameCategory.objects.filter(
+        #         publicchallengecategoryassociation__challenge=c.challenge
+        #     )
 
-            print({
-                "challenge_id": c.challenge.id,
-                "challenge_name": c.challenge.name,
-                "categories": [cat.categoryName for cat in categories],
-                "isMultiplayer": c.isMultiplayer,
-                "averageSkillLevel": str(c.averageSkillLevel),
-                "alarms": alarms,
-            })
+        #     print({
+        #         "challenge_id": c.challenge.id,
+        #         "challenge_name": c.challenge.name,
+        #         "categories": [cat.categoryName for cat in categories],
+        #         "isMultiplayer": c.isMultiplayer,
+        #         "averageSkillLevel": str(c.averageSkillLevel),
+        #         "alarms": alarms,
+        #     })
 
 
-        totals = SkillLevel.objects.filter(user_id=user_id, category_id__in=category_ids).aggregate(
-            total_earned=Sum('totalEarned'),
-            total_possible=Sum('totalPossible')
-        )
-        total_earned = Decimal(totals['total_earned'] or 0)
-        total_possible = Decimal(totals['total_possible'] or 0)
-        user_skill_value = (total_earned / total_possible * Decimal(10)) if total_possible else Decimal('0.0')
+        # totals = SkillLevel.objects.filter(user_id=user_id, category_id__in=category_ids).aggregate(
+        #     total_earned=Sum('totalEarned'),
+        #     total_possible=Sum('totalPossible')
+        # )
+        # total_earned = Decimal(totals['total_earned'] or 0)
+        # total_possible = Decimal(totals['total_possible'] or 0)
+        # user_skill_value = (total_earned / total_possible * Decimal(10)) if total_possible else Decimal('0.0')
 
 
         # Build results list
@@ -596,8 +722,20 @@ class GetMatchingChallengesView(APIView):
                     # skip this candidate
                     continue
 
+            cat_ids = list(
+                GameCategory.objects.filter(
+                    publicchallengecategoryassociation__challenge=challenge
+                ).values_list("id", flat=True)
+            )
 
-            # compute distance to challenge skill (absolute difference)
+            totals = SkillLevel.objects.filter(user_id=user_id, category_id__in=cat_ids).aggregate(
+            total_earned=Sum('totalEarned'),
+            total_possible=Sum('totalPossible')
+            )
+            total_earned = Decimal(totals['total_earned'] or 0)
+            total_possible = Decimal(totals['total_possible'] or 0)
+            user_skill_value = (total_earned / total_possible * Decimal(10)) if total_possible else Decimal('0.0')
+
             try:
                 challenge_skill = Decimal(cfg.averageSkillLevel)
             except Exception:
@@ -613,6 +751,7 @@ class GetMatchingChallengesView(APIView):
                 # "name": challenge.name,        
                 # "totalDays": challenge.totalDays,    # already included in serialized
                 "summary": serialized,
+                "userAverageSkillLevel": user_skill_value,
                 "distance": float(distance),  # convert Decimal -> float for JSON
                 # "averageSkillLevel": float(challenge_skill),
             })
@@ -638,20 +777,7 @@ class ChallengeListView(APIView):
                 isPublic=False,
                 isPending=False
             )
-        elif which_chall == 'Public': # only get current and past, not pending
-            challenges = Challenge.objects.filter(
-                id__in=ChallengeMembership.objects.filter(uID=user_id).values_list('challengeID', flat=True),
-                isPublic=True,
-                isPending=False
-            )
-        # elif which_chall == 'Personal&Public':
-        #     challenges = Challenge.objects.filter(
-        #         id__in=ChallengeMembership.objects.filter(uID=user_id)
-        #             .values_list('challengeID', flat=True)
-        #     ).filter(
-        #         Q(groupID=None, isPublic=False, isPending=False) |
-        #         Q(groupID=None, isPublic=True, isPending=True)
-        #     )
+
 
         numeric_to_label = {1: "M", 2: "T", 3: "W", 4: "TH", 5: "F", 6: "S", 7: "SU"}
 

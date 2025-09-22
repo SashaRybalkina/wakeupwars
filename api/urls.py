@@ -34,7 +34,7 @@ from .views import (
     FinalizeChallengeView, CreateSudokuGameView, ValidateSudokuMoveView, 
     CreateWordleGameView, ValidateWordleMoveView, get_csrf_token, SingOrMultGameListView,
     GetPendingPublicChallengesView, GetMatchingChallengesView, SetUserAvailabilityView,
-    GetUserAvailabilityView, SomeCatsListView,
+    GetUserAvailabilityView, SomeCatsListView, JoinPublicChallengeView, FinalizePublicChallengeView,
 )
 
 router = DefaultRouter()
@@ -66,7 +66,8 @@ urlpatterns = [
     path('messages/<int:user_id>/', UserMessagesView.as_view()),
     path('groups/<int:group_id>/', GroupDetailsView.as_view(), name='group-details'),
     path('group-member-add/<int:group_id>/', AddGroupMemberView.as_view(), name='group-mem-add'),
-
+    path('join-public-challenge/<int:user_id>/', JoinPublicChallengeView.as_view(), name='join-public-challenge'),
+    path('finalize-public-challenge/<int:user_id>/', FinalizePublicChallengeView.as_view(), name='finalize-public-challenge'),
     path('challenge-detail/<int:chall_id>/', ChallengeDetailView.as_view(), name='challenge-detail'),
     path('challenge-schedule/<int:chall_id>/', ChallengeGameScheduleView.as_view(), name='challenge-schedule'),
     path('get-challenge-schedule/<int:chall_id>/', GetChallengeScheduleView.as_view(), name='get-challenge-schedule'),
