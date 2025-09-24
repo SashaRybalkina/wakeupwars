@@ -48,6 +48,9 @@ const Conversation: React.FC<Props> = ({ route, navigation }) => {
     }
   
     fetchConversation();
+    const interval = setInterval(fetchConversation, 2000);
+
+    return () => clearInterval(interval);
   }, [user, route.params?.otherUserId]);  
 
   const sendMessage = async () => {
@@ -84,10 +87,14 @@ const Conversation: React.FC<Props> = ({ route, navigation }) => {
         keyExtractor={(_, index) => index.toString()}
         renderItem={({ item }) => (
           <View style={[styles.messageBubble, item.sender.id === user.id ? styles.myMessage : styles.theirMessage]}>
-            <Text style={styles.messageText}>{item.message}</Text>
+            <Text
+              style={item.sender.id === user.id ? styles.myMessageText : styles.messageText}
+            >
+              {item.message}
+            </Text>
           </View>
         )}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 80 }}
       />
 
       <View style={styles.inputContainer}>
@@ -117,6 +124,7 @@ const styles = StyleSheet.create({
   myMessage: { backgroundColor: "#FFD700", alignSelf: "flex-end" },
   theirMessage: { backgroundColor: "#333", alignSelf: "flex-start" },
   messageText: { color: "#fff", fontSize: 16 },
+  myMessageText: { color: "#000", fontSize: 16 },
   inputContainer: {
     flexDirection: "row",
     padding: 10,
