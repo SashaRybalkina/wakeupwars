@@ -5,6 +5,7 @@ import {
   createNavigationContainerRef,
   NavigationContainer,
 } from '@react-navigation/native';
+import type { ParamListBase } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as Notifications from 'expo-notifications';
 
@@ -60,13 +61,13 @@ import CreateChallengeForFriend from './pages/Challenges/CreateChallengeForFrien
 const { AlarmModule } = NativeModules;
 const { IntentModule } = NativeModules;
 
-const Stack = createStackNavigator();
-export const navigationRef = createNavigationContainerRef();
+const Stack = createStackNavigator<ParamListBase>();
+export const navigationRef = createNavigationContainerRef<ParamListBase>();
 let pendingNavigation: { screen: string; params?: any } | null = null;
 
 function navigate(screen: string, params?: any) {
   if (navigationRef.isReady()) {
-    navigationRef.navigate(screen as never, params as never);
+    navigationRef.navigate(screen, params);
   } else {
     pendingNavigation = { screen, params };
   }
@@ -75,8 +76,8 @@ function navigate(screen: string, params?: any) {
 function flushPendingNavigation() {
   if (pendingNavigation && navigationRef.isReady()) {
     navigationRef.navigate(
-      pendingNavigation.screen as never,
-      pendingNavigation.params as never,
+      pendingNavigation.screen,
+      pendingNavigation.params,
     );
     pendingNavigation = null;
   }
