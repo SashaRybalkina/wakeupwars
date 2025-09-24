@@ -90,9 +90,9 @@ function App() {
     let subscription: any;
     let notificationListener: any;
 
-    // 1) cold-start intent
-    IntentModule.getInitialIntent()
-      .then((data: any) => {
+    // 1) cold-start intent (guarded for safety if module missing)
+    IntentModule?.getInitialIntent?.()
+      ?.then((data: any) => {
         console.log('getInitialIntent =>', data);
         if (data?.screen) {
           if (!user) {
@@ -105,13 +105,14 @@ function App() {
           }
         }
       })
-      .catch((e: any) => {
+      ?.catch((e: any) => {
         console.warn('getInitialIntent error', e);
       });
 
     // 2) warm-start intents: subscribe to native event emitter
-    const emitter = new NativeEventEmitter(IntentModule);
-    subscription = emitter.addListener('NewIntent', (data: any) => {
+    const emitter = IntentModule ? new NativeEventEmitter(IntentModule) : null;
+    if (emitter) {
+      subscription = emitter.addListener('NewIntent', (data: any) => {
       console.log('NewIntent event =>', data);
       if (data?.screen) {
         if (!user) {
@@ -121,6 +122,7 @@ function App() {
         }
       }
     });
+    }
 
     // 3) notification tap handler (for foreground/background)
     notificationListener =
