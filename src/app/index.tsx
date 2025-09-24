@@ -8,8 +8,6 @@ import {
 import { createStackNavigator } from '@react-navigation/stack';
 import * as Notifications from 'expo-notifications';
 
-import 'expo-router/entry';
-
 import { useUser } from './context/UserContext';
 
 import Challenges from './pages/Challenges';
@@ -355,16 +353,6 @@ function App() {
         <Stack.Screen
           name="mainPage"
           component={InputOutput}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="EditChallengeSharingFriends"
-          component={EditChallengeSharingFriends}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="CreateChallengeForFriend"
-          component={CreateChallengeForFriend}
           options={{ headerShown: false }}
         />
         <Stack.Screen
