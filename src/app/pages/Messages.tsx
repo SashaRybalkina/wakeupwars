@@ -285,12 +285,13 @@ const Messages: React.FC<Props> = ({ navigation }) => {
               groupConversations.map((group: any, index: number) => {
                 const groupName = group.group_name || `Group ${group.group_id}`
                 const lastMessage = group.last_message
+                const isMine = lastMessage.sender.id === user?.id
                 let text = "No messages yet"
                 let timestamp = ""
                 let senderName = ""
                 if (lastMessage) {
                   senderName = lastMessage.sender?.name || lastMessage.sender?.username || "Someone"
-                  text = `${senderName}: ${lastMessage.message}`
+                  text = `${isMine ? "You" : senderName}: ${lastMessage.message}`
                   timestamp = lastMessage.timestamp
                 }
                 return (
