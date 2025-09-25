@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalChallenge, ExternalHandleViewSet, FinalizeChallengeView, FinalizePublicChallengeView, GetMatchingChallengesView, GetPendingPublicChallengesView, GetPersonalChallengeInvites, GetPublicChallengesView, GetUserAvailabilityView, GroupConversationView, JoinPublicChallengeView, LoginView, ObligationViewSet, PaymentViewSet, RegisterView, GroupListView, HelloWorldView, SendMessageGroupView, SendMessageView, SetChallAvailabilityView, SetUserAvailabilityView, ShareChallengeView, SingOrMultGameListView, SomeCatsListView, UserProfileView, GetChallengeScheduleView, AddGameToScheduleView,
+from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalChallenge, ExternalHandleViewSet, FinalizeChallengeView, FinalizePublicChallengeView, GetMatchingChallengesView, GetPendingPublicChallengesView, GetPersonalChallengeInvites, GetPublicChallengesView, GetUserAvailabilityView, GroupConversationView, JoinPublicChallengeView, LoginView, ObligationViewSet, PaymentViewSet, RegisterView, GroupListView, HelloWorldView, SendMessageGroupView, SendMessageView, SetChallAvailabilityView, SetUserAvailabilityView, ShareChallengeView, SingOrMultGameListView, SomeCatsListView, UserGroupConversationsView, UserProfileView, GetChallengeScheduleView, AddGameToScheduleView,
                     UserMessagesView, GroupDetailsView, CatListView, GameListView,
                     ChallengeListView, GetChallengeInitiatorView,
                     ChallengeDetailView, ChallengeGameScheduleView, CreateManualGroupChallengeView,
@@ -49,6 +49,7 @@ urlpatterns = [
     path('get-initiator/<int:chall_id>/', GetChallengeInitiatorView.as_view(), name='get-initiator'),
     path('messages/<int:user_id>/', UserMessagesView.as_view()),
     path('groups/<int:group_id>/', GroupDetailsView.as_view(), name='group-details'),
+    path('user/<int:user_id>/group-conversations/', UserGroupConversationsView.as_view(), name='user-group-conversations'),
     path('group-member-add/<int:group_id>/', AddGroupMemberView.as_view(), name='group-mem-add'),
     path('join-public-challenge/<int:user_id>/', JoinPublicChallengeView.as_view(), name='join-public-challenge'),
     path('finalize-public-challenge/', FinalizePublicChallengeView.as_view(), name='finalize-public-challenge'),

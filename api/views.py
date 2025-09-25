@@ -2551,3 +2551,18 @@ class GroupConversationView(APIView):
 
         serializer = MessageSerializer(messages, many=True)
         return Response(serializer.data)
+
+class UserGroupConversationsView(APIView):
+    def get(self, request, user_id):
+        memberships = GroupMembership.objects.filter(uID=user_id)
+        group_ids = memberships.values_list('groupID', flat=True)
+        groups = Group.objects.filter(id__in=group_ids)
+        data = []
+        for group in groups:
+            last_message = Message.objects.filter(groupID=group).order_by('-id').first()
+            data.append({
+                'group_id': group.id,
+                'group_name': group.name,
+                'last_message': MessageSerializer(last_message).data if last_message else None,
+            })
+        return Response(data)

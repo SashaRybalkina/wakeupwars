@@ -23,13 +23,12 @@ type Props = {
 }
 
 const { width } = Dimensions.get("window")
-const inputWidth = Math.min(width * 0.85, 400)
 
 const Messages: React.FC<Props> = ({ navigation }) => {
   const [selected, setSelected] = useState("Friends")
   const { user } = useUser()
   const [friendMessages, setFriendMessages] = useState<any[]>([])
-  const [groupMessages, setGroupMessages] = useState<any[]>([])
+  const [groupConversations, setGroupConversations] = useState<any[]>([])
   const [notifications, setNotifications] = useState<any[]>([])
   const [indicatorPosition] = useState(new Animated.Value(0))
   const [composeVisible, setComposeVisible] = useState(false)
@@ -42,12 +41,9 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     const fetchCsrf = async () => {
       try {
-        const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
-          credentials: "include", // ✅ include cookies if backend sets them
-        })
+        const res = await fetch(`${BASE_URL}/api/csrf-token/`, { credentials: "include" })
         const data = await res.json()
         setCsrfToken(data.csrfToken)
-        console.log("Fetched CSRF token:", data.csrfToken)
       } catch (err) {
         console.error("Failed to fetch CSRF token:", err)
       }
@@ -58,40 +54,31 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     const fetchMessages = async () => {
       if (!user?.id) return
-
       try {
         const response = await fetch(endpoints.messages(Number(user.id)))
         const data = await response.json()
-
         const friends = data.filter((msg: any) => msg.recipient !== null)
-        const groups = data.filter((msg: any) => msg.groupID !== null)
-
         setFriendMessages(friends)
-        setGroupMessages(groups)
       } catch (error) {
         console.error("Failed to fetch messages:", error)
       }
     }
-
     fetchMessages()
   }, [user])
 
-  // useEffect(() => {
-  //   const fetchNotifications = async () => {
-  //     if (!user?.id) return
-
-  //     try {
-  //       const response = await fetch(endpoints.notifications(Number(user.id)))
-  //       const data = await response.json()
-
-  //       setNotifications(data)
-  //     } catch (error) {
-  //       console.error("Failed to fetch notifications:", error)
-  //     }
-  //   }
-
-  //   fetchNotifications()
-  // }, [user])
+  useEffect(() => {
+    const fetchGroupConversations = async () => {
+      if (!user?.id) return
+      try {
+        const response = await fetch(`${BASE_URL}/api/user/${user.id}/group-conversations/`)
+        const data = await response.json()
+        setGroupConversations(data)
+      } catch (error) {
+        console.error("Failed to fetch group conversations:", error)
+      }
+    }
+    fetchGroupConversations()
+  }, [user])
 
   useEffect(() => {
     Animated.spring(indicatorPosition, {
@@ -104,15 +91,10 @@ const Messages: React.FC<Props> = ({ navigation }) => {
 
   const getConversations = (messages: any[]) => {
     const conversations: Record<string, any> = {}
-
     messages.forEach((msg) => {
-      const otherUser =
-        msg.sender.id === user?.id ? msg.recipient : msg.sender
-
+      const otherUser = msg.sender.id === user?.id ? msg.recipient : msg.sender
       if (!otherUser) return
-
       const conversationId = otherUser.id
-
       if (
         !conversations[conversationId] ||
         new Date(msg.timestamp) > new Date(conversations[conversationId].timestamp)
@@ -123,32 +105,6 @@ const Messages: React.FC<Props> = ({ navigation }) => {
         }
       }
     })
-
-    return Object.values(conversations).sort(
-      (a: any, b: any) =>
-        new Date(b.lastMessage.timestamp).getTime() -
-        new Date(a.lastMessage.timestamp).getTime()
-    )
-  }
-
-  const getGroupConversations = (messages: any[]) => {
-    const conversations: Record<string, any> = {}
-  
-    messages.forEach((msg) => {
-      if (!msg.groupID) return
-      const groupId = msg.groupID
-  
-      if (
-        !conversations[groupId] ||
-        new Date(msg.timestamp) > new Date(conversations[groupId].lastMessage.timestamp)
-      ) {
-        conversations[groupId] = {
-          groupId,
-          lastMessage: msg,
-        }
-      }
-    })
-  
     return Object.values(conversations).sort(
       (a: any, b: any) =>
         new Date(b.lastMessage.timestamp).getTime() -
@@ -157,18 +113,15 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   }
 
   const openConversation = (message: any) => {
-    const otherUserId = message.sender.id === user?.id ? message.recipient.id : message.sender.id;
-    navigation.navigate("Conversation", { otherUserId });
+    const otherUserId = message.sender.id === user?.id ? message.recipient.id : message.sender.id
+    navigation.navigate("Conversation", { otherUserId })
   }
-  
+
   const openGroupConversation = (groupId: number, groupName: string) => {
-    navigation.navigate("Conversation", { groupId, recipientName: groupName });
-  }   
-
-  const goToMessages = () => {
-    navigation.navigate("Messages")
+    navigation.navigate("Conversation", { groupId, recipientName: groupName })
   }
 
+  const goToMessages = () => navigation.navigate("Messages")
   const goToGroups = () => navigation.navigate("Groups")
   const goToChallenges = () => navigation.navigate("Challenges")
   const goToProfile = () => navigation.navigate("Profile")
@@ -178,32 +131,18 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     outputRange: [0, width * 0.425, width * 0.85],
   })
 
-  const getTimeAgo = (timestamp: string) => {
-    return "2m ago"
-  }
+  const getTimeAgo = (timestamp: string) => "2m ago"
 
   const sendMessage = async () => {
     if (!user?.id || !composeText) return
     setSending(true)
-  
     try {
       if (composeRecipientId) {
-        // ✅ Send direct message
         const response = await axios.post(
           `${BASE_URL}/api/messages/send/${composeRecipientId}/`,
-          {
-            recipient_id: composeRecipientId,
-            message: composeText,
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken,
-            },
-            withCredentials: true,
-          }
+          { recipient_id: composeRecipientId, message: composeText },
+          { headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }, withCredentials: true }
         )
-  
         const newMessage = response.data
         setFriendMessages(prev => [...prev, {
           ...newMessage,
@@ -213,27 +152,11 @@ const Messages: React.FC<Props> = ({ navigation }) => {
       } else if (composeGroupId) {
         const response = await axios.post(
           `${BASE_URL}/api/messages/send/group/${composeGroupId}/`,
-          {
-            group_id: composeGroupId,
-            message: composeText,
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken,
-            },
-            withCredentials: true,
-          }
-        )        
-  
-        const newMessage = response.data
-        setGroupMessages(prev => [...prev, {
-          ...newMessage,
-          sender: { id: user.id, username: user.username, name: user.name },
-          groupID: composeGroupId,
-        }])
+          { group_id: composeGroupId, message: composeText },
+          { headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }, withCredentials: true }
+        )
+        // Optionally, you may want to refresh groupConversations here
       }
-  
       setComposeText("")
       setComposeRecipientId("")
       setComposeGroupId("")
@@ -243,7 +166,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     } finally {
       setSending(false)
     }
-  }  
+  }
 
   const MessageItem: React.FC<{ name: string; text: string; index: number; timestamp?: string; onPress?: () => void }> = ({
     name,
@@ -272,7 +195,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
         </Text>
       </View>
     </TouchableOpacity>
-  )  
+  )
 
   const NotificationItem: React.FC<{ notification: any; index: number }> = ({ notification, index }) => (
     <TouchableOpacity style={[styles.messageCard, { marginTop: index === 0 ? 0 : 12 }]} activeOpacity={0.7}>
@@ -343,7 +266,6 @@ const Messages: React.FC<Props> = ({ navigation }) => {
               getConversations(friendMessages).map((conv: any, index: number) => {
                 const { otherUser, lastMessage } = conv
                 const isMine = lastMessage.sender.id === user?.id
-
                 return (
                   <MessageItem
                     key={otherUser.id}
@@ -359,21 +281,26 @@ const Messages: React.FC<Props> = ({ navigation }) => {
               <EmptyState />
             )
           ) : selected === "Groups" ? (
-            groupMessages.length > 0 ? (
-              getGroupConversations(groupMessages).map((conv: any, index: number) => {
-                const { lastMessage, groupId } = conv
-                const isMine = lastMessage.sender.id === user?.id
-                const senderName = isMine ? "You" : lastMessage.sender.name || lastMessage.sender.username
-                const groupName = lastMessage.group?.name || `Group ${groupId}`;
-          
+            groupConversations.length > 0 ? (
+              groupConversations.map((group: any, index: number) => {
+                const groupName = group.group_name || `Group ${group.group_id}`
+                const lastMessage = group.last_message
+                let text = "No messages yet"
+                let timestamp = ""
+                let senderName = ""
+                if (lastMessage) {
+                  senderName = lastMessage.sender?.name || lastMessage.sender?.username || "Someone"
+                  text = `${senderName}: ${lastMessage.message}`
+                  timestamp = lastMessage.timestamp
+                }
                 return (
                   <MessageItem
-                    key={groupId}
+                    key={group.group_id}
                     name={groupName}
-                    text={`${senderName}: ${lastMessage.message}`}
+                    text={text}
                     index={index}
-                    timestamp={lastMessage.timestamp}
-                    onPress={() => openGroupConversation(groupId, groupName)}
+                    timestamp={timestamp}
+                    onPress={() => openGroupConversation(group.group_id, groupName)}
                   />
                 )
               })
@@ -407,19 +334,14 @@ const Messages: React.FC<Props> = ({ navigation }) => {
           <View style={{ position: "absolute", top: 100, left: 20, right: 20, backgroundColor: "#222", borderRadius: 16, padding: 20, zIndex: 10 }}>
             <Text style={{ color: "#FFD700", fontSize: 18, fontWeight: "700", marginBottom: 10 }}>New Message</Text>
             <TextInput
+              style={{ backgroundColor: "#fff", borderRadius: 8, padding: 10, marginBottom: 10, color: "#333" }}
               placeholder="Recipient ID (leave blank if sending to a group)"
               value={composeRecipientId}
               onChangeText={setComposeRecipientId}
-            />
-            <TextInput 
-              style={{ backgroundColor: "#fff", borderRadius: 8, padding: 10, marginBottom: 10, color: "#333" }} 
-              placeholder="Recipient ID (leave blank if sending to a group)" 
-              value={composeRecipientId} 
-              onChangeText={setComposeRecipientId} 
-              keyboardType="numeric" 
+              keyboardType="numeric"
             />
             <TextInput
-              style={{ backgroundColor: "#fff", borderRadius: 8, padding: 10, marginBottom: 10, color: "#333" }} 
+              style={{ backgroundColor: "#fff", borderRadius: 8, padding: 10, marginBottom: 10, color: "#333" }}
               placeholder="Group ID (leave blank if sending to a friend)"
               value={composeGroupId}
               onChangeText={setComposeGroupId}
@@ -449,17 +371,14 @@ const Messages: React.FC<Props> = ({ navigation }) => {
           <Ionicons name="star-outline" size={28} color="#FFF" />
           <Text style={styles.navText}>Challenges</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.navButton} onPress={goToGroups}>
           <Ionicons name="people-outline" size={28} color="#FFF" />
           <Text style={styles.navText}>Groups</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.navButton} onPress={goToMessages}>
           <Ionicons name="mail" size={28} color="#FFD700" />
           <Text style={styles.activeNavText}>Messages</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.navButton} onPress={goToProfile}>
           <Ionicons name="person-outline" size={28} color="#FFF" />
           <Text style={styles.navText}>Profile</Text>
