@@ -101,14 +101,19 @@ const Conversation: React.FC<Props> = ({ route, navigation }) => {
         data={messages}
         keyExtractor={(_, index) => index.toString()}
         renderItem={({ item }) => (
-          <View style={[styles.messageBubble, item.sender.id === user.id ? styles.myMessage : styles.theirMessage]}>
-            <Text
-              style={item.sender.id === user.id ? styles.myMessageText : styles.messageText}
-            >
-              {item.message}
-            </Text>
-          </View>
-        )}
+            <View style={[styles.messageBubble, item.sender.id === user.id ? styles.myMessage : styles.theirMessage]}>
+              {groupId && item.sender.id !== user.id && (
+                <Text style={{ color: "#FFD700", fontWeight: "bold", marginBottom: 2 }}>
+                  {item.sender?.name || item.sender?.username || "Unknown"}
+                </Text>
+              )}
+              <Text
+                style={item.sender.id === user.id ? styles.myMessageText : styles.messageText}
+              >
+                {item.message}
+              </Text>
+            </View>
+          )}          
         contentContainerStyle={{ padding: 16, paddingTop: 80 }}
       />
 
