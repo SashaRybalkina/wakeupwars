@@ -12,7 +12,7 @@ type Props = {
 
 const Conversation: React.FC<Props> = ({ route, navigation }) => {
   const { user } = useUser()
-  const { recipientId, recipientName } = route.params
+  const { recipientId, recipientName, otherUserId, groupId } = route.params
   const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState("")
   const [sending, setSending] = useState(false)
@@ -36,10 +36,19 @@ const Conversation: React.FC<Props> = ({ route, navigation }) => {
 
   useEffect(() => {
     const fetchConversation = async () => {
-      if (!user?.id || !route.params?.otherUserId) return;
+      if (!user?.id) return;
   
       try {
-        const response = await fetch(`${BASE_URL}/api/conversation/${user.id}/${route.params.otherUserId}/`);
+        let url = "";
+        if (groupId) {
+          // Fetch group conversation
+          url = `${BASE_URL}/api/conversation/group/${groupId}/`;
+        } else if (otherUserId) {
+          // Fetch direct conversation
+          url = `${BASE_URL}/api/conversation/${user.id}/${otherUserId}/`;
+        } else return;
+  
+        const response = await fetch(url);
         const data = await response.json();
         setMessages(data);
       } catch (error) {
@@ -49,36 +58,42 @@ const Conversation: React.FC<Props> = ({ route, navigation }) => {
   
     fetchConversation();
     const interval = setInterval(fetchConversation, 2000);
-
     return () => clearInterval(interval);
-  }, [user, route.params?.otherUserId]);  
+  }, [user, otherUserId, groupId]);   
 
   const sendMessage = async () => {
-    if (!newMessage.trim()) return
-    setSending(true)
+    if (!newMessage.trim()) return;
+    setSending(true);
+  
     try {
+      if (groupId) {
         await axios.post(
-            `${BASE_URL}/api/messages/send/${route.params?.otherUserId}/`,
-            {
-              recipient_id: recipientId,
-              message: newMessage,
-            },
-            {
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken,
-              },
-              withCredentials: true,
-            }
-          )          
-      setMessages([...messages, { sender: user, recipient: recipientId, message: newMessage, timestamp: new Date().toISOString() }])
-      setNewMessage("")
+          `${BASE_URL}/api/messages/send/group/${groupId}/`,
+          { group_id: groupId, message: newMessage },
+          {
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            withCredentials: true,
+          }
+        );
+        setMessages(prev => [...prev, { sender: user, groupId, message: newMessage, timestamp: new Date().toISOString() }]);
+      } else if (otherUserId) {
+        await axios.post(
+          `${BASE_URL}/api/messages/send/${otherUserId}/`,
+          { recipient_id: recipientId, message: newMessage },
+          {
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            withCredentials: true,
+          }
+        );
+        setMessages(prev => [...prev, { sender: user, recipient: recipientId, message: newMessage, timestamp: new Date().toISOString() }]);
+      }
+      setNewMessage("");
     } catch (error) {
-      console.error("Failed to send message:", error)
+      console.error("Failed to send message:", error);
     } finally {
-      setSending(false)
+      setSending(false);
     }
-  }
+  }  
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>

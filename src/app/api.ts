@@ -18,7 +18,7 @@ export const endpoints = {
   messages: (userId: number) => `${BASE_URL}/api/messages/${userId}/`,
   conversation: (userId: number, recipientId: number) => `${BASE_URL}/api/conversation/${userId}/${recipientId}/`,
   sendGroupMessage: (groupId: number) => `${BASE_URL}/api/messages/send/group/${groupId}/`,
-  groupConversation: (userId: number, groupId: number) => `${BASE_URL}/api/conversation/group/${userId}/${groupId}/`,
+  groupConversation: (userId: number, groupId: number) => `${BASE_URL}/api/conversation/group/${groupId}/`,
   profile: (userId: number) => `${BASE_URL}/api/profile/${userId}/`,
   getInitiator: (challId: number) =>
     `${BASE_URL}/api/get-initiator/${challId}/`,

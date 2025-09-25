@@ -75,7 +75,7 @@ urlpatterns = [
     path('messages/send/<int:user_id>/', SendMessageView.as_view(), name='send-message'),
     path('messages/send/group/<int:group_id>/', SendMessageGroupView.as_view()),
     path('conversation/<int:user_id>/<int:recipient_id>/', ConversationView.as_view(), name='conversation'),
-    path('conversation/group/<int:user_id>/<int:group_id>/', GroupConversationView.as_view(), name='conversation-group'),
+    path('conversation/group/<int:group_id>/', GroupConversationView.as_view(), name='conversation-group'),
     path('profile/all/', AllUsersView.as_view(), name='all-users'),
     path('friend-request/delete/<int:request_id>/', CancelFriendRequestView.as_view(), name='cancel-friend-request'),
     path('create-group/', CreateGroupView.as_view(), name='create-group'),

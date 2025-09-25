@@ -159,7 +159,11 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   const openConversation = (message: any) => {
     const otherUserId = message.sender.id === user?.id ? message.recipient.id : message.sender.id;
     navigation.navigate("Conversation", { otherUserId });
-  }  
+  }
+  
+  const openGroupConversation = (groupId: number, groupName: string) => {
+    navigation.navigate("Conversation", { groupId, recipientName: groupName });
+  }   
 
   const goToMessages = () => {
     navigation.navigate("Messages")
@@ -369,6 +373,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
                     text={`${senderName}: ${lastMessage.message}`}
                     index={index}
                     timestamp={lastMessage.timestamp}
+                    onPress={() => openGroupConversation(groupId, groupName)}
                   />
                 )
               })
