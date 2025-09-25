@@ -1,7 +1,7 @@
 from datetime import timezone, datetime, date, timedelta
 from datetime import date as date_cls, timedelta
 import random
-from django.db.models import Sum, F, Prefetch
+from django.db.models import Sum, Count, Q, F, Prefetch
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.views import View
@@ -607,29 +607,28 @@ class GetMatchingChallengesView(APIView):
 
         # --- query candidate public pending challenges that match category & isMultiplayer ---
         is_multiplayer_flag = True if sing_or_mult == "Multiplayer" else False
-        print(is_multiplayer_flag)
 
         q = PublicChallengeConfiguration.objects.filter(
             isMultiplayer=is_multiplayer_flag,
             challenge__isPublic=True,
             challenge__isPending=True
-        ).select_related("challenge")
-        print(q.count())
-
-        # Only include challenges where every category association is in category_ids
-        # q = q.filter(
-        #     publicchallengecategoryassociation__category_id__in=category_ids
-        # ).distinct()
-        q = q.filter(challenge__publicchallengecategoryassociation__category_id__in=category_ids).distinct()
+        ).select_related("challenge").annotate(
+            num_total_categories=Count('challenge__publicchallengecategoryassociation', distinct=True),
+            num_matching_categories=Count(
+                'challenge__publicchallengecategoryassociation',
+                filter=Q(challenge__publicchallengecategoryassociation__category_id__in=category_ids),
+                distinct=True
+            )
+        ).filter(
+            num_total_categories=F('num_matching_categories')  # only include if all categories match
+        )
 
         # Exclude challenges where the user is already a member
         q = q.exclude(
             challenge__challengemembership__uID_id=user_id
         )
 
-        # HANNAH TODO: filter where enrolled cap hasn't been reached?
-
-        # Prefetch the ChallengeAlarmSchedule objects along with their AlarmSchedule and user
+        # Prefetch ChallengeAlarmSchedule with related AlarmSchedule and user
         q = q.prefetch_related(
             Prefetch(
                 "challenge__challengealarmschedule_set",
@@ -675,6 +674,24 @@ class GetMatchingChallengesView(APIView):
         # total_possible = Decimal(totals['total_possible'] or 0)
         # user_skill_value = (total_earned / total_possible * Decimal(10)) if total_possible else Decimal('0.0')
 
+        def time_in_user_window(challenge_time, user_times):
+            """
+            challenge_time: datetime.time
+            user_times: set of strings "HH:MM" representing the starts of 15-min slots
+            """
+            for ut in user_times:
+                base = datetime.strptime(ut, "%H:%M").time()
+                # convert to datetime for math
+                base_dt = datetime.strptime(ut, "%H:%M")
+                challenge_dt = datetime.strptime(challenge_time, "%H:%M")
+
+                # user available from base_dt to base_dt + 15min
+                end_dt = base_dt + timedelta(minutes=15)
+
+                if base_dt <= challenge_dt < end_dt:
+                    return True
+            return False
+
 
         # Build results list
         results = []
@@ -699,28 +716,37 @@ class GetMatchingChallengesView(APIView):
                 time_str = alarm.alarmTime.strftime("%H:%M")
                 challenge_alarms_by_day.setdefault(day, set()).add(time_str)
 
-            # If multiplayer, we require that for every day in challenge_alarms_by_day the user has at least one time matching
+
+            # require that for every day in challenge_alarms_by_day the user has at least one time matching
             matched_days = []
             required_days = sorted(challenge_alarms_by_day.keys())
 
-            if is_multiplayer_flag:
-                # For each required day, check intersection with user_avail_by_day[day]
-                all_days_match = True
-                for day in required_days:
-                    challenge_times = challenge_alarms_by_day.get(day, set())
-                    user_times = user_avail_by_day.get(day, set())
-                    if not user_times:
-                        all_days_match = False
-                        break
-                    if challenge_times.intersection(user_times):
-                        matched_days.append(day)
-                    else:
-                        all_days_match = False
-                        break
+            # if is_multiplayer_flag:
 
-                if not all_days_match:
-                    # skip this candidate
-                    continue
+            # For each required day, check intersection with user_avail_by_day[day]
+            all_days_match = True
+            for day in required_days:
+                challenge_times = challenge_alarms_by_day.get(day, set())
+                user_times = user_avail_by_day.get(day, set())
+
+                if not user_times:
+                    all_days_match = False
+                    break
+
+                # Instead of strict set intersection:
+                has_overlap = any(
+                    time_in_user_window(ct, user_times) for ct in challenge_times
+                )
+
+                if has_overlap:
+                    matched_days.append(day)
+                else:
+                    all_days_match = False
+                    break
+
+            if not all_days_match:
+                # skip this candidate
+                continue
 
             cat_ids = list(
                 GameCategory.objects.filter(
