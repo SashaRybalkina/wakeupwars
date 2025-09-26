@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import axios from "axios"
-import { BASE_URL, endpoints } from "../api"
+import { BASE_URL } from "../api"
 import { useUser } from "../context/UserContext"
 
 type Props = {
@@ -17,16 +16,16 @@ const Conversation: React.FC<Props> = ({ route, navigation }) => {
   const [newMessage, setNewMessage] = useState("")
   const [sending, setSending] = useState(false)
   const [csrfToken, setCsrfToken] = useState<string>("")
+  const ws = useRef<WebSocket | null>(null)
 
   useEffect(() => {
     const fetchCsrf = async () => {
       try {
         const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
-          credentials: "include", // ✅ include cookies if backend sets them
+          credentials: "include",
         })
         const data = await res.json()
         setCsrfToken(data.csrfToken)
-        console.log("Fetched CSRF token:", data.csrfToken)
       } catch (err) {
         console.error("Failed to fetch CSRF token:", err)
       }
@@ -35,85 +34,94 @@ const Conversation: React.FC<Props> = ({ route, navigation }) => {
   }, [])
 
   useEffect(() => {
+    if (!user?.id) return
+    let url = ""
+    if (groupId) {
+      url = `${BASE_URL.replace(/^http/, "ws")}/ws/chat/group/${groupId}/`
+    } else if (otherUserId) {
+      // Use both user IDs for private chat room
+      const ids = [user.id, otherUserId].sort((a, b) => a - b)
+      url = `${BASE_URL.replace(/^http/, "ws")}/ws/chat/${ids[0]}/${ids[1]}/`
+    } else {
+      return
+    }
+    ws.current = new WebSocket(url)
+    ws.current.onopen = () => {}
+    ws.current.onmessage = (event: any) => {
+      const data = JSON.parse(event.data)
+      setMessages((prev: any[]) => [...prev, data])
+    }
+    ws.current.onerror = (err: any) => {
+      console.error("WebSocket error:", err)
+    }
+    ws.current.onclose = () => {}
+    return () => {
+      ws.current?.close()
+    }
+  }, [user, otherUserId, groupId])
+
+  useEffect(() => {
     const fetchConversation = async () => {
-      if (!user?.id) return;
-  
+      if (!user?.id) return
       try {
-        let url = "";
+        let url = ""
         if (groupId) {
-          // Fetch group conversation
-          url = `${BASE_URL}/api/conversation/group/${groupId}/`;
+          url = `${BASE_URL}/api/conversation/group/${groupId}/`
         } else if (otherUserId) {
-          // Fetch direct conversation
-          url = `${BASE_URL}/api/conversation/${user.id}/${otherUserId}/`;
-        } else return;
-  
-        const response = await fetch(url);
-        const data = await response.json();
-        setMessages(data);
+          url = `${BASE_URL}/api/conversation/${user.id}/${otherUserId}/`
+        } else return
+        const response = await fetch(url)
+        const data = await response.json()
+        setMessages(data)
       } catch (error) {
-        console.error("Failed to fetch conversation:", error);
+        console.error("Failed to fetch conversation:", error)
       }
     }
-  
-    fetchConversation();
-    const interval = setInterval(fetchConversation, 2000);
-    return () => clearInterval(interval);
-  }, [user, otherUserId, groupId]);   
+    fetchConversation()
+  }, [user, otherUserId, groupId])
 
   const sendMessage = async () => {
-    if (!newMessage.trim()) return;
-    setSending(true);
-  
+    if (!newMessage.trim() || !user?.id) return
+    setSending(true)
     try {
-      if (groupId) {
-        await axios.post(
-          `${BASE_URL}/api/messages/send/group/${groupId}/`,
-          { group_id: groupId, message: newMessage },
-          {
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            withCredentials: true,
-          }
-        );
-        setMessages(prev => [...prev, { sender: user, groupId, message: newMessage, timestamp: new Date().toISOString() }]);
-      } else if (otherUserId) {
-        await axios.post(
-          `${BASE_URL}/api/messages/send/${otherUserId}/`,
-          { recipient_id: recipientId, message: newMessage },
-          {
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            withCredentials: true,
-          }
-        );
-        setMessages(prev => [...prev, { sender: user, recipient: recipientId, message: newMessage, timestamp: new Date().toISOString() }]);
+      const msgObj: any = {
+        message: newMessage,
+        sender_id: user.id,
+        timestamp: new Date().toISOString(),
       }
-      setNewMessage("");
+      if (groupId) {
+        msgObj.group_id = groupId
+      } else if (otherUserId) {
+        msgObj.recipient_id = otherUserId
+      }
+      ws.current?.send(JSON.stringify(msgObj))
+      setNewMessage("")
     } catch (error) {
-      console.error("Failed to send message:", error);
+      console.error("Failed to send message:", error)
     } finally {
-      setSending(false);
+      setSending(false)
     }
-  }  
+  }
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <FlatList
         data={messages}
-        keyExtractor={(_, index) => index.toString()}
-        renderItem={({ item }) => (
-            <View style={[styles.messageBubble, item.sender.id === user.id ? styles.myMessage : styles.theirMessage]}>
-              {groupId && item.sender.id !== user.id && (
+        keyExtractor={(_: any, index: number) => index.toString()}
+        renderItem={({ item }: { item: any }) => (
+            <View style={[styles.messageBubble, item.sender_id === user.id || (item.sender && item.sender.id === user.id) ? styles.myMessage : styles.theirMessage]}>
+              {groupId && (item.sender?.name || item.sender?.username) && item.sender?.id !== user.id && (
                 <Text style={{ color: "#FFD700", fontWeight: "bold", marginBottom: 2 }}>
                   {item.sender?.name || item.sender?.username || "Unknown"}
                 </Text>
               )}
               <Text
-                style={item.sender.id === user.id ? styles.myMessageText : styles.messageText}
+                style={item.sender_id === user.id || (item.sender && item.sender.id === user.id) ? styles.myMessageText : styles.messageText}
               >
                 {item.message}
               </Text>
             </View>
-          )}          
+          )}
         contentContainerStyle={{ padding: 16, paddingTop: 80 }}
       />
 
