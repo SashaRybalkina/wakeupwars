@@ -11,7 +11,7 @@ type Props = {
   navigation: NavigationProp<any>;
 };
 
-const mainPage: React.FC<Props> = ({ navigation }) => {
+const MainPage: React.FC<Props> = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.buttons}>
@@ -58,4 +58,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default mainPage;
+export default MainPage;

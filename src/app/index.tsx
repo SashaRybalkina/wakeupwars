@@ -40,6 +40,7 @@ import GroupChallCollab from './pages/Groups/GroupChallCollab';
 import GroupDetails from './pages/Groups/GroupDetails';
 import LoginScreen from './pages/Login';
 import InputOutput from './pages/mainPage';
+import MainPage from './pages/mainPage';
 import Messages from './pages/Messages';
 import PatternGameScreen from './pages/PatternGame/PatternGameScreen';
 import Profile from './pages/Profile';
@@ -354,8 +355,8 @@ function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="mainPage"
-          component={InputOutput}
+          name="MainPage"
+          component={MainPage}
           options={{ headerShown: false }}
         />
         <Stack.Screen
