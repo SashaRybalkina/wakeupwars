@@ -14,6 +14,7 @@ import DateTimePicker from "@react-native-community/datetimepicker"
 import { NavigationProp, useRoute } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import { BASE_URL, endpoints } from "../../api"
+import { scheduleAlarmsForChallenge } from "../../alarmService"
 import { Platform } from "react-native"
 import { useUser } from "../../context/UserContext"
 import { Picker } from "@react-native-picker/picker"
@@ -335,6 +336,14 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
   
       const data = await res.json();
       console.log('Challenge created:', data);
+    // Automatically schedule native alarms for this newly created challenge
+    try {
+      if (data?.id) {
+        await scheduleAlarmsForChallenge(data.id, name);
+      }
+    } catch (e) {
+      console.warn('Failed to schedule alarms for new challenge', e);
+    }
       Alert.alert('Success', 'Challenge created successfully', [
         { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
       ]);
