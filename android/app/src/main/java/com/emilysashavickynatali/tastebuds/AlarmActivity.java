@@ -33,6 +33,7 @@ public class AlarmActivity extends Activity {
         Button dismissButton = findViewById(R.id.dismissButton);
         dismissButton.setOnClickListener(v -> {
             mediaPlayer.stop();
+            stopService(new Intent(this, AlarmSoundService.class));
         
             Intent i = new Intent(AlarmActivity.this, MainActivity.class);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);

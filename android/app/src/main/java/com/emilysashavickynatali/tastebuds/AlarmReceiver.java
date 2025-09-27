@@ -19,7 +19,6 @@ import androidx.core.app.NotificationCompat;
 public class AlarmReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
-        
         String screen = intent.getStringExtra("screen");
         Bundle params = intent.getBundleExtra("params");
 
@@ -34,5 +33,7 @@ public class AlarmReceiver extends BroadcastReceiver {
         }
 
         context.startActivity(i);
+
+        context.startService(new Intent(context, AlarmSoundService.class));
     }
 }
