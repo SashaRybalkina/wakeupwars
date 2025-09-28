@@ -1837,11 +1837,11 @@ class ValidateSudokuMoveView(APIView):
 class ValidateWordleMoveView(APIView):
     def post(self, request):
         game_id = request.data.get('game_state_id')
-        index = request.data.get('index')   # attempt row
-        value = request.data.get('value')   # guessed word
+        row = request.data.get('row')   # attempt row
+        guess = request.data.get('guess')   # guessed word
         user = request.user
 
-        if game_id is None or index is None or value is None:
+        if game_id is None or row is None or guess is None:
             return Response({'error': 'Missing parameters'}, status=400)
 
         try:
@@ -1859,16 +1859,13 @@ class ValidateWordleMoveView(APIView):
         move, created = WordleMove.objects.update_or_create(
             gameState=game_state,
             player=user,
-            row=index,
-            defaults={"guess": value}
+            row=row,
+            defaults={"guess": guess}
         )
 
-        return Response({
-            'success': True,
-            'message': 'Move recorded',
-            'row': index,
-            'guess': value,
-        }, status=200)
+        result = validate_wordle_move(game_id, user, guess, row)
+
+        return Response(result, status=200)
 
 
 # AI was used to help generate this class

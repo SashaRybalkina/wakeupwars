@@ -186,10 +186,16 @@ const Profile: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity
           style={styles.logoutButton}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('Wordle')}
+          onPress={() =>
+            navigation.navigate('Wordle', {
+              challengeId: 189, 
+              challName: 'Test Challenge',
+              whichChall: 'wordle',
+            })
+          }
         >
           <Ionicons
-            name="log-out-outline"
+            name="game-controller"
             size={22}
             color="#FFF"
             style={styles.logoutIcon}
