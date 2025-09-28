@@ -59,7 +59,8 @@
     "sudoku-gen": "^1.0.2",
     "tamagui": "1.98.3",
     "uuid": "^11.1.0",
-    "@stripe/stripe-react-native": "0.38.6"
+    "@stripe/stripe-react-native": "0.38.6",
+    "expo-secure-store": "~14.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

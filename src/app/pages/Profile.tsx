@@ -1,6 +1,9 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import * as SecureStore from "expo-secure-store";
+import { getAccessToken } from "../auth";
 import {
+  Alert,
   ImageBackground,
   ScrollView,
   StyleSheet,
@@ -35,21 +38,46 @@ const Profile: React.FC<Props> = ({ navigation }) => {
   const [profileData, setProfileData] = useState<any>(null);
   const { user, setUser, setSkillLevels } = useUser();
 
-  const handleLogout = () => {
+  // const handleLogout = () => {
+  //   setUser(null);
+
+  //   navigation.reset({
+  //     index: 0,
+  //     routes: [{ name: 'Login' }],
+  //   });
+  // };
+
+
+const handleLogout = async () => {
+  try {
+    // 1. Clear tokens from SecureStore
+    await SecureStore.deleteItemAsync("access");
+    await SecureStore.deleteItemAsync("refresh");
+
+    // 2. Clear user context
     setUser(null);
 
+    // 3. Reset navigation to login screen
     navigation.reset({
       index: 0,
-      routes: [{ name: 'Login' }],
+      routes: [{ name: "Login" }],
     });
-  };
+  } catch (err: any) {
+    console.error("Logout failed", err);
+    Alert.alert("Error", "Failed to log out. Try again.");
+  }
+};
+
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       try {
+        const access = await getAccessToken();
         const res = await fetch(endpoints.skillLevels(), {
-          credentials: 'include',
+          headers: {
+            Authorization: `Bearer ${access}`
+          }
         });
         setSkillLevels(await res.json());
       } catch {}
@@ -62,9 +90,12 @@ const Profile: React.FC<Props> = ({ navigation }) => {
 
       (async () => {
         try {
-          const res = await fetch(endpoints.skillLevels(), {
-            credentials: 'include',
-          });
+        const access = await getAccessToken();
+        const res = await fetch(endpoints.skillLevels(), {
+          headers: {
+            Authorization: `Bearer ${access}`
+          }
+        });
           const data = await res.json();
           if (!cancelled) setSkillLevels(data);
         } catch (e) {

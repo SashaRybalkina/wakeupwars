@@ -1,6 +1,8 @@
 import type React from "react"
+import * as SecureStore from "expo-secure-store";
 import { useState } from "react"
 import { BASE_URL, endpoints } from "../api"
+
 import {
   Alert,
   Dimensions,
@@ -16,6 +18,7 @@ import {
 } from "react-native"
 import type { NavigationProp } from "@react-navigation/native"
 import { Ionicons } from "@expo/vector-icons"
+import { useUser } from '../context/UserContext';
 
 type Props = {
   navigation: NavigationProp<any>
@@ -32,65 +35,140 @@ const SignUpScreen: React.FC<Props> = ({ navigation }) => {
   const [name, setName] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const { user, setUser, setCsrfToken } = useUser();
 
   const goToLogin = () => {
     navigation.navigate("Login")
   }
 
+  // const handleSignUp = async () => {
+  //   if (!username || !email || !password || !confirmPassword || !name) {
+  //     Alert.alert("Error", "Please fill out all fields.")
+  //     return
+  //   }
+
+  //   if (password !== confirmPassword) {
+  //     Alert.alert("Error", "Passwords do not match.")
+  //     return
+  //   }
+
+  //   // Basic email validation
+  //   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  //   if (!emailRegex.test(email)) {
+  //     Alert.alert("Error", "Please enter a valid email address.")
+  //     return
+  //   }
+
+  //   try {
+  //     const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
+  //       credentials: 'include',
+  //     });
+  //     const tokenData = await res.json();
+  //     const csrfToken = tokenData.csrfToken;
+
+  //     const response = await fetch(endpoints.register, {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         'X-CSRFToken': csrfToken,
+  //       },
+  //       credentials: 'include',
+  //       body: JSON.stringify({
+  //         username,
+  //         email,
+  //         password,
+  //         name,
+  //       }),
+  //     })
+
+  //     const data = await response.json()
+
+  //     if (response.ok) {
+  //       Alert.alert("Success", "Account created successfully!", [
+  //         { text: "Login", onPress: () => navigation.navigate("Login") },
+  //       ])
+  //     } else {
+  //       Alert.alert("Error", data.error || "Failed to sign up.")
+  //     }
+  //   } catch (error) {
+  //     console.error("Signup error:", error)
+  //     Alert.alert("Error", "Signup failed. Try again later.")
+  //   }
+  // }
+
+
   const handleSignUp = async () => {
-    if (!username || !email || !password || !confirmPassword || !name) {
-      Alert.alert("Error", "Please fill out all fields.")
-      return
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match.")
-      return
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      Alert.alert("Error", "Please enter a valid email address.")
-      return
-    }
-
-    try {
-      const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',
-      });
-      const tokenData = await res.json();
-      const csrfToken = tokenData.csrfToken;
-
-      const response = await fetch(endpoints.register, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          'X-CSRFToken': csrfToken,
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          username,
-          email,
-          password,
-          name,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        Alert.alert("Success", "Account created successfully!", [
-          { text: "Login", onPress: () => navigation.navigate("Login") },
-        ])
-      } else {
-        Alert.alert("Error", data.error || "Failed to sign up.")
-      }
-    } catch (error) {
-      console.error("Signup error:", error)
-      Alert.alert("Error", "Signup failed. Try again later.")
-    }
+  if (!username || !email || !password || !confirmPassword || !name) {
+    Alert.alert("Error", "Please fill out all fields.");
+    return;
   }
+
+  if (password !== confirmPassword) {
+    Alert.alert("Error", "Passwords do not match.");
+    return;
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    Alert.alert("Error", "Please enter a valid email address.");
+    return;
+  }
+
+  try {
+    // 1. Create user
+    const res = await fetch(endpoints.register, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, email, password, name }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to sign up.");
+    }
+
+    // 2. Optionally auto-login after signup
+    const tokenRes = await fetch(endpoints.token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+
+    if (!tokenRes.ok) {
+      throw new Error("Signup succeeded but auto-login failed.");
+    }
+
+    const { access, refresh } = await tokenRes.json();
+
+    // Step 2: save tokens securely (expo-secure-store recommended)
+    await SecureStore.setItemAsync("access", access);
+    await SecureStore.setItemAsync("refresh", refresh);
+
+    const userRes = await fetch(endpoints.getUserInfo, {
+      headers: { Authorization: `Bearer ${access}` },
+    });
+
+    if (!userRes.ok) throw new Error("Failed to fetch user info");
+
+    const userData = await userRes.json();
+
+    // Step 4: set user context
+    setUser({
+      id: userData.id,
+      name: userData.name,
+      email: userData.email,
+      username: userData.username,
+    });
+
+    // Navigate to profile or intended screen
+    navigation.navigate("Profile");
+
+  } catch (err: any) {
+    Alert.alert("Error", err.message);
+  }
+};
+
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>

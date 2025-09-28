@@ -36,7 +36,8 @@
     },
     "plugins": [
       "expo-font",
-      "expo-image-picker"
+      "expo-image-picker",
+      "expo-secure-store"
     ],
     "extra": {
       "router": {
