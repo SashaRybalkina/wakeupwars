@@ -63,26 +63,26 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   //     // setCsrfToken(csrfToken); // Store token in context
 
   //     // Step 2: Use token to login
-  //     const response = await fetch(endpoints.login, {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         'X-CSRFToken': csrfToken,
-  //       },
-  //       credentials: 'include',
-  //       body: JSON.stringify({ username, password }),
-  //     });
+      // const response = await fetch(endpoints.login, {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'X-CSRFToken': csrfToken,
+      //   },
+      //   credentials: 'include',
+      //   body: JSON.stringify({ username, password }),
+      // });
 
-  //     const data = await response.json();
+      // const data = await response.json();
 
-  //     // Step 3: Check response
-  //     if (response.ok && data.success) {
-  //       setUser({
-  //         id: data.id,
-  //         name: data.name,
-  //         email: data.email,
-  //         username: data.username,
-  //       });
+      // // Step 3: Check response
+      // if (response.ok && data.success) {
+      //   setUser({
+      //     id: data.id,
+      //     name: data.name,
+      //     email: data.email,
+      //     username: data.username,
+      //   });
   //       // If redirected here, go to intended screen
   //       if (route.params && route.params.redirectTo) {
   //         navigation.replace(
@@ -120,25 +120,43 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     await SecureStore.setItemAsync("access", access);
     await SecureStore.setItemAsync("refresh", refresh);
 
-    // Step 3: fetch user profile
-    const userRes = await fetch(endpoints.getUserInfo, {
-      headers: { Authorization: `Bearer ${access}` },
-    });
+    // // Step 3: fetch user profile
+    // const userRes = await fetch(endpoints.getUserInfo, {
+    //   headers: { Authorization: `Bearer ${access}` },
+    // });
 
-    if (!userRes.ok) throw new Error("Failed to fetch user info");
+    // if (!userRes.ok) throw new Error("Failed to fetch user info");
 
-    const userData = await userRes.json();
+    // const userData = await userRes.json();
 
-    // Step 4: set user context
-    setUser({
-      id: userData.id,
-      name: userData.name,
-      email: userData.email,
-      username: userData.username,
-    });
+    // // Step 4: set user context
+    // setUser({
+    //   id: userData.id,
+    //   name: userData.name,
+    //   email: userData.email,
+    //   username: userData.username,
+    // });
 
-    // Step 5: navigate
-    navigation.navigate("Profile");
+      const response = await fetch(endpoints.login, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${access}` },
+      });
+
+      const data = await response.json();
+      console.log(data)
+
+      // Step 3: Check response
+      if (response.ok && data.success) {
+        setUser({
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          username: data.username,
+        });
+
+      // // Step 5: navigate
+      navigation.navigate("Profile");
+      }
   } catch (err: any) {
     Alert.alert("Login Failed", err.message);
   }

@@ -13,18 +13,22 @@ const BootstrapScreen = ({ navigation, route }: any) => {
 
       if (token) {
         // Fetch user info
-        const res = await fetch(endpoints.getUserInfo, {
-          headers: { Authorization: `Bearer ${token}` },
+        const response = await fetch(endpoints.login, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (res.ok) {
-          const userData = await res.json();
-          setUser({
-            id: userData.id,
-            name: userData.name,
-            email: userData.email,
-            username: userData.username,
-          });
+        const data = await response.json();
+        console.log(data)
+
+        // Step 3: Check response
+        if (response.ok && data.success) {
+            setUser({
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            username: data.username,
+            });
 
           // Navigate to the intended screen if provided via route.params
           if (route.params?.screen) {

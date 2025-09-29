@@ -69,6 +69,10 @@ WORD_LIST = words
 
 stripe.api_key = settings.STRIPE_API_KEY
 
+# class GetUserInfoView(APIView):
+    # def get(self, request):
+    #     return Response(UserSerializer(request.user).data)
+
 # Create a PaymentIntent for $5
 class CreatePaymentIntentView(APIView):
     def post(self, request):
@@ -243,28 +247,10 @@ class GetUserAvailabilityView(APIView):
 # #         print("Request data:", request.data)
 # #         username = request.data.get('username')
 # #         password = request.data.get('password')
-# class LoginView(APIView):
-#     def post(self, request):
-#         print("Request data:", request.data)
-#         username = request.data.get('username')
-#         password = request.data.get('password')
-
-#         try:
-#             user = User.objects.get(username=username)
-#         except User.DoesNotExist:
-#             return Response({'success': False, 'error': 'Username does not exist'}, status=status.HTTP_404_NOT_FOUND)
-
-#         if not user.check_password(password):
-#             return Response({'success': False, 'error': 'Incorrect password'}, status=status.HTTP_401_UNAUTHORIZED)
-
-#         if not user.is_active:
-#             return Response({'success': False, 'error': 'Account is inactive'}, status=status.HTTP_403_FORBIDDEN)
-
-#         # This sets the session cookie
-#         login(request, user)
-
-#         serializer = UserSerializer(user)
-#         return Response({'success': True, **serializer.data})
+class LoginView(APIView):
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response({'success': True, **serializer.data})
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -1869,7 +1855,7 @@ class CreateWordleGameView(APIView):
 
                 # Add info to response
                 game_data["game_id"] = state.game_id
-                game_data["answer"] = state.answer  # ⚠️ careful: in real multiplayer you may NOT want to send this to everyone
+                game_data["answer"] = state.answer  # careful: in real multiplayer you may NOT want to send this to everyone
         except WordleGameState.DoesNotExist:
             pass
 

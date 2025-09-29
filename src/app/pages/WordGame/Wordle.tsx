@@ -13,6 +13,7 @@ import { NavigationProp, useRoute } from '@react-navigation/native';
 import { BASE_URL, endpoints } from '../../api';
 import { useUser } from '../../context/UserContext';
 import { evaluateGuess, GuessResult, isWinningGuess } from './WordleHelper';
+import { getAccessToken } from "../../auth";
 
 const GRID_SIZE = 5;
 const MAX_ATTEMPTS = 5;
@@ -102,19 +103,22 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
         return;
       }
 
-      const token = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',
-      });
-      const tokenData = await token.json();
-      const csrfToken = tokenData.csrfToken;
+      // const token = await fetch(`${BASE_URL}/api/csrf-token/`, {
+      //   credentials: 'include',
+      // });
+      // const tokenData = await token.json();
+      // const csrfToken = tokenData.csrfToken;
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
       const res = await fetch(endpoints.createWordleGame, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,
+          "Authorization": `Bearer ${accessToken}`,
         },
-        credentials: 'include',
         body: JSON.stringify({ challenge_id: challengeId }),
       });
 

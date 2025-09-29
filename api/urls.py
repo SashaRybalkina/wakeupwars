@@ -1,7 +1,14 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalChallenge, ExternalHandleViewSet, FinalizeChallengeView, FinalizePublicChallengeView, GetMatchingChallengesView, GetPendingPublicChallengesView, GetPersonalChallengeInvites, GetPublicChallengesView, GetUserAvailabilityView, GroupConversationView, JoinPublicChallengeView, LoginView, ObligationViewSet, PaymentViewSet, RegisterView, GroupListView, HelloWorldView, SendMessageGroupView, SendMessageView, SetChallAvailabilityView, SetUserAvailabilityView, ShareChallengeView, SingOrMultGameListView, SomeCatsListView, UserGroupConversationsView, UserProfileView, GetChallengeScheduleView, AddGameToScheduleView,
+from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalChallenge, 
+                    ExternalHandleViewSet, FinalizeChallengeView, FinalizePublicChallengeView, 
+                    GetMatchingChallengesView, GetPendingPublicChallengesView, 
+                    GetPersonalChallengeInvites, GetPublicChallengesView, GetUserAvailabilityView, 
+                    GroupConversationView, JoinPublicChallengeView, ObligationViewSet, PaymentViewSet, 
+                    RegisterView, GroupListView, HelloWorldView, SendMessageGroupView, SendMessageView, 
+                    SetChallAvailabilityView, SetUserAvailabilityView, ShareChallengeView, SingOrMultGameListView, 
+                    SomeCatsListView, UserGroupConversationsView, UserProfileView, GetChallengeScheduleView, AddGameToScheduleView,
                     UserMessagesView, GroupDetailsView, CatListView, GameListView,
                     ChallengeListView, GetChallengeInitiatorView,
                     ChallengeDetailView, ChallengeGameScheduleView, CreateManualGroupChallengeView,
@@ -12,15 +19,8 @@ from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalCh
                     CreateGroupView, CreatePersonalChallengeView, GetChallengeInvitesView,
                     GetAvailabilitiesView, DeclineChallengeInviteView,
                     ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
-                    SkillLevelsView, CreatePublicChallengeView, RewardSettingView)
-
-from .views import CreateSudokuGameView, ValidateSudokuMoveView, get_csrf_token
-from .views import CreatePatternGameView, ValidatePatternMoveView
-from .views import CreateWordleGameView, ValidateWordleMoveView
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import (
-    LoginView, RegisterView, GroupListView, HelloWorldView, UserProfileView,
+                    SkillLevelsView, CreatePublicChallengeView, RewardSettingView,
+                    RegisterView, GroupListView, HelloWorldView, UserProfileView,
     UserMessagesView, GroupDetailsView, CatListView, GameListView,
     ChallengeListView, GetChallengeInitiatorView, ChallengeDetailView,
     ChallengeGameScheduleView, CreateManualGroupChallengeView,
@@ -33,11 +33,37 @@ from .views import (
     ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
     SkillLevelsView, ExternalHandleViewSet, ObligationViewSet, PaymentViewSet,
     FinalizeChallengeView, CreateSudokuGameView, ValidateSudokuMoveView, 
-    CreateWordleGameView, ValidateWordleMoveView, get_csrf_token, SingOrMultGameListView, ShareChallengeView,
+    CreateWordleGameView, ValidateWordleMoveView, SingOrMultGameListView, ShareChallengeView,
     GetPendingPublicChallengesView, GetMatchingChallengesView, SetUserAvailabilityView,
     GetUserAvailabilityView, SomeCatsListView, JoinPublicChallengeView, FinalizePublicChallengeView,
-    GetPublicChallengesView, CreatePaymentIntentView, GetUserInfoView,
-)
+    GetPublicChallengesView, CreatePaymentIntentView, CreateSudokuGameView, ValidateSudokuMoveView,
+    CreatePatternGameView, ValidatePatternMoveView, CreateWordleGameView, ValidateWordleMoveView,
+    LoginView,)
+
+# from .views import CreateSudokuGameView, ValidateSudokuMoveView
+# from .views import CreatePatternGameView, ValidatePatternMoveView
+# from .views import CreateWordleGameView, ValidateWordleMoveView
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+# from .views import (
+#     RegisterView, GroupListView, HelloWorldView, UserProfileView,
+#     UserMessagesView, GroupDetailsView, CatListView, GameListView,
+#     ChallengeListView, GetChallengeInitiatorView, ChallengeDetailView,
+#     ChallengeGameScheduleView, CreateManualGroupChallengeView,
+#     CreatePendingCollaborativeGroupChallengeView, FriendListView,
+#     AddGroupMemberView, SendFriendRequestView, FriendRequestListView,
+#     RespondToFriendRequestView, FinalizeCollaborativeGroupChallengeScheduleView,
+#     SentFriendRequestListView, AllUsersView, CancelFriendRequestView,
+#     CreateGroupView, CreatePersonalChallengeView, GetChallengeInvitesView,
+#     GetAvailabilitiesView, SetChallAvailabilityView, DeclineChallengeInviteView,
+#     ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
+#     SkillLevelsView, ExternalHandleViewSet, ObligationViewSet, PaymentViewSet,
+#     FinalizeChallengeView, CreateSudokuGameView, ValidateSudokuMoveView, 
+#     CreateWordleGameView, ValidateWordleMoveView, SingOrMultGameListView, ShareChallengeView,
+#     GetPendingPublicChallengesView, GetMatchingChallengesView, SetUserAvailabilityView,
+#     GetUserAvailabilityView, SomeCatsListView, JoinPublicChallengeView, FinalizePublicChallengeView,
+#     GetPublicChallengesView, CreatePaymentIntentView, GetUserInfoView,
+# )
 
 router = DefaultRouter()
 router.register(r'external-handles', ExternalHandleViewSet, basename='external-handle')
@@ -48,7 +74,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('get-user-info/', GetUserInfoView.as_view(), name='get-user-info'),
+    # path('get-user-info/', GetUserInfoView.as_view(), name='get-user-info'),
     path('challenges/<int:challenge_id>/finalize/', FinalizeChallengeView.as_view(), name='finalize-challenge'),
     path('challenges/<int:chall_id>/reward/', RewardSettingView.as_view(), name='challenge-reward'),
     path('challenges/<int:user_id>/<str:which_chall>/', ChallengeListView.as_view(), name='challenge-list'),
@@ -107,7 +133,7 @@ urlpatterns = [
     path('sudoku/validate/', ValidateSudokuMoveView.as_view(), name='validate-sudoku'),
     path('create-wordle/', CreateWordleGameView.as_view(), name='create-wordle'),
     path('wordle/validate/', ValidateWordleMoveView.as_view(), name='validate-wordle'),
-    path('csrf-token/', get_csrf_token, name='get-csrf-token'),
+    # path('csrf-token/', get_csrf_token, name='get-csrf-token'),
     path("create-personal-challenge/", CreatePersonalChallengeView.as_view(), name="create_personal_challenge"),
     path('pattern/create/',   CreatePatternGameView.as_view(),   name='pattern-create'),
     path('pattern/validate/', ValidatePatternMoveView.as_view(), name='pattern-validate'),
