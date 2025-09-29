@@ -16,6 +16,7 @@ from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalCh
 from .views import CreateSudokuGameView, ValidateSudokuMoveView, get_csrf_token
 from .views import CreatePatternGameView, ValidatePatternMoveView
 from .views import CreateWordleGameView, ValidateWordleMoveView
+from .views import SavePushTokenView
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
@@ -100,5 +101,6 @@ urlpatterns = [
     path('get-personal-challenge-invites/<int:user_id>/', GetPersonalChallengeInvites.as_view()),
     path('accept-personal-challenge/<int:user_id>/<int:chall_id>/', AcceptPersonalChallenge.as_view()),
     path('decline-personal-challenge/<int:user_id>/<int:chall_id>/', DeclinePersonalChallenge.as_view()),
+    path('save-push-token/', SavePushTokenView.as_view(), name='save-push-token'),
 
 ]

@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons"
 import type { NavigationProp } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import axios from "axios"
+import * as Notifications from 'expo-notifications'
 
 type Props = {
   navigation: NavigationProp<any>
@@ -81,6 +82,52 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   }, [user])
 
   useEffect(() => {
+    const fetchNotifications = async () => {
+      if (!user?.id) return
+      try {
+        const response = await fetch(endpoints.notifications(Number(user.id)))
+        const data = await response.json()
+        setNotifications(data)
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error)
+      }
+    }
+    fetchNotifications()
+  }, [user])
+
+  useEffect(() => {
+    const registerForPushNotifications = async () => {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync()
+      let finalStatus = existingStatus
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync()
+        finalStatus = status
+      }
+      if (finalStatus !== 'granted') {
+        alert('Failed to get push token for push notification!')
+        return
+      }
+      const tokenData = await Notifications.getExpoPushTokenAsync()
+      const pushToken = tokenData.data
+      // Send pushToken to your backend for this user
+      if (user?.id && pushToken) {
+        try {
+          await fetch(`${BASE_URL}/api/save-push-token/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user_id: user.id, push_token: pushToken }),
+          })
+        } catch (err) {
+          console.error('Failed to save push token:', err)
+        }
+      }
+    }
+    registerForPushNotifications()
+  }, [user])
+
+  useEffect(() => {
     Animated.spring(indicatorPosition, {
       toValue: selected === "Friends" ? 0 : selected === "Groups" ? 1 : 2,
       useNativeDriver: false,
@@ -119,6 +166,14 @@ const Messages: React.FC<Props> = ({ navigation }) => {
 
   const openGroupConversation = (groupId: number, groupName: string) => {
     navigation.navigate("Conversation", { groupId, recipientName: groupName })
+  }
+
+  const handleNotificationPress = (notification: any) => {
+    if (notification.type === 'friend_request') {
+      navigation.navigate('FriendsRequests')
+    } else if (notification.type === 'group_add') {
+      navigation.navigate('Groups')
+    }
   }
 
   const goToMessages = () => navigation.navigate("Messages")
@@ -198,7 +253,11 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   )
 
   const NotificationItem: React.FC<{ notification: any; index: number }> = ({ notification, index }) => (
-    <TouchableOpacity style={[styles.messageCard, { marginTop: index === 0 ? 0 : 12 }]} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={[styles.messageCard, { marginTop: index === 0 ? 0 : 12 }]}
+      activeOpacity={0.7}
+      onPress={() => handleNotificationPress(notification)}
+    >
       <View style={styles.messageAvatarContainer}>
         <View style={styles.messageAvatar}>
           <Ionicons name="notifications" size={24} color="#FFD700" />

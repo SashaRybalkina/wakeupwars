@@ -3,6 +3,9 @@ from django.contrib.auth.models import AbstractUser
 from django.db.models import Sum
 from django.utils import timezone
 from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.views import APIView
+from rest_framework.response import Response
 
 # by default, every model's table gets an auto increment integer id as the primary key. Specify a composite key with unique_together
 
@@ -635,5 +638,13 @@ class PersonalChallengeInvite(models.Model):
     class Meta:
         db_table = 'PersonalChallengeInvites'
         unique_together = ('chall', 'recipient')
+
+class ExpoPushToken(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='expo_push_token')
+    token = models.CharField(max_length=256)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"ExpoPushToken for {self.user.username}: {self.token}"
 
 

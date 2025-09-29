@@ -39,7 +39,7 @@ from django.db.models import Min, Max
 
 #### Sudoku Game Imports ####
 from .models import (SudokuGameState, WordleGameState, Challenge, SudokuGamePlayer, WordleGamePlayer, User, Game, GamePerformance, RewardSetting,
-                     ExternalHandle, Obligation, Payment, PaymentStatus, PaymentMethod, PaymentProvider, ObligationStatus, RewardType)
+                     ExternalHandle, Obligation, Payment, PaymentStatus, PaymentMethod, PaymentProvider, ObligationStatus, RewardType, ExpoPushToken)
 from api.sudokuStuff.utils import validate_sudoku_move, get_or_create_game
 from api.wordleStuff.utils import validate_wordle_move, get_or_create_game_wordle
 from .serializers import ChallengeSummarySerializer
@@ -60,6 +60,8 @@ from .words_array import words
 
 import logging
 logger = logging.getLogger(__name__)
+
+import requests
 
 User = get_user_model()
 WORD_LIST = words
@@ -538,6 +540,14 @@ class AddGroupMemberView(APIView):
 
             # Create the new membership
             GroupMembership.objects.create(groupID=group, uID=user)
+
+            # Send push notification to user
+            send_expo_push_notification(
+                user,
+                title="Added to Group",
+                body=f"You have been added to the group '{group.name}'.",
+                data={"type": "group_add"}
+            )
 
             return Response({"message": "User added to group successfully."}, status=status.HTTP_201_CREATED)
 
@@ -1430,6 +1440,15 @@ class SendFriendRequestView(APIView):
             return Response({'error': 'Friend request already sent'}, status=status.HTTP_400_BAD_REQUEST)
 
         FriendRequest.objects.create(sender_id=sender_id, recipient_id=recipient_id)
+        # Send push notification to recipient
+        sender = User.objects.get(id=sender_id)
+        recipient = User.objects.get(id=recipient_id)
+        send_expo_push_notification(
+            recipient,
+            title="New Friend Request",
+            body=f"{sender.name or sender.username} sent you a friend request.",
+            data={"type": "friend_request"}
+        )
         return Response({'message': 'Friend request sent successfully'}, status=status.HTTP_201_CREATED)
 
 
@@ -2503,66 +2522,21 @@ class DeclinePersonalChallenge(APIView):
         inv.chall.delete()
         return Response({"ok": True}, status=200)
 
-class SendMessageView(APIView):
-    def post(self, request, user_id):
-        sender = request.user
-        recipient = get_object_or_404(User, id=user_id)
-        message_text = request.data.get("message")
 
-        message = Message.objects.create(
-            sender=sender,
-            recipient=recipient,
-            message=message_text,
-        )
-        return Response({"success": True, "id": message.id})
-    
-class ConversationView(APIView):
-    def get(self, request, user_id, recipient_id):
-        messages = Message.objects.filter(
-            Q(sender_id=user_id, recipient_id=recipient_id) | Q(sender_id=recipient_id, recipient_id=user_id)
-        ).order_by('id')
-        serializer = MessageSerializer(messages, many=True)
-        return Response(serializer.data)
-    
-class SendMessageGroupView(APIView):
-    def post(self, request, group_id):
-        sender = request.user
-        group = get_object_or_404(Group, id=group_id)
-        message_text = request.data.get("message")
-
-        if not message_text:
-            return Response({"success": False, "error": "Message cannot be empty"}, status=400)
-
-        message = Message.objects.create(
-            sender=sender,
-            groupID=group,
-            message=message_text,
-        )
-
-        return Response({"success": True, "id": message.id})
-
-class GroupConversationView(APIView):
-    def get(self, request, group_id):
-        # Ensure the group exists
-        group = get_object_or_404(Group, id=group_id)
-
-        # Fetch all messages for this group
-        messages = Message.objects.filter(groupID=group).order_by('id')
-
-        serializer = MessageSerializer(messages, many=True)
-        return Response(serializer.data)
-
-class UserGroupConversationsView(APIView):
-    def get(self, request, user_id):
-        memberships = GroupMembership.objects.filter(uID=user_id)
-        group_ids = memberships.values_list('groupID', flat=True)
-        groups = Group.objects.filter(id__in=group_ids)
-        data = []
-        for group in groups:
-            last_message = Message.objects.filter(groupID=group).order_by('-id').first()
-            data.append({
-                'group_id': group.id,
-                'group_name': group.name,
-                'last_message': MessageSerializer(last_message).data if last_message else None,
-            })
-        return Response(data)
+def send_expo_push_notification(user, title, body, data=None):
+    try:
+        token_obj = ExpoPushToken.objects.filter(user=user).first()
+        if not token_obj:
+            return False
+        expo_token = token_obj.token
+        payload = {
+            "to": expo_token,
+            "title": title,
+            "body": body,
+            "data": data or {},
+        }
+        response = requests.post("https://exp.host/--/api/v2/push/send", json=payload)
+        return response.status_code == 200
+    except Exception as e:
+        print(f"Expo push notification error: {e}")
+        return False
