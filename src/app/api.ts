@@ -1,4 +1,4 @@
-export const BASE_URL = 'https://9f90d0c9e198.ngrok-free.app';
+export const BASE_URL = 'https://15d67d957e9b.ngrok-free.app';
 
 export const endpoints = {
   // getToken
@@ -90,8 +90,6 @@ export const endpoints = {
   csrfToken: `${BASE_URL}/api/csrf-token/`,
 
   myObligations: () => `${BASE_URL}/api/obligations/me/`,
-  createPaymentIntent: () => `${BASE_URL}/api/create-payment-intent/`,
-  transferToWinner: () => `${BASE_URL}/api/transfer-to-winner/`,
 
   payExternal: (id: number) =>
     `${BASE_URL}/api/obligations/${id}/pay_external/`,

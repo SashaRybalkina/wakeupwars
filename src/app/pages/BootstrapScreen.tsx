@@ -8,6 +8,7 @@ const BootstrapScreen = ({ navigation, route }: any) => {
   const { setUser } = useUser();
 
   useEffect(() => {
+    console.log("in bootstrap")
     const bootstrap = async () => {
       const token = await getAccessToken();
 

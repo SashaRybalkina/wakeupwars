@@ -195,6 +195,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   useEffect(() => {
+    console.log("why am i in worlde")
     if (first) {
       initGame();
       setFirst(false);

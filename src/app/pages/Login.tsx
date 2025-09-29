@@ -155,6 +155,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         });
 
       // // Step 5: navigate
+      console.log("why am i going to wordle")
       navigation.navigate("Profile");
       }
   } catch (err: any) {

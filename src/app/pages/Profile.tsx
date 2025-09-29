@@ -69,23 +69,25 @@ const handleLogout = async () => {
 };
 
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      try {
-        const access = await getAccessToken();
-        const res = await fetch(endpoints.skillLevels(), {
-          headers: {
-            Authorization: `Bearer ${access}`
-          }
-        });
-        setSkillLevels(await res.json());
-      } catch {}
-    })();
-  }, [user, setSkillLevels]);
+  // useEffect(() => {
+  //   if (!user) return;
+  //   (async () => {
+  //     try {
+  //       const access = await getAccessToken();
+  //       const res = await fetch(endpoints.skillLevels(), {
+  //         headers: {
+  //           Authorization: `Bearer ${access}`
+  //         }
+  //       });
+  //       setSkillLevels(await res.json());
+  //     } catch {}
+  //   })();
+  // }, [user, setSkillLevels]);
 
   useFocusEffect(
     React.useCallback(() => {
+      console.log("in profile")
+      if (!user) return;
       let cancelled = false;
 
       (async () => {
@@ -106,7 +108,7 @@ const handleLogout = async () => {
       return () => {
         cancelled = true;
       };
-    }, [setSkillLevels]),
+    }, [user, setSkillLevels]),
   );
 
   return (

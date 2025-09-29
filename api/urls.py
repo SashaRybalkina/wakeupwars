@@ -36,7 +36,7 @@ from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalCh
     CreateWordleGameView, ValidateWordleMoveView, SingOrMultGameListView, ShareChallengeView,
     GetPendingPublicChallengesView, GetMatchingChallengesView, SetUserAvailabilityView,
     GetUserAvailabilityView, SomeCatsListView, JoinPublicChallengeView, FinalizePublicChallengeView,
-    GetPublicChallengesView, CreatePaymentIntentView, CreateSudokuGameView, ValidateSudokuMoveView,
+    GetPublicChallengesView, CreateSudokuGameView, ValidateSudokuMoveView,
     CreatePatternGameView, ValidatePatternMoveView, CreateWordleGameView, ValidateWordleMoveView,
     LoginView,)
 
@@ -149,7 +149,4 @@ urlpatterns = [
     path('get-personal-challenge-invites/<int:user_id>/', GetPersonalChallengeInvites.as_view()),
     path('accept-personal-challenge/<int:user_id>/<int:chall_id>/', AcceptPersonalChallenge.as_view()),
     path('decline-personal-challenge/<int:user_id>/<int:chall_id>/', DeclinePersonalChallenge.as_view()),
-
-    path("create-payment-intent/", CreatePaymentIntentView.as_view()),
-    # path("transfer-to-winner/", transfer_to_winner.as_view()),
 ]
