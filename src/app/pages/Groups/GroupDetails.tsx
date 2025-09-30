@@ -10,6 +10,7 @@ import PendingChallengeCard from "../Challenges/PendingChallengeCard"
 import { useFocusEffect } from "@react-navigation/native"
 import { ActivityIndicator } from "react-native"
 import { useUser } from "../../context/UserContext"
+import { getAccessToken } from "../../auth"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -73,8 +74,17 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
         console.log("[GroupDetails] set isLoading → true");
         setIsLoading(true)
         try {
-          console.log("Fetching from:", endpoints.groupProfile(groupId))
-          const response = await fetch(endpoints.groupProfile(groupId))
+          const accessToken = await getAccessToken();
+          if (!accessToken) {
+            throw new Error("Not authenticated");
+          }
+
+          const response = await fetch(endpoints.groupProfile(groupId), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
+
           const data = await response.json()
   
           // Add totalDays if not present and determine if challenge is completed
@@ -90,7 +100,11 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
           setGroupData(data)
 
           // Check for pending invites
-          const inviteResponse = await fetch(endpoints.getChallengeInvites(Number(user.id), groupId));
+          const inviteResponse = await fetch(endpoints.getChallengeInvites(Number(user.id), groupId), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
           const inviteData = await inviteResponse.json();
           const formatted = inviteData.invited_challenges.map(
             (item: PendingChallenge) => ({

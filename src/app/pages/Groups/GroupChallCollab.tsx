@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import { BASE_URL, endpoints } from '../../api';
 import { Picker } from '@react-native-picker/picker';
+import { getAccessToken } from '../../auth';
 
 type Props = { navigation: NavigationProp<any> } 
 // Config 
@@ -150,21 +151,18 @@ const convertTo24Hour = (time12: string) => {
 
 
         try {
-          const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-            credentials: 'include',                      
-          });
-          if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-          const { csrfToken } = await csrfRes.json();     
-          console.log('csrfToken:', csrfToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
 
         const res = await fetch(endpoints.createPendingCollaborativeGroupChallenge(), {
             method: 'POST',
-            credentials: 'include',                    
-            headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,                
-            },
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+        },
             body: JSON.stringify(payload),
         });
 

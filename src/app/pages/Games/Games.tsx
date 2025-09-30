@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useRoute } from '@react-navigation/native';
 import { endpoints } from '../../api';
+import { getAccessToken } from '../../auth';
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -36,8 +37,16 @@ const Games: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     const fetchGames = async () => {
       try {
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
         // fetch the games in whatever category was selected
-        const response = await fetch(endpoints.games(catId, singOrMult));
+        const response = await fetch(endpoints.games(catId, singOrMult), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
         const data = await response.json();
         setGames(data); 
       } catch (error) {

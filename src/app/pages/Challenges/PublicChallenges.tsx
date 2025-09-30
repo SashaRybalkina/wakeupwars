@@ -14,6 +14,7 @@ import Categories from "../Games/Categories"
 import { INTERNAL_CALLSITES_REGEX } from "expo/metro-config"
 import PublicChallengeCard from "./PublicChallengeCard"
 import { CheckboxStyledContext } from "tamagui"
+import { getAccessToken } from "../../auth"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -68,8 +69,15 @@ const PublicChallenges: React.FC<Props> = ({ navigation }) => {
         setIsLoading(true)
         try {
 
-            console.log("hmm1")
-          const response = await fetch(endpoints.getPendingPublicChallenges(Number(user.id)))
+                const accessToken = await getAccessToken();
+                if (!accessToken) {
+                  throw new Error("Not authenticated");
+                }
+          const response = await fetch(endpoints.getPendingPublicChallenges(Number(user.id)), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
           const data = await response.json()
           console.log("hmm2")
         //   fields = [
@@ -99,7 +107,11 @@ const PublicChallenges: React.FC<Props> = ({ navigation }) => {
           setPendingChallenges(formattedData)
 
 
-          const response2 = await fetch(endpoints.getPublicChallenges(Number(user.id)));
+          const response2 = await fetch(endpoints.getPublicChallenges(Number(user.id)), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
           const data2 = await response2.json();
 // type PublicChallenge = {
 //   id: number
@@ -249,13 +261,13 @@ const PublicChallenges: React.FC<Props> = ({ navigation }) => {
                     <TouchableOpacity
                       key={challenge.id}
                       style={styles.challengeCardWrapper}
-                    //   onPress={() =>
-                    //     navigation.navigate("ChallDetails", {
-                    //       challId: challenge.id,
-                    //       challName: challenge.name,
-                    //       whichChall: "Group",
-                    //     })
-                    //   }
+                      onPress={() =>
+                        navigation.navigate("ChallDetails", {
+                          challId: challenge.id,
+                          challName: challenge.name,
+                          whichChall: "Public",
+                        })
+                      }
                     >
                       <PublicChallengeCard
                         title={challenge.name}

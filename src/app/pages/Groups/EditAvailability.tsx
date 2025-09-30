@@ -12,6 +12,7 @@ import {
 import { NavigationProp, useRoute } from '@react-navigation/native';
 import { useUser } from '../../context/UserContext';
 import { BASE_URL, endpoints } from '../../api';
+import { getAccessToken } from '../../auth';
 
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"];
 // Zero-pad to match API format like "06:00"
@@ -107,14 +108,26 @@ const fetchAvailabilities = async () => {
   }
   setLoading(true);
   try {
-    const res = await fetch(endpoints.getAvailabilities(pendingChallengeId));
+          const accessToken = await getAccessToken();
+          if (!accessToken) {
+            throw new Error("Not authenticated");
+          }
+    const res = await fetch(endpoints.getAvailabilities(pendingChallengeId), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
     const data = await res.json();
     console.log('Availability:', data);
     setAvailability(data);
     setUserAvailability(data.filter((entry: AvailabilityEntry) => entry.uID === user.id));
     setPendingToggles([]); // clear pending toggles after full refresh
     
-    const res2 = await fetch(endpoints.getInitiator(pendingChallengeId));
+    const res2 = await fetch(endpoints.getInitiator(pendingChallengeId), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
     const data2 = await res2.json();
     console.log('Initiator: ', data2.initiator_id);
     setIsInitiator(data2.initiator_id === user?.id);
@@ -216,20 +229,18 @@ const handleSubmit = async () => {
       alarmTime, // already "HH:MM"
     }));
 
-    const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-      credentials: 'include',
-    });
-    if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-    const { csrfToken } = await csrfRes.json();
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
     const res = await fetch(
       endpoints.setChallAvailability(Number(user?.id), pendingChallengeId),
       {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,
+          "Authorization": `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ availability: payload }),
       }
@@ -286,18 +297,16 @@ const handleSubmit = async () => {
 
     const handleDecline = async () => {
         try {
-            const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-                credentials: 'include',                      
-        });
-        if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-        const { csrfToken } = await csrfRes.json();   
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
       const res = await fetch(endpoints.declineChallengeInvite(Number(user?.id), pendingChallengeId), {
         method: 'POST',
-        credentials: 'include',                    
         headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken,                
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
         },
       });
 
@@ -312,16 +321,16 @@ const handleSubmit = async () => {
 
     const handleFinalizeSchedule = async () => {
       try {
-        const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, { credentials: 'include' });
-        if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-        const { csrfToken } = await csrfRes.json();
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
         const res = await fetch(endpoints.finalizeCollaborativeGroupChallengeSchedule(pendingChallengeId), {
           method: 'POST',
-          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,
+            "Authorization": `Bearer ${accessToken}`,
           },
         });
         if (!res.ok) throw new Error(`Failed to finalize schedule. (${res.status})`);

@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { BASE_URL, endpoints } from "../../api"
 import { Platform } from "react-native"
 import { getMetaFromTuple } from "../Games/NewGamesManagement"
+import { getAccessToken } from "../../auth"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -333,20 +334,17 @@ const getNextAlarmDate = (alarmDays: number[]): Date | null => {
     console.log(payload)
 
     try {
-      const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',                      
-      });
-      if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-      const { csrfToken } = await csrfRes.json();     
-      console.log('csrfToken:', csrfToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
   
   
       const res = await fetch(endpoints.createManualGroupChallenge, {
         method: 'POST',
-        credentials: 'include',                    
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,                
+          "Authorization": `Bearer ${accessToken}`,
         },
         body: JSON.stringify(payload),
       });

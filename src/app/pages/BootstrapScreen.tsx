@@ -3,6 +3,8 @@ import { View, ActivityIndicator } from "react-native";
 import { getAccessToken } from "../auth";
 import { useUser } from "../context/UserContext";
 import { BASE_URL, endpoints } from '../api';
+import { NativeModules } from "react-native";
+const { AlarmModule } = NativeModules;
 
 const BootstrapScreen = ({ navigation, route }: any) => {
   const { setUser } = useUser();
@@ -34,6 +36,7 @@ const BootstrapScreen = ({ navigation, route }: any) => {
           // Navigate to the intended screen if provided via route.params
           if (route.params?.screen) {
             navigation.replace(route.params.screen, route.params.data || {});
+            // await AlarmModule.clearLaunchIntent();
           } else {
             navigation.replace("Profile");
           }

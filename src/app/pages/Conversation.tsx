@@ -15,23 +15,8 @@ const Conversation: React.FC<Props> = ({ route, navigation }) => {
   const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState("")
   const [sending, setSending] = useState(false)
-  const [csrfToken, setCsrfToken] = useState<string>("")
   const ws = useRef<WebSocket | null>(null)
 
-  useEffect(() => {
-    const fetchCsrf = async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
-          credentials: "include",
-        })
-        const data = await res.json()
-        setCsrfToken(data.csrfToken)
-      } catch (err) {
-        console.error("Failed to fetch CSRF token:", err)
-      }
-    }
-    fetchCsrf()
-  }, [])
 
   useEffect(() => {
     if (!user?.id) return

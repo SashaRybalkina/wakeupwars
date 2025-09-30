@@ -18,6 +18,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { useUser } from "../../context/UserContext"
 import { BASE_URL, endpoints } from "../../api"
 import { getMetaFromTuple } from "../Games/NewGamesManagement"
+import { getAccessToken } from "../../auth"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -150,13 +151,18 @@ const CreateChallengeForFriend: React.FC<Props> = ({ navigation }) => {
     }
 
     try {
-      const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, { credentials: "include" })
-      const csrfToken = (await csrfRes.json()).csrfToken
+
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
       const response = await fetch(endpoints.shareChallenge(), {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
-        credentials: "include",
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+        },
         body: JSON.stringify(payload),
       })
 

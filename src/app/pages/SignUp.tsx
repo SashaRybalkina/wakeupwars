@@ -145,9 +145,10 @@ const SignUpScreen: React.FC<Props> = ({ navigation }) => {
     await SecureStore.setItemAsync("access", access);
     await SecureStore.setItemAsync("refresh", refresh);
 
-    const userRes = await fetch(endpoints.getUserInfo, {
-      headers: { Authorization: `Bearer ${access}` },
-    });
+      const userRes = await fetch(endpoints.login, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${access}` },
+      });
 
     if (!userRes.ok) throw new Error("Failed to fetch user info");
 

@@ -51,3 +51,26 @@ export async function logout() {
 }
 
 
+// import { getAccessToken } from "../../auth";
+
+      // const accessToken = await getAccessToken();
+      // if (!accessToken) {
+      //   throw new Error("Not authenticated");
+      // }
+
+      // const res = await fetch(endpoints.createWordleGame, {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     "Authorization": `Bearer ${accessToken}`,
+      //   },
+      //   body: JSON.stringify({ challenge_id: challengeId }),
+      // });
+
+
+
+      //         const res = await fetch(endpoints.skillLevels(), {
+      //           headers: {
+      //             Authorization: `Bearer ${accessToken}`
+      //           }
+      //         });

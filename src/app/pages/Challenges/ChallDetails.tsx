@@ -23,6 +23,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { DayOfWeekLabels, type DayOfWeek } from "./DayOfWeek" // Ensure this is imported
 import { Button } from 'tamagui';
 import { Alert } from "react-native";
+import { getAccessToken } from "../../auth";
 
 type Props = {
   navigation: NavigationProp<any>
@@ -124,7 +125,16 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     const fetchChallengeDetails = async () => {
       try {
-        const res = await axios.get(endpoints.challengeDetail(challId))
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
+        const res = await axios.get(endpoints.challengeDetail(challId), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
+
         const data = res.data
 
         const parsedDaysOfWeek = (data.daysOfWeek as string[])
@@ -155,9 +165,16 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
         setLbLoading(true);
         setLbError(null);
 
-        const res = await fetch(`${endpoints.leaderboard(challId)}?t=${Date.now()}`, { // cache-buster
-          credentials: 'include',
-        });
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+        const res = await fetch(`${endpoints.leaderboard(challId)}?t=${Date.now()}`, {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
+
 
         const text = await res.text();
         const d: any = text ? JSON.parse(text) : null;
@@ -170,7 +187,11 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
         if (rows.length === 0) {
           setTimeout(async () => {
             try {
-              const res2 = await fetch(`${endpoints.leaderboard(challId)}?t=${Date.now()}`, { credentials: 'include' });
+              const res2 = await fetch(`${endpoints.leaderboard(challId)}?t=${Date.now()}`, {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
               const txt2 = await res2.text();
               const d2: any = txt2 ? JSON.parse(txt2) : null;
               setLeaderboard(Array.isArray(d2) ? d2 : d2?.leaderboard ?? []);
@@ -196,18 +217,17 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
     );
 
     async function loadMyObligations() {
-      const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',
-      });
-      const { csrfToken } = await csrfRes.json();
+
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
       const res = await fetch(endpoints.myObligations(), {
         method: 'GET',
-        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,
-        },
+          Authorization: `Bearer ${accessToken}`
+        }
       });
 
       const data = await res.json();
@@ -237,16 +257,17 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
 
   const finalizeChallenge = async (challId: number) => {
       try {
-        const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, { credentials: 'include' });
-        if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-        const { csrfToken } = await csrfRes.json();
+
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
         const res = await fetch(`${BASE_URL}/api/challenges/${challId}/finalize/`, {
           method: 'POST',
-          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,
+            "Authorization": `Bearer ${accessToken}`,
           },
         });
 
@@ -488,13 +509,19 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
               )}
               <TouchableOpacity style={styles.saveBtn} onPress={async()=>{
                 try{
-                  const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`,{credentials:'include'});
-                  const {csrfToken} = await csrfRes.json();
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
                   const payload:any={ type:rewardType };
                   if(rewardType!=='custom') payload.amount=parseFloat(rewardAmount||'0');
                   if(rewardNote) payload.note=rewardNote;
                   const res = await fetch(endpoints.challengeReward(challId),{
-                    method:'PUT',credentials:'include',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},
+                    method:'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      "Authorization": `Bearer ${accessToken}`,
+                    },
                     body: JSON.stringify(payload)
                   });
                   if(!res.ok){const e=await res.json(); throw new Error(e.detail||'Failed');}

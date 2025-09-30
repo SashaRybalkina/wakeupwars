@@ -103,11 +103,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
         return;
       }
 
-      // const token = await fetch(`${BASE_URL}/api/csrf-token/`, {
-      //   credentials: 'include',
-      // });
-      // const tokenData = await token.json();
-      // const csrfToken = tokenData.csrfToken;
+
       const accessToken = await getAccessToken();
       if (!accessToken) {
         throw new Error("Not authenticated");

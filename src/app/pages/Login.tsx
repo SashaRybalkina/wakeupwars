@@ -154,9 +154,19 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           username: data.username,
         });
 
-      // // Step 5: navigate
-      console.log("why am i going to wordle")
-      navigation.navigate("Profile");
+        // // Step 5: navigate
+        // console.log("why am i going to wordle")
+        // navigation.navigate("Profile");
+        // navigation.setParams({ screen: undefined, data: undefined });
+
+        // navigation.reset({
+        //   index: 0,
+        //   routes: [{ name: "Profile" }],
+        // });
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Profile", params: {} }],
+        });
       }
   } catch (err: any) {
     Alert.alert("Login Failed", err.message);

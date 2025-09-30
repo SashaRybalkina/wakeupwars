@@ -11,6 +11,7 @@ import {
   Vibration,            // NEW: haptic feedback (optional)
   Platform,
 } from 'react-native';
+import { getAccessToken } from '../../auth';
 
 // Must match backend utils.ALLOWED_ELEMENTS
 const COLORS = ['red', 'blue', 'green', 'yellow'];
@@ -79,11 +80,7 @@ type ValidateResp = {
 
 type Props = { route: any; navigation: any };
 
-const getCsrf = async (): Promise<string> => {
-  const r = await fetch(endpoints.csrfToken, { credentials: 'include' });
-  const { csrfToken } = await r.json();
-  return csrfToken;
-};
+
 
 // Generate WS path based on BASE_URL
 const wsUrlFor = (gameStateId: number) => {
@@ -293,11 +290,17 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
         setLoading(true);
         if (challengeId == null) throw new Error('Missing challengeId');
 
-        const csrf = await getCsrf();
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+
         const res = await fetch(endpoints.patternCreate, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            "Authorization": `Bearer ${accessToken}`,
+          },
           body: JSON.stringify({ challenge_id: challengeId }),
         });
         const j: CreateResp = await res.json();
@@ -341,11 +344,17 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
     if (isMultiplayer) return;
     try {
       if (challengeId == null) return;
-      const csrf = await getCsrf();
+
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
       const res = await fetch(endpoints.patternCreate, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({ challenge_id: challengeId }),
       });
       const j: CreateResp = await res.json();
@@ -399,11 +408,16 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
     // Single-player → REST
     try {
       setSubmitting(true);
-      const csrf = await getCsrf();
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
       const res = await fetch(endpoints.patternValidate, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
           game_state_id: gameStateId,
           round_number: level,

@@ -18,6 +18,7 @@ import { scheduleAlarmsForChallenge } from "../../alarmService"
 import { Platform } from "react-native"
 import { useUser } from "../../context/UserContext"
 import { Picker } from "@react-native-picker/picker"
+import { getAccessToken } from "../../auth"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -311,20 +312,17 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
     console.log(payload)
 
     try {
-      const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',                      
-      });
-      if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-      const { csrfToken } = await csrfRes.json();     
-      console.log('csrfToken:', csrfToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
   
   
       const res = await fetch(endpoints.createPublicChallenge, {
         method: 'POST',
-        credentials: 'include',                    
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,                
+          "Authorization": `Bearer ${accessToken}`,
         },
         body: JSON.stringify(payload),
       });
