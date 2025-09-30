@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons"
 import type { NavigationProp } from "@react-navigation/native"
 import { useUser } from "../context/UserContext"
 import { useFocusEffect } from "@react-navigation/native";
+import { getAccessToken } from "../auth"
 type Props = {
   navigation: NavigationProp<any>
 }
@@ -30,7 +31,12 @@ const Groups: React.FC<Props> = ({ navigation }) => {
       const fetchGroups = async () => {
         setIsLoading(true);
         try {
-          const response = await fetch(endpoints.groups(Number(user.id)));
+          const access = await getAccessToken();
+          const response = await fetch(endpoints.groups(Number(user.id)), {
+          headers: {
+            Authorization: `Bearer ${access}`
+          }
+        });
           const data = await response.json();
           setGroups(data);
         } catch (error) {

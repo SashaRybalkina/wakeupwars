@@ -19,6 +19,9 @@ import { scheduleAlarms } from '../Alarm';
 import { endpoints } from '../api';
 import { useUser } from '../context/UserContext';
 import UserProfileCard from './Components/UserProfileCard';
+import { NativeModules } from "react-native";
+const { AlarmModule } = NativeModules;
+
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -56,6 +59,8 @@ const handleLogout = async () => {
 
     // 2. Clear user context
     setUser(null);
+
+    await AlarmModule.clearLaunchIntent();
 
     // 3. Reset navigation to login screen
     navigation.reset({
