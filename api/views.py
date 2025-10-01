@@ -549,6 +549,13 @@ class AddGroupMemberView(APIView):
                 body=f"You have been added to the group '{group.name}'.",
                 data={"type": "group_add"}
             )
+            
+            UserNotification.objects.create(
+                user=user,
+                title="Added to Group",
+                body=f"You have been added to the group '{group.name}'.",
+                type="group_add"
+            )
 
             return Response({"message": "User added to group successfully."}, status=status.HTTP_201_CREATED)
 
@@ -1468,12 +1475,21 @@ class SendFriendRequestView(APIView):
         # Send push notification to recipient
         sender = User.objects.get(id=sender_id)
         recipient = User.objects.get(id=recipient_id)
+        
         send_expo_push_notification(
             recipient,
             title="New Friend Request",
             body=f"{sender.name or sender.username} sent you a friend request.",
             data={"type": "friend_request"}
         )
+        
+        UserNotification.objects.create(
+            user=recipient,
+            title="New Friend Request",
+            body=f"{sender.name or sender.username} sent you a friend request.",
+            type="friend_request"
+        )
+        
         return Response({'message': 'Friend request sent successfully'}, status=status.HTTP_201_CREATED)
 
 
@@ -2641,6 +2657,7 @@ class SendNotificationView(APIView):
         user_id = request.data.get("user_id")
         title = request.data.get("title", "New Notification")
         body = request.data.get("body", "")
+        ttype = request.data.get("type", "")
 
         try:
             user = User.objects.get(id=user_id)
@@ -2652,6 +2669,7 @@ class SendNotificationView(APIView):
             user=user,
             title=title,
             body=body,
+            type=ttype,
         )
 
         # Send push notification
@@ -2709,13 +2727,13 @@ class SavePushTokenView(APIView):
 
 class UserNotificationsView(APIView):
     def get(self, request, user_id):
-        notifications = UserNotification.objects.filter(uID_id=user_id).order_by('-timestamp')
+        notifications = UserNotification.objects.filter(user_id=user_id).order_by('-timestamp')
         data = [
             {
                 "id": n.id,
                 "type": n.type,
                 "timestamp": n.timestamp,
-                "message_string": n.message_string,
+                "body": n.body,
             }
             for n in notifications
         ]

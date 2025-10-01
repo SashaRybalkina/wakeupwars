@@ -76,7 +76,7 @@ export const endpoints = {
   createWordleGame: `${BASE_URL}/api/create-wordle/`,
   validateWordleMove: `${BASE_URL}/api/wordle/validate/`,
 
-  notifications: (userId: number) => `${BASE_URL}/api/notifications/?user_id=${userId}`,
+  notifications: (userId: number) => `${BASE_URL}/api/notifications/${userId}/`,
   sendNotification: `${BASE_URL}/api/notifications/send/`,
 
   createPersonalChallenge: `${BASE_URL}/api/create-personal-challenge/`,
