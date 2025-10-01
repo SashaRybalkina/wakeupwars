@@ -387,6 +387,11 @@ function App() {
           component={CreateChallengeForFriend}
           options={{ headerShown: false }}
         />
+        <Stack.Screen
+          name="PatternGame"
+          component={PatternGameScreen}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

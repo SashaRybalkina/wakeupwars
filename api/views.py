@@ -1118,16 +1118,6 @@ class CreatePublicChallengeView(APIView):
                     **serializer_rs.validated_data,
                 )
 
-            # ─── Reward config ──────────────────────────────
-            reward_data = data.get('reward')
-            if reward_data:
-                serializer_rs = RewardSettingSerializer(data=reward_data)
-                serializer_rs.is_valid(raise_exception=True)
-                RewardSetting.objects.create(
-                    challenge=challenge,
-                    **serializer_rs.validated_data,
-                )
-
             # Add membership
             ChallengeMembership.objects.create(
                 challengeID=challenge,
