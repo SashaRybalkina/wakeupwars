@@ -1059,6 +1059,82 @@ class GetChallengeScheduleView(APIView):
             "members": members,
             "schedule": schedule
         }, status=status.HTTP_200_OK)
+    
+
+class GetChallengeUserScheduleView(APIView):
+    def get(self, request, chall_id, user_id):
+        # Get the challenge
+        try:
+            challenge = Challenge.objects.get(id=chall_id)
+        except Challenge.DoesNotExist:
+            return Response({'error': 'Challenge not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+        alarm_schedules = (
+            AlarmSchedule.objects
+            .filter(
+                uID_id=user_id,
+                challengealarmschedule__challenge_id=chall_id
+            )
+            .order_by("dayOfWeek", "alarmTime")
+            .values("dayOfWeek", "alarmTime")
+        )
+
+        days_list = sorted({s["dayOfWeek"] for s in alarm_schedules})
+
+        # alarm_schedules → [{"dayOfWeek": 1, "alarmTime": "07:30:00"}, ...]
+        # days_list → [1, 3, 5]
+
+
+        # Collect games for the challenge, grouped by day
+        games_by_day = {}
+        games_qs = (
+            GameScheduleGameAssociation.objects
+            .filter(game_schedule__challenge_id=chall_id)
+            .select_related("game_schedule", "game")
+            .order_by("game_schedule__dayOfWeek", "game_order")
+        )
+        for g in games_qs:
+            day = g.game_schedule.dayOfWeek
+            # Prefer DB-provided route; fallback to name-based mapping
+            screen = (g.game.route or '').strip()
+            if not screen:
+                n = (g.game.name or '').lower()
+                if 'sudoku' in n:
+                    screen = 'Sudoku'
+                elif 'wordle' in n:
+                    screen = 'Wordle'
+                elif 'pattern' in n:
+                    screen = 'PatternGame'
+                else:
+                    screen = 'ChallDetails'
+
+            games_by_day.setdefault(day, []).append({
+                "id": g.game.id,
+                "name": g.game.name,
+                "order": g.game_order,
+                "screen": screen,
+            })
+
+        # Merge games + alarms into result
+        schedule = []
+        # all_days = set(alarms_by_day.keys()) | set(games_by_day.keys())
+        for s in alarm_schedules:
+            schedule.append({
+                "dayOfWeek": s["dayOfWeek"],
+                "alarmTime": s["alarmTime"],
+                "games": games_by_day.get(s["dayOfWeek"], [])
+            })
+
+
+        return Response({
+            "id": challenge.id,
+            "name": challenge.name,
+            "startDate": challenge.startDate,
+            "endDate": challenge.endDate,
+            "totalDays": challenge.totalDays,
+            "schedule": schedule
+        }, status=status.HTTP_200_OK)
 
 
 
