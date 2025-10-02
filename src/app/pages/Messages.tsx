@@ -19,6 +19,7 @@ import type { NavigationProp } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import axios from "axios"
 import * as Notifications from 'expo-notifications'
+import {formatDistanceToNow} from 'date-fns'
 
 type Props = {
   navigation: NavigationProp<any>
@@ -187,7 +188,10 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     outputRange: [0, width * 0.425, width * 0.85],
   })
 
-  const getTimeAgo = (timestamp: string) => "2m ago"
+  const getTimeAgo = (timestamp: string) => {
+    if (!timestamp) return ""
+    return formatDistanceToNow(new Date(timestamp), { addSuffix: true })
+  }
 
   const sendMessage = async () => {
     if (!user?.id || !composeText) return
@@ -311,7 +315,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
           <Text style={styles.messageText} numberOfLines={2}>
-            {notification.title + ": " + notification.body}
+            {notification.body}
           </Text>
         </View>
       </TouchableOpacity>

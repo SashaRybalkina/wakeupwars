@@ -1440,7 +1440,7 @@ class SendNotificationView(APIView):
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Save to DB
-        notification = Notification.objects.create(
+        notification = UserNotification.objects.create(
             user=user,
             title=title,
             body=body,
@@ -2732,12 +2732,14 @@ class UserNotificationsView(APIView):
             {
                 "id": n.id,
                 "type": n.type,
+                "title": n.title,
                 "timestamp": n.timestamp,
                 "body": n.body,
             }
             for n in notifications
         ]
         return Response(data, status=status.HTTP_200_OK)
+
 
 class DeleteNotificationView(APIView):
     def delete(self, request, notification_id):
