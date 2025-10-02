@@ -118,6 +118,15 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
         body: JSON.stringify({ challenge_id: challengeId }),
       });
 
+      if (res.status === 403) {
+        const data = await res.json();
+        if (data.code === 'JOINS_CLOSED' || data.code === 'GAME_ENDED') {
+            Alert.alert('Join closed', 'This game can no longer be joined.');
+            navigation.goBack();
+            return;
+        }
+      }
+
       if (!res.ok) {
         const errorText = await res.text();
         console.error('[Wordle] Backend error:', res.status, errorText);

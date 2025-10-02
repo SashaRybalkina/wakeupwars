@@ -58,8 +58,7 @@
     "react-native-uuid": "^2.0.3",
     "sudoku-gen": "^1.0.2",
     "tamagui": "1.98.3",
-    "uuid": "^11.1.0",
-    "@stripe/stripe-react-native": "0.38.6"
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
