@@ -1485,7 +1485,7 @@ class SendFriendRequestView(APIView):
         
         UserNotification.objects.create(
             user=recipient,
-            title="New Friend Request",
+            title="Friend Request",
             body=f"{sender.name or sender.username} sent you a friend request.",
             type="friend_request"
         )
@@ -2738,3 +2738,12 @@ class UserNotificationsView(APIView):
             for n in notifications
         ]
         return Response(data, status=status.HTTP_200_OK)
+
+class DeleteNotificationView(APIView):
+    def delete(self, request, notification_id):
+        try:
+            notification = UserNotification.objects.get(id=notification_id)
+            notification.delete()
+            return Response({"success": True})
+        except UserNotification.DoesNotExist:
+            return Response({"error": "Not found"}, status=404)

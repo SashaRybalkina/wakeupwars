@@ -21,7 +21,7 @@ from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalCh
                     SkillLevelsView, CreatePublicChallengeView, RewardSettingView, 
                     CreateSudokuGameView, ValidateSudokuMoveView, CreatePatternGameView, 
                     ValidatePatternMoveView, CreateWordleGameView, ValidateWordleMoveView, 
-                    SavePushTokenView, UserNotificationsView, get_csrf_token)
+                    SavePushTokenView, UserNotificationsView, DeleteNotificationView, get_csrf_token)
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
@@ -112,4 +112,5 @@ urlpatterns = [
     path('decline-personal-challenge/<int:user_id>/<int:chall_id>/', DeclinePersonalChallenge.as_view()),
     path('save-push-token/', SavePushTokenView.as_view(), name='save-push-token'),
     path('notifications/<int:user_id>/', UserNotificationsView.as_view(), name='user-notifications'),
+    path("notifications/<int:notification_id>/delete/", DeleteNotificationView.as_view(), name="delete-notification"),
 ]

@@ -12,6 +12,7 @@ import {
   View,
   Animated,
   Dimensions,
+  Alert,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import type { NavigationProp } from "@react-navigation/native"
@@ -252,28 +253,57 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     </TouchableOpacity>
   )
 
-  const NotificationItem: React.FC<{ notification: any; index: number }> = ({ notification, index }) => (
-    <TouchableOpacity
-      style={[styles.messageCard, { marginTop: index === 0 ? 0 : 12 }]}
-      activeOpacity={0.7}
-      onPress={() => handleNotificationPress(notification)}
-    >
-      <View style={styles.messageAvatarContainer}>
-        <View style={styles.messageAvatar}>
-          <Ionicons name="notifications" size={24} color="#FFD700" />
+  const NotificationItem: React.FC<{ notification: any; index: number }> = ({ 
+    notification, 
+    index, 
+  }) => {
+  
+    const confirmDelete = (id: number) => {
+      Alert.alert(
+        "Delete Notification",
+        "Are you sure you want to delete this notification?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Delete", style: "destructive", onPress: () => deleteNotification(id) }
+        ]
+      )
+    }
+  
+    const deleteNotification = async (id: number) => {
+      try {
+        await fetch(`${BASE_URL}/api/notifications/${id}/delete/`, { method: "DELETE" })
+        setNotifications(prev => prev.filter(n => n.id !== id))
+      } catch (err) {
+        console.error("Failed to delete notification:", err)
+      }
+    }
+  
+    return (
+      <TouchableOpacity
+        style={[styles.messageCard, { marginTop: index === 0 ? 0 : 12 }]}
+        activeOpacity={0.7}
+        onPress={() => handleNotificationPress(notification)}
+      >
+        <View style={styles.messageAvatarContainer}>
+          <View style={styles.messageAvatar}>
+            <Ionicons name="notifications" size={24} color="#FFD700" />
+          </View>
         </View>
-      </View>
-      <View style={styles.messageContent}>
-        <View style={styles.messageHeader}>
-          <Text style={styles.messageName}>Notification</Text>
-          <Text style={styles.messageTime}>{getTimeAgo(notification.timestamp)}</Text>
+        <View style={styles.messageContent}>
+          <View style={styles.messageHeader}>
+            <Text style={styles.messageName}>{notification.title}</Text>
+            <Text style={styles.messageTime}>{getTimeAgo(notification.timestamp)}</Text>
+            <TouchableOpacity onPress={() => confirmDelete(notification.id)}>
+              <Ionicons name="close" size={20} color="#FFD700" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.messageText} numberOfLines={2}>
+            {notification.title + ": " + notification.body}
+          </Text>
         </View>
-        <Text style={styles.messageText} numberOfLines={2}>
-          {notification.message?.message || notification.message || ""}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  )
+      </TouchableOpacity>
+    )
+  }  
 
   const EmptyState = () => (
     <View style={styles.emptyStateContainer}>
