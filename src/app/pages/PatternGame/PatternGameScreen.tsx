@@ -300,6 +300,14 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
           credentials: 'include',
           body: JSON.stringify({ challenge_id: challengeId }),
         });
+        if (res.status === 403) {
+          const data = await res.json();
+          if (data.code === 'JOINS_CLOSED' || data.code === 'GAME_ENDED') {
+              Alert.alert('Join closed', 'This game can no longer be joined.');
+              navigation.goBack();
+              return;
+          }
+      }
         const j: CreateResp = await res.json();
         if (!res.ok || !j.success) throw new Error(j?.error || 'create failed');
 

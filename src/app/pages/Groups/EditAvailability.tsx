@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { scheduleAlarms } from '../../Alarm';
 import {
   View,
   Text,
@@ -36,7 +37,8 @@ const TIMES = Array.from({ length: 44 }, (_, i) => {
 
 
 type Props = {
-  navigation: NavigationProp<any>
+  // use any to include .replace; or define proper stack prop if available
+  navigation: any
 }
 
 type AvailabilityEntry = {
@@ -330,7 +332,7 @@ const handleSubmit = async () => {
         const text = await res.text();
         if (text) {
           try {
-            const json = JSON.parse(text);
+            const json: any = JSON.parse(text);
             challenge_id = json?.challenge_id ?? null;
           } catch {
             // not JSON — ignore; we’ll fall back to pending id
@@ -338,6 +340,20 @@ const handleSubmit = async () => {
         }
 
         const targetId = challenge_id ?? pendingChallengeId;
+        // fetch finalized schedule and set local alarms
+        try {
+          const schedRes = await fetch(endpoints.getChallengeSchedule(targetId));
+          if (schedRes.ok) {
+            const sched = await schedRes.json();
+            // expected format: [{alarm_time: "YYYY-MM-DDTHH:MM:SSZ"}]
+            const alarms = (sched || []).map((s: any) => ({
+              time: s.alarm_time || s.time || s.timestamp,
+              screen: 'ChallDetails',
+              data: { challengeId: targetId, challName: pendingChallengeName, whichChall: 'Group' },
+            }));
+            if (alarms.length) await scheduleAlarms(alarms);
+          }
+        } catch (e) { console.warn('schedule fetch failed', e); }
         Alert.alert('Success', 'Schedule finalized.', [
           {
             text: 'OK',
