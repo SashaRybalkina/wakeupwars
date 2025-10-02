@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -136,6 +137,21 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# --- Celery configuration -----------------------------
+# Broker / backend default to local Redis; override via env vars in production.
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+
+from datetime import timedelta
+
+CELERY_BEAT_SCHEDULE = {
+    "close-joins-and-zero-no-shows-every-minute": {
+        "task": "api.tasks.close_joins_and_zero_no_shows",
+        "schedule": timedelta(minutes=1),
+    },
+}
+# ------------------------------------------------------
 
 from pathlib import Path
 import os

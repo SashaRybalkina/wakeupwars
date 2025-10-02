@@ -5,6 +5,8 @@ from asgiref.sync import sync_to_async
 from api.sudokuStuff.utils import validate_sudoku_move
 from api.models import SudokuGameState, SudokuGamePlayer, User
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
+from api.models import GamePerformance
 
 ALL_COLORS = [
     'hotpink', 'coral', 'orange', 'lawngreen', 'aqua',
@@ -14,11 +16,41 @@ ALL_COLORS = [
 
 class SudokuConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.game_state_id = self.scope['url_route']['kwargs']['game_state_id']
-        self.group_name = f'sudoku_{self.game_state_id}'
-        self.user = self.scope['user']
+        """
+        Enforce 2-minute join window and block after game end.
+        Close codes:
+        4001 – JOINS_CLOSED   4002 – GAME_ENDED
+        """
+        self.game_state_id = int(self.scope["url_route"]["kwargs"]["game_state_id"])
+        self.group_name = f"sudoku_{self.game_state_id}"
+        self.user: User = self.scope["user"]
 
-        # Accept the connection
+        # ─── join-window gating ─────────────────────────────
+        gs: SudokuGameState = await sync_to_async(
+            SudokuGameState.objects.select_related("challenge", "game").get
+        )(id=self.game_state_id)
+
+        now = timezone.now()
+        if not gs.join_deadline_at:
+            gs.join_deadline_at = (gs.created_at or now) + timezone.timedelta(minutes=2)
+            await sync_to_async(gs.save)(update_fields=["join_deadline_at"])
+
+        if gs.joins_closed or now > gs.join_deadline_at:
+            await self.close(code=4001)
+            return
+
+        ended = await sync_to_async(
+            GamePerformance.objects.filter(
+                challenge=gs.challenge, game=gs.game, date=timezone.localdate()
+            ).exists
+        )()
+        if ended:
+            gs.joins_closed = True
+            await sync_to_async(gs.save)(update_fields=["joins_closed"])
+            await self.close(code=4002)
+            return
+        # ────────────────────────────────────────────────────
+
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
