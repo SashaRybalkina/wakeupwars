@@ -4,9 +4,11 @@ import time
 import random
 from django.db import transaction
 from asgiref.sync import sync_to_async
+from django.utils import timezone
+from datetime import timedelta
 
 
-def get_or_create_game(challenge_id, user):
+def get_or_create_game(challenge_id, user, allow_join: bool = True):
     challenge = Challenge.objects.get(id=challenge_id)
     #print("Challenge is using game:", challenge.game.id, challenge.game.name)
     is_multiplayer = challenge.groupID is not None # TODO: will need to eventually check if this game is multiplayer, not enough to just check
@@ -33,13 +35,17 @@ def get_or_create_game(challenge_id, user):
             puzzle=puzzle,
             solution=solution
         )
+        # set join deadline to 2 minutes after creation
+        game_state.join_deadline_at = timezone.now() + timedelta(minutes=2)
+        game_state.save(update_fields=["join_deadline_at"])
 
     # Ensure user is recorded as a player (track accuracy stats)
-    SudokuGamePlayer.objects.get_or_create(
-        gameState=game_state,
-        player=user,
-        defaults={'accuracyCount': 0, 'inaccuracyCount': 0}
-    )
+    if allow_join:
+        SudokuGamePlayer.objects.get_or_create(
+            gameState=game_state,
+            player=user,
+            defaults={'accuracyCount': 0, 'inaccuracyCount': 0}
+        )
 
     return {
         "game_state_id": game_state.id,

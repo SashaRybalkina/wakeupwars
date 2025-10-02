@@ -964,7 +964,8 @@ class ChallengeGameScheduleView(APIView):
                 "games": [
                     {
                         "name": g.game.name,
-                        "order": g.game_order
+                        "order": g.game_order,
+                        "screen": g.game.route or g.game.name  # fallback
                     }
                     for g in games
                 ]
@@ -1042,7 +1043,12 @@ class GetChallengeScheduleView(APIView):
             schedule.append({
                 "dayOfWeek": day,
                 "alarms": alarms_by_day.get(day, []),
-                "games": games_by_day.get(day, [])
+                "games": [
+                    {
+                        **gm,
+                        "screen": gm.get("screen") or next((Game.objects.filter(name=gm.get("name")).values_list("route", flat=True).first()), gm.get("name"))
+                    } for gm in games_by_day.get(day, [])
+            ]
             })
 
         # # TODO: fix this once update db
@@ -2161,15 +2167,15 @@ class SubmitGameScoresView(APIView):
                 u = User.objects.get(id=uid)
                 _, created = GamePerformance.objects.update_or_create(
                     challenge=challenge, game=game, user=u, date=play_date,
-                    defaults={"score": 0}
+                    defaults={"score": 0, "auto_generated": True}
                 )
                 if created:
                     created_or_updated += 1
-
         return Response({"ok": True, "count": created_or_updated}, status=200)
 
 class ChallengeUpdateView(generics.UpdateAPIView):
     queryset = Challenge.objects.all()
+
     serializer_class = ChallengeSummarySerializer      # use the one you have
     permission_classes = [permissions.IsAdminUser]
 

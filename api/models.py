@@ -376,6 +376,7 @@ class GamePerformance(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     date = models.DateField()
     score = models.IntegerField()
+    auto_generated = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'GamePerformances'
@@ -408,6 +409,9 @@ class SudokuGameState(models.Model):
       puzzle = models.JSONField()
       solution = models.JSONField()
       game_code = models.CharField(max_length=16, default="sudoku", editable=False)
+      created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+      join_deadline_at = models.DateTimeField(null=True, blank=True)
+      joins_closed = models.BooleanField(default=False, null=True, blank=True)
 
       class Meta:
         db_table = 'SudokuGameStates'
@@ -419,6 +423,7 @@ class SudokuGamePlayer(models.Model):
       accuracyCount = models.IntegerField()
       inaccuracyCount = models.IntegerField()
       color = models.CharField(max_length=30, blank=True, null=True)
+      joined_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     #   completed = models.BooleanField(default=False)
     #   completed_at = models.DateTimeField(null=True, blank=True)
@@ -431,7 +436,7 @@ class SudokuGamePlayer(models.Model):
 class FriendRequest(models.Model):
     sender = models.ForeignKey(User, related_name='sent_requests', on_delete=models.CASCADE)
     recipient = models.ForeignKey(User, related_name='received_requests', on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     class Meta:
         db_table = 'FriendRequests'
@@ -450,6 +455,9 @@ class PatternMemorizationGameState(models.Model):
     current_round = models.IntegerField(default=1)  # tracks current round
     pattern_sequence = models.JSONField(default=list)  # stores the sequence of elements/colors for the game
     is_completed = models.BooleanField(default=False)  # whether the game has ended
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    join_deadline_at = models.DateTimeField(null=True, blank=True)
+    joins_closed = models.BooleanField(default=False, null=True, blank=True)
 
     class Meta:
         db_table = 'PatternMemorizationGameStates'
@@ -466,6 +474,7 @@ class PatternMemorizationGamePlayer(models.Model):
     score = models.IntegerField(default=0)  # total score of the player
     last_round_success = models.BooleanField(default=True)  # whether the player completed the last round successfully
     color = models.CharField(max_length=30, blank=True, null=True)
+    joined_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     class Meta:
         db_table = 'PatternMemorizationPlayers'
@@ -520,7 +529,7 @@ class ExternalHandle(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='external_handles')
     provider = models.CharField(max_length=16, choices=PaymentProvider.choices)
     handle = models.CharField(max_length=128)  # venmo username, paypal.me slug, or email
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     class Meta:
         unique_together = [('user', 'provider')]
@@ -540,7 +549,7 @@ class Obligation(models.Model):
     points_penalty_per_day = models.IntegerField(default=0)
     last_penalty_at = models.DateTimeField(null=True, blank=True)
     agreement_accepted = models.BooleanField(default=False)  # payer accepted agreement?
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     class Meta:
         unique_together = [('challenge', 'payer', 'payee')]
@@ -596,7 +605,9 @@ class WordleGameState(models.Model):
       solution = models.JSONField()
       game_code = models.CharField(max_length=50, default="wordle")
       answer = models.CharField(max_length=10, blank=True, null=True)  # the chosen word
-      created_at = models.DateTimeField(auto_now_add=True)
+      created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+      join_deadline_at = models.DateTimeField(null=True, blank=True)
+      joins_closed = models.BooleanField(default=False, null=True, blank=True)
 
       class Meta:
         db_table = 'WordleGameStates'
@@ -608,6 +619,7 @@ class WordleGamePlayer(models.Model):
       accuracyCount = models.IntegerField()
       inaccuracyCount = models.IntegerField()
       color = models.CharField(max_length=30, blank=True, null=True)
+      joined_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     
       class Meta:
           db_table = 'WordleGamePlayers'
@@ -633,7 +645,7 @@ class PersonalChallengeInvite(models.Model):
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_personal_chall_invites')
     # 2: pending, 1: accepted, 0: declined
     status = models.IntegerField(default=2)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     class Meta:
         db_table = 'PersonalChallengeInvites'
