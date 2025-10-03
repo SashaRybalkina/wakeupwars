@@ -8,6 +8,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { useUser } from "../../context/UserContext"
 import { BASE_URL, endpoints } from '../../api';
 import { getMetaFromTuple } from "../Games/NewGamesManagement"
+import { getAccessToken } from "../../auth";
 
 type Props = {
   navigation: NavigationProp<any>
@@ -275,21 +276,18 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
     console.log(payload)
 
     try {
-      // Step 1: Get CSRF token
-      const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: "include",
-      });
-      const csrfData = await csrfRes.json();
-      const csrfToken = csrfData.csrfToken;
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
       // Step 2: Send the POST request
       const response = await fetch(endpoints.createPersonalChallenge, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRFToken": csrfToken,
+          "Authorization": `Bearer ${accessToken}`,
         },
-        credentials: "include",
         body: JSON.stringify(payload),
       });
 

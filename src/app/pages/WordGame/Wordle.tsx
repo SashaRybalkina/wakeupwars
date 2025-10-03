@@ -13,6 +13,9 @@ import { NavigationProp, useRoute } from '@react-navigation/native';
 import { BASE_URL, endpoints } from '../../api';
 import { useUser } from '../../context/UserContext';
 import { evaluateGuess, GuessResult, isWinningGuess } from './WordleHelper';
+import { getAccessToken } from "../../auth";
+// import { NativeModules } from "react-native";
+// const { AlarmModule } = NativeModules;
 
 const GRID_SIZE = 5;
 const MAX_ATTEMPTS = 5;
@@ -102,19 +105,18 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
         return;
       }
 
-      const token = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',
-      });
-      const tokenData = await token.json();
-      const csrfToken = tokenData.csrfToken;
+
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
       const res = await fetch(endpoints.createWordleGame, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,
+          "Authorization": `Bearer ${accessToken}`,
         },
-        credentials: 'include',
         body: JSON.stringify({ challenge_id: challengeId }),
       });
 
@@ -191,6 +193,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   useEffect(() => {
+    console.log("why am i in worlde")
     if (first) {
       initGame();
       setFirst(false);
@@ -204,7 +207,10 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
           setGameOver(true);
           Alert.alert('⏰ Time’s up!', `The word was ${answer}`, [
             { text: 'Play Again', onPress: resetGame },
-            { text: 'Exit', onPress: () => navigation.goBack() },
+            { text: 'Exit', 
+              onPress: () => 
+                navigation.goBack() 
+            },
           ]);
           return 0;
         }
@@ -287,7 +293,14 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.container}>
         <TouchableOpacity
           style={styles.exitButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+              navigation.goBack();
+          }}
+          // onPress={() => {
+          //   AlarmModule.clearLaunchIntent().then(() => {
+          //     navigation.goBack();
+          //   });
+          // }}
         >
           <Text style={styles.exitText}>Exit</Text>
         </TouchableOpacity>

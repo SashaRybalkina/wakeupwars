@@ -18,9 +18,15 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         self.group_name = f'sudoku_{self.game_state_id}'
         self.user = self.scope['user']
 
+        if not self.user.is_authenticated:
+            await self.close()
+            return
+
         # Accept the connection
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        # await self.channel_layer.group_add(self.group_name, self.channel_name)
+        # await self.accept()
 
         # Assign a color and notify others
         self.color = await self.assign_color()

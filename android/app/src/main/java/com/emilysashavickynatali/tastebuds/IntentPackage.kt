@@ -14,3 +14,4 @@ class IntentPackage : ReactPackage {
         return emptyList()
     }
 }
+

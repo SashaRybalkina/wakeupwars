@@ -1,3 +1,4 @@
+from rest_framework.permissions import AllowAny
 from django.conf import settings
 from datetime import timezone, datetime, date, timedelta
 from datetime import date as date_cls, timedelta
@@ -66,12 +67,15 @@ User = get_user_model()
 WORD_LIST = words
 
 
+# class GetUserInfoView(APIView):
+    # def get(self, request):
+    #     return Response(UserSerializer(request.user).data)
 
 
-@ensure_csrf_cookie
-def get_csrf_token(request):
-    token = get_token(request)
-    return JsonResponse({'csrfToken': token})
+# @ensure_csrf_cookie
+# def get_csrf_token(request):
+#     token = get_token(request)
+#     return JsonResponse({'csrfToken': token})
 
 
 class SetChallAvailabilityView(APIView):
@@ -193,35 +197,18 @@ class GetUserAvailabilityView(APIView):
 
 
 
-# class LoginView(APIView):
-#     def post(self, request):
-#         print("Request data:", request.data)
-#         username = request.data.get('username')
-#         password = request.data.get('password')
+# # class LoginView(APIView):
+# #     def post(self, request):
+# #         print("Request data:", request.data)
+# #         username = request.data.get('username')
+# #         password = request.data.get('password')
 class LoginView(APIView):
-    def post(self, request):
-        print("Request data:", request.data)
-        username = request.data.get('username')
-        password = request.data.get('password')
-
-        try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            return Response({'success': False, 'error': 'Username does not exist'}, status=status.HTTP_404_NOT_FOUND)
-
-        if not user.check_password(password):
-            return Response({'success': False, 'error': 'Incorrect password'}, status=status.HTTP_401_UNAUTHORIZED)
-
-        if not user.is_active:
-            return Response({'success': False, 'error': 'Account is inactive'}, status=status.HTTP_403_FORBIDDEN)
-
-        # This sets the session cookie
-        login(request, user)
-
-        serializer = UserSerializer(user)
+    def get(self, request):
+        serializer = UserSerializer(request.user)
         return Response({'success': True, **serializer.data})
 
 class RegisterView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if not serializer.is_valid():
@@ -1246,16 +1233,6 @@ class CreatePublicChallengeView(APIView):
                     **serializer_rs.validated_data,
                 )
 
-            # ─── Reward config ──────────────────────────────
-            reward_data = data.get('reward')
-            if reward_data:
-                serializer_rs = RewardSettingSerializer(data=reward_data)
-                serializer_rs.is_valid(raise_exception=True)
-                RewardSetting.objects.create(
-                    challenge=challenge,
-                    **serializer_rs.validated_data,
-                )
-
             # Add membership
             ChallengeMembership.objects.create(
                 challengeID=challenge,
@@ -1961,7 +1938,7 @@ class CreateWordleGameView(APIView):
 
                 # Add info to response
                 game_data["game_id"] = state.game_id
-                game_data["answer"] = state.answer  # ⚠️ careful: in real multiplayer you may NOT want to send this to everyone
+                game_data["answer"] = state.answer  # careful: in real multiplayer you may NOT want to send this to everyone
         except WordleGameState.DoesNotExist:
             pass
 

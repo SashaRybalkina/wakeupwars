@@ -11,6 +11,7 @@ import axios from "axios";
 import { endpoints } from "../../api";
 import { getGameMeta } from "../Games/NewGamesManagement";
 import { useUser } from "../../context/UserContext";
+import { getAccessToken } from "../../auth";
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -91,16 +92,34 @@ const EditChallengeSharingFriends: React.FC<Props> = ({ navigation, route }) => 
     async function load() {
       try {
         setLoadingChallenge(true);
-
-        const detailReq = axios.get(endpoints.challengeDetail(challId), { withCredentials: true });
+        
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+        const detailReq = axios.get(endpoints.challengeDetail(challId), {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
 
         let scheduleData: any = null;
         try {
-          const res = await axios.get(endpoints.getChallengeSchedule(challId), { withCredentials: true });
+          const res = await axios.get(endpoints.getChallengeSchedule(challId), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
+
           scheduleData = res.data;
         } catch (e) {
           console.log("[FRONTEND] getChallengeSchedule failed, fallback to challengeSchedule");
-          const resFallback = await axios.get(endpoints.challengeSchedule(challId), { withCredentials: true });
+          const resFallback = await axios.get(endpoints.challengeSchedule(challId), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
+
           scheduleData = resFallback.data;
         }
 
@@ -135,19 +154,38 @@ const EditChallengeSharingFriends: React.FC<Props> = ({ navigation, route }) => 
   }, [challId]);
 
 
-  useEffect(() => {
-    if (!user?.id) return;
-    setLoadingFriends(true);
-    axios.get(endpoints.friends(Number(user.id)), { withCredentials: true })
-      .then(res => {
-        console.log("[FRONTEND] Friends data:", res.data);
-        setFriends(res.data);
-      })
-      .catch(err => {
-        console.error("[FRONTEND] Failed to load friends:", err.response?.data || err.message);
-      })
-      .finally(() => setLoadingFriends(false));
-  }, [user]);
+useEffect(() => {
+  const fetchFriends = async () => {
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+
+      if (!user?.id) return;
+      setLoadingFriends(true);
+
+      const res = await axios.get(endpoints.friends(Number(user.id)), {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      console.log("[FRONTEND] Friends data:", res.data);
+      setFriends(res.data);
+    } catch (err: any) {
+      console.error(
+        "[FRONTEND] Failed to load friends:",
+        err.response?.data || err.message
+      );
+    } finally {
+      setLoadingFriends(false);
+    }
+  };
+
+  fetchFriends();
+}, [user]);
+
 
   const toggleFriend = (id: number) => {
     setSelectedFriends(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -186,8 +224,11 @@ const EditChallengeSharingFriends: React.FC<Props> = ({ navigation, route }) => 
     }
 
     try {
-      const csrfResp = await axios.get(endpoints.csrfToken, { withCredentials: true });
-      const csrfToken = csrfResp.data.csrfToken;
+
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
       const payload = {
         startDate: startDate ? toLocalYMD(startDate) : undefined,
@@ -199,8 +240,13 @@ const EditChallengeSharingFriends: React.FC<Props> = ({ navigation, route }) => 
 
       const response = await axios.post(
         endpoints.shareChallenge(challenge.id),
-        payload,
-        { withCredentials: true, headers: { "X-CSRFToken": csrfToken } }
+        payload, // <-- request body
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
 
       console.log("[FRONTEND] Share response:", response.data);

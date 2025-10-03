@@ -11,6 +11,7 @@ import * as Notifications from 'expo-notifications';
 
 import { useUser } from './context/UserContext';
 
+import BootstrapScreen from './pages/BootstrapScreen';
 import Challenges from './pages/Challenges';
 import Chall1 from './pages/Challenges/Chall1';
 import ChallDetails from './pages/Challenges/ChallDetails';
@@ -150,12 +151,19 @@ function App() {
     };
   }, [user]);
 
+
   return (
     <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
       <Stack.Navigator
-        initialRouteName="Login"
+        // initialRouteName="Login"
+        initialRouteName="Bootstrap"
         screenOptions={{ animationEnabled: false, headerShown: false }}
       >
+        <Stack.Screen
+          name="Bootstrap"
+          component={BootstrapScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="Categories"
           component={Categories}

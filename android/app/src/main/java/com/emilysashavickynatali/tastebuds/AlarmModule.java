@@ -71,15 +71,19 @@ public class AlarmModule extends ReactContextBaseJavaModule {
             }
             intent.putExtra("params", bundle);
 
+            // Use a unique requestCode so multiple alarms don't overwrite each other
+            long triggerAtMillis = (long) timestamp;
+            int requestCode = (int) ((triggerAtMillis & 0x7FFFFFFF) ^ (screen != null ? screen.hashCode() : 0));
+
             PendingIntent pendingIntent = PendingIntent.getBroadcast(
                     reactContext,
-                    0,
+                    requestCode,
                     intent,
                     PendingIntent.FLAG_UPDATE_CURRENT |
                             (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0)
             );
 
-            long triggerAtMillis = (long) timestamp;
+            // triggerAtMillis already computed above
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
@@ -94,4 +98,22 @@ public class AlarmModule extends ReactContextBaseJavaModule {
             promise.reject("ALARM_ERROR", e);
         }
     }
+
+    @ReactMethod
+    public void clearLaunchIntent(Promise promise) {
+        try {
+            if (getCurrentActivity() != null) {
+                Intent intent = getCurrentActivity().getIntent();
+                if (intent != null) {
+                    intent.removeExtra("screen");
+                    intent.removeExtra("params");
+                }
+            }
+            promise.resolve(true);
+        } catch (Exception e) {
+            promise.reject("CLEAR_INTENT_ERROR", e);
+        }
+    }
+
 }
+

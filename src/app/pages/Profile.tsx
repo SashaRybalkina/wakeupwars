@@ -1,5 +1,7 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import * as SecureStore from "expo-secure-store";
+import { getAccessToken } from "../auth";
 import {
   Alert,
   ImageBackground,
@@ -17,6 +19,8 @@ import { scheduleAlarms } from '../Alarm';
 import { endpoints } from '../api';
 import { useUser } from '../context/UserContext';
 import UserProfileCard from './Components/UserProfileCard';
+import { NativeModules } from "react-native";
+const { AlarmModule } = NativeModules;
 import { scheduleAlarmsForUser } from '../alarmService';
 
 type Props = {
@@ -37,36 +41,68 @@ const Profile: React.FC<Props> = ({ navigation }) => {
   const [profileData, setProfileData] = useState<any>(null);
   const { user, setUser, setSkillLevels } = useUser();
 
-  const handleLogout = () => {
+  // const handleLogout = () => {
+  //   setUser(null);
+
+  //   navigation.reset({
+  //     index: 0,
+  //     routes: [{ name: 'Login' }],
+  //   });
+  // };
+
+
+const handleLogout = async () => {
+  try {
+    // 1. Clear tokens from SecureStore
+    await SecureStore.deleteItemAsync("access");
+    await SecureStore.deleteItemAsync("refresh");
+
+    // 2. Clear user context
     setUser(null);
 
+    await AlarmModule.clearLaunchIntent();
+
+    // 3. Reset navigation to login screen
     navigation.reset({
       index: 0,
-      routes: [{ name: 'Login' }],
+      routes: [{ name: "Login" }],
     });
-  };
+  } catch (err: any) {
+    console.error("Logout failed", err);
+    Alert.alert("Error", "Failed to log out. Try again.");
+  }
+};
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      try {
-        const res = await fetch(endpoints.skillLevels(), {
-          credentials: 'include',
-        });
-        setSkillLevels(await res.json());
-      } catch {}
-    })();
-  }, [user, setSkillLevels]);
+
+  // useEffect(() => {
+  //   if (!user) return;
+  //   (async () => {
+  //     try {
+  //       const access = await getAccessToken();
+  //       const res = await fetch(endpoints.skillLevels(), {
+  //         headers: {
+  //           Authorization: `Bearer ${access}`
+  //         }
+  //       });
+  //       setSkillLevels(await res.json());
+  //     } catch {}
+  //   })();
+  // }, [user, setSkillLevels]);
 
   useFocusEffect(
     React.useCallback(() => {
+      console.log("in profile")
+      if (!user) return;
       let cancelled = false;
 
       (async () => {
         try {
-          const res = await fetch(endpoints.skillLevels(), {
-            credentials: 'include',
-          });
+        const access = await getAccessToken();
+        const res = await fetch(endpoints.skillLevels(), {
+          headers: {
+            Authorization: `Bearer ${access}`
+          }
+        });
           const data = await res.json();
           if (!cancelled) setSkillLevels(data);
         } catch (e) {
@@ -77,7 +113,7 @@ const Profile: React.FC<Props> = ({ navigation }) => {
       return () => {
         cancelled = true;
       };
-    }, [setSkillLevels]),
+    }, [user, setSkillLevels]),
   );
 
     const setUserAlarms = async() => {
@@ -208,6 +244,7 @@ const Profile: React.FC<Props> = ({ navigation }) => {
           />
           <Text style={styles.logoutText}>Wordle</Text>
         </TouchableOpacity>
+
 
         <TouchableOpacity
           style={styles.logoutButton}

@@ -1,5 +1,6 @@
 import { scheduleAlarms } from './Alarm';
 import { endpoints } from './api';
+import { getAccessToken } from './auth';
 
 /**
  * Fetch the backend schedule for a challenge and schedule native alarms for the
@@ -15,8 +16,15 @@ export async function scheduleAlarmsForChallenge(
   whichChall: string = '',
 ): Promise<void> {
   try {
+          const accessToken = await getAccessToken();
+          if (!accessToken) {
+            throw new Error("Not authenticated");
+          }
+          
     const res = await fetch(endpoints.getChallengeSchedule(challId), {
-      credentials: 'include',
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
     });
 
     if (!res.ok) {

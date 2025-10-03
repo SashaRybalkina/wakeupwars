@@ -6,6 +6,7 @@ import type { NavigationProp } from "@react-navigation/native"
 import { ScrollView } from "tamagui"
 import { useUser } from "../../context/UserContext"
 import { BASE_URL, endpoints } from "../../api"
+import { getAccessToken } from "../../auth"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -72,18 +73,16 @@ const FriendsRequests: React.FC<Props> = ({ navigation }) => {
     try {
       setProcessingId(requestId)
 
-      const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',
-      });
-      const tokenData = await res.json();
-      const csrfToken = tokenData.csrfToken;
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
       const response = await fetch(endpoints.respondToFriendRequest(requestId), {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          'X-CSRFToken': csrfToken,
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
         },
-        credentials: 'include',
         body: JSON.stringify({
           accept,
         }),

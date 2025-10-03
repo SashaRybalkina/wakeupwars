@@ -23,6 +23,7 @@ import { BASE_URL, endpoints } from "../../api"
 import ChallengeCard from "./ChallengeCard"
 import { LinearGradient } from "expo-linear-gradient"
 import { useUser } from "../../context/UserContext"
+import { getAccessToken } from "../../auth"
 // import { DayOfWeek, DayOfWeekLabels } from "./DayOfWeek";
 
 type Alarm = { userName: string; alarmTime: string }
@@ -78,17 +79,27 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
 useEffect(() => {
   const fetchSchedule = async () => {
     try {
-      const res = await axios.get(endpoints.getChallengeSchedule(challId))
+            const accessToken = await getAccessToken();
+            if (!accessToken) {
+              throw new Error("Not authenticated");
+            }
+      const res = await axios.get(endpoints.getChallengeSchedule(challId), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
       const data = res.data
 
-      // Set challenge dates (parse as local to avoid UTC shifts)
-      const startDateParts = data.startDate.split("-").map(Number)
-      const startDate = new Date(startDateParts[0], startDateParts[1] - 1, startDateParts[2])
-      setSelectedStartDate(startDate)
-
-      const endDateParts = data.endDate.split("-").map(Number)
-      const endDate = new Date(endDateParts[0], endDateParts[1] - 1, endDateParts[2])
-      setSelectedEndDate(endDate)
+      // Set challenge dates
+      // const startDate = new Date(data.startDate)
+      if (data.startDate) {
+        const startDateParts = data.startDate.split("-").map(Number)
+        const startDate = new Date(startDateParts[0], startDateParts[1] - 1, startDateParts[2])
+        setSelectedStartDate(startDate)
+      }
+      if (data.endDate) {
+        setSelectedEndDate(new Date(data.endDate))
+      }
 
       setMembers(data.members)
 
@@ -152,12 +163,6 @@ const addGameToDay = async (game: { id: number; name: string }) => {
   );
 
   try {
-      const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-          credentials: 'include',                      
-  });
-  if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-  const { csrfToken } = await csrfRes.json();  
-
 
         const payload = {
           challengeId: challId,
@@ -168,12 +173,15 @@ const addGameToDay = async (game: { id: number; name: string }) => {
 
         console.log("Payload sent to backend:", payload);
 
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
         const res = await fetch(endpoints.addGameToSchedule(), {
             method: 'POST',
-            credentials: 'include',                    
             headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,                
+              'Content-Type': 'application/json',
+              "Authorization": `Bearer ${accessToken}`,
             },
             body: JSON.stringify(payload),
         });
@@ -249,25 +257,21 @@ const addGameToDay = async (game: { id: number; name: string }) => {
     const handleJoinPublicChallenge = async () => {
   
           try {
-            const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-              credentials: 'include',                      
-            });
-            if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-            const { csrfToken } = await csrfRes.json();     
-            console.log('csrfToken:', csrfToken);
 
             const payload = {
               challenge_id: challId,
               user_average_skill_level: userAverageSkillLevel
             }
   
-          
+                const accessToken = await getAccessToken();
+                if (!accessToken) {
+                  throw new Error("Not authenticated");
+                }
           const res = await fetch(endpoints.joinPublicChallenge(Number(user?.id)), {
               method: 'POST',
-              credentials: 'include',                    
               headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken,                
+                'Content-Type': 'application/json',
+                "Authorization": `Bearer ${accessToken}`,
               },
               body: JSON.stringify(payload),
           });
@@ -291,24 +295,22 @@ const addGameToDay = async (game: { id: number; name: string }) => {
         const handleFinalizePublicChallenge = async () => {
   
           try {
-            const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-              credentials: 'include',                      
-            });
-            if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-            const { csrfToken } = await csrfRes.json();     
-            console.log('csrfToken:', csrfToken);
 
             const payload = {
               challenge_id: challId,
             }
+
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
   
           
           const res = await fetch(endpoints.finalizePublicChallenge(), {
               method: 'POST',
-              credentials: 'include',                    
               headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken,                
+                'Content-Type': 'application/json',
+                "Authorization": `Bearer ${accessToken}`,
               },
               body: JSON.stringify(payload),
           });

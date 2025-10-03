@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import * as SecureStore from "expo-secure-store";
 import {
   Alert,
   Dimensions,
@@ -44,35 +45,105 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('SignUp');
   };
 
+  // const handleLogin = async () => {
+  //   if (!username || !password) {
+  //     Alert.alert('Error', 'Please enter both username and password');
+  //     return;
+  //   }
+
+  //   try {
+  //     // Step 1: Get CSRF token and store in context
+  //     console.log('here');
+  //     const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
+  //       credentials: 'include',
+  //     });
+  //     const tokenData = await res.json();
+  //     const csrfToken = tokenData.csrfToken;
+  //     console.log('token in handleLogin: ' + csrfToken);
+  //     // setCsrfToken(csrfToken); // Store token in context
+
+  //     // Step 2: Use token to login
+      // const response = await fetch(endpoints.login, {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'X-CSRFToken': csrfToken,
+      //   },
+      //   credentials: 'include',
+      //   body: JSON.stringify({ username, password }),
+      // });
+
+      // const data = await response.json();
+
+      // // Step 3: Check response
+      // if (response.ok && data.success) {
+      //   setUser({
+      //     id: data.id,
+      //     name: data.name,
+      //     email: data.email,
+      //     username: data.username,
+      //   });
+  //       // If redirected here, go to intended screen
+  //       if (route.params && route.params.redirectTo) {
+  //         navigation.replace(
+  //           route.params.redirectTo,
+  //           route.params.redirectParams || {},
+  //         );
+  //       } else {
+  //         navigation.navigate('Profile');
+  //       }
+  //     } else {
+  //       Alert.alert('Login Failed', data.error || 'Login failed');
+  //       console.log('response status:', response.status);
+  //       console.log('response body:', data);
+  //     }
+  //   } catch (error) {
+  //     console.error('Login error:', error);
+  //     Alert.alert('Error', 'Network error or server is down.');
+  //   }
+  // };
+
   const handleLogin = async () => {
-    if (!username || !password) {
-      Alert.alert('Error', 'Please enter both username and password');
-      return;
-    }
+  try {
+    // Step 1: exchange username+password for tokens
+    const tokenRes = await fetch(endpoints.token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
 
-    try {
-      // Step 1: Get CSRF token and store in context
-      console.log('here');
-      const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',
-      });
-      const tokenData = await res.json();
-      const csrfToken = tokenData.csrfToken;
-      console.log('token in handleLogin: ' + csrfToken);
-      // setCsrfToken(csrfToken); // 🔐 Store token in context
+    if (!tokenRes.ok) throw new Error("Invalid credentials");
 
-      // Step 2: Use token to login
+    const { access, refresh } = await tokenRes.json();
+
+    // Step 2: save tokens securely (expo-secure-store recommended)
+    await SecureStore.setItemAsync("access", access);
+    await SecureStore.setItemAsync("refresh", refresh);
+
+    // // Step 3: fetch user profile
+    // const userRes = await fetch(endpoints.getUserInfo, {
+    //   headers: { Authorization: `Bearer ${access}` },
+    // });
+
+    // if (!userRes.ok) throw new Error("Failed to fetch user info");
+
+    // const userData = await userRes.json();
+
+    // // Step 4: set user context
+    // setUser({
+    //   id: userData.id,
+    //   name: userData.name,
+    //   email: userData.email,
+    //   username: userData.username,
+    // });
+
       const response = await fetch(endpoints.login, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,
-        },
-        credentials: 'include',
-        body: JSON.stringify({ username, password }),
+        method: "GET",
+        headers: { Authorization: `Bearer ${access}` },
       });
 
       const data = await response.json();
+      console.log(data)
 
       // Step 3: Check response
       if (response.ok && data.success) {
@@ -82,25 +153,26 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           email: data.email,
           username: data.username,
         });
-        // If redirected here, go to intended screen
-        if (route.params && route.params.redirectTo) {
-          navigation.replace(
-            route.params.redirectTo,
-            route.params.redirectParams || {},
-          );
-        } else {
-          navigation.navigate('Profile');
-        }
-      } else {
-        Alert.alert('Login Failed', data.error || 'Login failed');
-        console.log('response status:', response.status);
-        console.log('response body:', data);
+
+        // // Step 5: navigate
+        // console.log("why am i going to wordle")
+        // navigation.navigate("Profile");
+        // navigation.setParams({ screen: undefined, data: undefined });
+
+        // navigation.reset({
+        //   index: 0,
+        //   routes: [{ name: "Profile" }],
+        // });
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Profile", params: {} }],
+        });
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      Alert.alert('Error', 'Network error or server is down.');
-    }
-  };
+  } catch (err: any) {
+    Alert.alert("Login Failed", err.message);
+  }
+};
+
 
   return (
     <KeyboardAvoidingView
