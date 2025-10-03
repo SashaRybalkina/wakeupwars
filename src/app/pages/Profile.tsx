@@ -191,7 +191,8 @@ const Profile: React.FC<Props> = ({ navigation }) => {
             NotificationService.sendNotification(
               user.id,
               "Wassupppp",
-              "This is a real push notification!"
+              "This is a real push notification!",
+              "Friends1"
             )
           }
         >

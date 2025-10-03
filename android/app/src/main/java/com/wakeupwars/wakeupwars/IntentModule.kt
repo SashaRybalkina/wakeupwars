@@ -1,4 +1,4 @@
-package com.emilysashavickynatali.tastebuds
+package com.wakeupwars.wakeupwars
 
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule

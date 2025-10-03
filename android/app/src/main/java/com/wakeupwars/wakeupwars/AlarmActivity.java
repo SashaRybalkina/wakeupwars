@@ -1,4 +1,4 @@
-package com.emilysashavickynatali.tastebuds;
+package com.wakeupwars.wakeupwars;
 
 import android.app.Activity;
 import android.media.MediaPlayer;

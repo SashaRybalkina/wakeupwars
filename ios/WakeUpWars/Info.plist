@@ -28,7 +28,7 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>wakeupwars</string>
-          <string>com.emilysashavickynatali.tastebuds</string>
+          <string>com.wakeupwars.wakeupwars</string>
         </array>
       </dict>
     </array>

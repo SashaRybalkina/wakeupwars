@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "881914285939",
+    "project_id": "wakeupwars-982bf",
+    "storage_bucket": "wakeupwars-982bf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:881914285939:android:c08bc18da4a8c7ce1cff06",
+        "android_client_info": {
+          "package_name": "com.wakeupwars.wakeupwars"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDG7kosSBsGL1zf8jXiLEql1HEj23brE8U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

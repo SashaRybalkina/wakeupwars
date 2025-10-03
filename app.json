@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.emilysashavickynatali.tastebuds"
+      "bundleIdentifier": "com.wakeupwars.wakeupwars"
     },
     "permissions": {
       "mediaLibrary": {
@@ -30,9 +30,10 @@
       },
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "NOTIFICATIONS"
       ],
-      "package": "com.emilysashavickynatali.tastebuds"
+      "package": "com.wakeupwars.wakeupwars"
     },
     "plugins": [
       "expo-font",

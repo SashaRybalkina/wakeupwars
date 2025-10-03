@@ -20,14 +20,28 @@ class NotificationService {
     return tokenData.data;
   }
 
-  static async sendLocalNotification(title: string, body: string) {
-    await Notifications.scheduleNotificationAsync({
-      content: { title, body },
-      trigger: null,
+  static async triggerNotification(title: string, body: string, screenName: string) {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
     });
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: title,
+        body: body,
+        sound: 'default',
+        data: { screen: screenName },
+      },
+      trigger: null
+    });
+
+    console.log('Instant notification sent!');
   }
 
-  static async sendNotification(userId: number, title: string, body: string) {
+  static async sendNotification(userId: number, title: string, body: string, screenName: string) {
     try {
       // 1️⃣ Fetch CSRF token
       const tokenRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
@@ -52,8 +66,7 @@ class NotificationService {
         throw new Error(`Server error: ${res.status} ${text}`);
       }
 
-      // 3️⃣ Optional: show local notification
-      await this.sendLocalNotification(title, body);
+      await this.triggerNotification(title, body, screenName);
     } catch (error) {
       console.error("Failed to send notification:", error);
     }
