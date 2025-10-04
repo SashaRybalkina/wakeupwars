@@ -278,6 +278,7 @@ class UserAvailability(models.Model):
 class ChallengeMembership(models.Model):
     challengeID = models.ForeignKey(Challenge, on_delete=models.CASCADE)
     uID = models.ForeignKey(User, on_delete=models.CASCADE)
+    hasSetAlarms = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'ChallengeMemberships'

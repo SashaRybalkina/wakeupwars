@@ -71,6 +71,8 @@ from .views import (
     ValidatePatternMoveView,
     ValidateSudokuMoveView,
     ValidateWordleMoveView,
+    GetHasSetAlarmsView,
+    SetUserHasSetAlarmsView,
 )
 
 
@@ -115,6 +117,8 @@ urlpatterns = [
     path('challenge-schedule/<int:chall_id>/', ChallengeGameScheduleView.as_view(), name='challenge-schedule'),
     path('get-challenge-schedule/<int:chall_id>/', GetChallengeScheduleView.as_view(), name='get-challenge-schedule'),
     path('get-challenge-user-schedule/<int:chall_id>/<int:user_id>/', GetChallengeUserScheduleView.as_view(), name='get-challenge-user-schedule'),
+    path('get-has-set-alarms/<int:chall_id>/<int:user_id>/', GetHasSetAlarmsView.as_view(), name='get-has-set-alarms'),
+    path('set-user-has-set-alarms/<int:chall_id>/<int:user_id>/', SetUserHasSetAlarmsView.as_view(), name='set-user-has-set-alarms'),
     path('create-manual-group-challenge/', CreateManualGroupChallengeView.as_view(), name='create-manual-group-challenge'),
     path('create-public-challenge/', CreatePublicChallengeView.as_view(), name='create-public-challenge'),
     path('create-pending-collaborative-group-challenge/', CreatePendingCollaborativeGroupChallengeView.as_view(), name='create-pending-collaborative-group-challenge'),

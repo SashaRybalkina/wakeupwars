@@ -14,7 +14,7 @@
 // import { endpoints } from "../../api"
 // // import styles from "./ChallSchedule.styles"
 import { useState, useEffect } from "react"
-import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform, Alert } from "react-native"
+import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform, Alert, Button } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { type NavigationProp, useRoute } from "@react-navigation/native"
@@ -24,6 +24,7 @@ import ChallengeCard from "./ChallengeCard"
 import { LinearGradient } from "expo-linear-gradient"
 import { useUser } from "../../context/UserContext"
 import { getAccessToken } from "../../auth"
+import { scheduleAlarmsForUser } from "../../alarmService"
 // import { DayOfWeek, DayOfWeekLabels } from "./DayOfWeek";
 
 type Alarm = { userName: string; alarmTime: string }
@@ -52,6 +53,8 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const [selectedEndDate, setSelectedEndDate] = useState<Date>(new Date())
   const [showStartDatePicker, setShowStartDatePicker] = useState(false)
   const [showEndDatePicker, setShowEndDatePicker] = useState(false)
+  const [hasSetAlarms, setHasSetAlarms] = useState<boolean>()
+  const [isPending, setIsPending] = useState<boolean>()
 
   const { user } = useUser()
 
@@ -83,12 +86,16 @@ useEffect(() => {
             if (!accessToken) {
               throw new Error("Not authenticated");
             }
-      const res = await axios.get(endpoints.getChallengeSchedule(challId), {
-                headers: {
-                  Authorization: `Bearer ${accessToken}`
-                }
-              });
-      const data = res.data
+      const [scheduleRes, alarmsRes] = await Promise.all([
+        axios.get(endpoints.getChallengeSchedule(challId), {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }),
+        axios.get(endpoints.getHasSetAlarms(challId, Number(user?.id)), {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        })
+      ]);
+
+      const data = scheduleRes.data;
 
       // Set challenge dates
       // const startDate = new Date(data.startDate)
@@ -102,6 +109,7 @@ useEffect(() => {
       }
 
       setMembers(data.members)
+      setIsPending(data.isPending)
 
       const dedupedSchedule: DaySchedule[] = data.schedule.map((day: DaySchedule) => ({
         ...day,
@@ -121,6 +129,8 @@ useEffect(() => {
       if (data.schedule.length > 0) {
         setSelectedDay(data.schedule[0].dayOfWeek)
       }
+
+      setHasSetAlarms(alarmsRes.data.hasSetAlarms);
     } catch (err) {
       console.error(err)
     }
@@ -337,6 +347,13 @@ const addGameToDay = async (game: { id: number; name: string }) => {
     return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`
   }
 
+  const allDaysHaveGames = schedule.every(day => {
+    if (day.alarms.length > 0) {
+      return day.games.length > 0
+    }
+    return true
+  })
+
   return (
     <ImageBackground source={require("../../images/tertiary.png")} style={styles.background} resizeMode="cover">
       <View style={styles.container}>
@@ -525,6 +542,49 @@ const addGameToDay = async (game: { id: number; name: string }) => {
     </LinearGradient>
   </TouchableOpacity>
 )}
+
+{!isPending && !hasSetAlarms && (
+  <Button
+    title="Set My Alarms"
+    onPress={async () => {
+      if (!allDaysHaveGames) {
+        Alert.alert("Error", "Select at least one game for each scheduled alarm");
+        return;
+      }
+
+      try {
+        // 1. Schedule alarms locally
+        await scheduleAlarmsForUser(challId, challName, Number(user?.id));
+
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
+        // 2. Mark in backend that user has set their alarms
+        const res = await fetch(
+          endpoints.setUserHasSetAlarms(challId, Number(user?.id)),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+        setHasSetAlarms(true);
+        console.log("Alarms set and API updated");
+      } catch (e) {
+        console.warn("Failed to set alarms", e);
+        Alert.alert("Failed", "Failed to schedule alarms for new challenge", [
+          { text: "OK" },
+        ]);
+      }
+    }}
+    disabled={!allDaysHaveGames}
+  />
+
+)}
+
 
         </ScrollView>
       </View>

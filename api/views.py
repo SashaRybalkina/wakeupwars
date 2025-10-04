@@ -558,6 +558,36 @@ class AddGroupMemberView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
+class GetHasSetAlarmsView(APIView):
+    def get(self, request, chall_id, user_id):
+        membership = get_object_or_404(
+            ChallengeMembership,
+            challengeID_id=chall_id,
+            uID_id=user_id
+        )
+
+        return Response({"hasSetAlarms": membership.hasSetAlarms}, status=status.HTTP_200_OK)
+
+
+
+class SetUserHasSetAlarmsView(APIView):
+    def post(self, request, chall_id, user_id):
+        membership = get_object_or_404(
+            ChallengeMembership,
+            challengeID_id=chall_id,
+            uID_id=user_id
+        )
+
+        membership.hasSetAlarms = True
+        membership.save()
+
+        return Response(
+            {"message": "Marked alarm set in backend"},
+            status=status.HTTP_200_OK
+        )
+
+        
+
 
 class GetPendingPublicChallengesView(APIView):
     def get(self, request, user_id):
@@ -999,6 +1029,7 @@ class GetChallengeScheduleView(APIView):
             "startDate": challenge.startDate,
             "endDate": challenge.endDate,
             "totalDays": challenge.totalDays,
+            "isPending": challenge.isPending,
             "members": members,
             "schedule": schedule
         }, status=status.HTTP_200_OK)
