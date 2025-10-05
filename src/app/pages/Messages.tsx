@@ -1,5 +1,5 @@
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { BASE_URL, endpoints } from "../api"
 import { useUser } from "../context/UserContext"
 import {
@@ -40,6 +40,9 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   const [composeGroupId, setComposeGroupId] = useState("")
   const [sending, setSending] = useState(false)
   const [csrfToken, setCsrfToken] = useState<string>("")
+  const wsNotification = useRef<WebSocket | null>(null)
+  const wsPrivate = useRef<WebSocket | null>(null)
+  const wsGroups = useRef<WebSocket | null>(null)
 
   useEffect(() => {
     const fetchCsrf = async () => {
@@ -140,35 +143,64 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   }, [selected])
 
   useEffect(() => {
-    if (!user?.id) return
-  
-    fetchMessages()
-
-    const interval = setInterval(() => {
-      fetchMessages()
-    }, 1000)
-  
-    return () => clearInterval(interval)
-  }, [user])
-
-  useEffect(() => {
-    if (!user?.id) return
-  
-    const fetchGroupConversations = async () => {
+    if (!user?.id) return;
+    // Notifications WebSocket
+    const wsUrlNotif = `${BASE_URL.replace(/^http/, "ws")}/ws/notifications/${user.id}/`;
+    wsNotification.current = new WebSocket(wsUrlNotif);
+    wsNotification.current.onmessage = (event: any) => {
       try {
-        const response = await fetch(`${BASE_URL}/api/user/${user.id}/group-conversations/`)
-        const data = await response.json()
-        setGroupConversations(data)
-      } catch (error) {
-        console.error("Failed to fetch group conversations:", error)
+        const data = JSON.parse(event.data);
+        if (data.type === "notification_event") {
+          setNotifications((prev) => [data, ...prev]);
+        }
+      } catch (e) {
+        console.error("WebSocket notification parse error:", e);
       }
-    }
-  
-    fetchGroupConversations()
-    const interval = setInterval(fetchGroupConversations, 1000)
-  
-    return () => clearInterval(interval)
-  }, [user])  
+    };
+    wsNotification.current.onerror = (err: any) => {
+      console.error("WebSocket notification error:", err);
+    };
+    wsNotification.current.onclose = () => {};
+
+    // Private messages WebSocket (aggregate all 1-1 chats for this user)
+    const wsUrlPrivate = `${BASE_URL.replace(/^http/, "ws")}/ws/chat/${user.id}/${user.id}/`;
+    wsPrivate.current = new WebSocket(wsUrlPrivate);
+    wsPrivate.current.onmessage = (event: any) => {
+      try {
+        const data = JSON.parse(event.data);
+        setFriendMessages((prev) => [...prev, data]);
+      } catch (e) {
+        console.error("WebSocket private message parse error:", e);
+      }
+    };
+    wsPrivate.current.onerror = (err: any) => {
+      console.error("WebSocket private message error:", err);
+    };
+    wsPrivate.current.onclose = () => {};
+
+    // Group messages WebSocket (aggregate all groups for this user)
+    // You may want to open a socket for each group, but here is a single example for groupId=0 (broadcast)
+    const wsUrlGroups = `${BASE_URL.replace(/^http/, "ws")}/ws/chat/group/0/`;
+    wsGroups.current = new WebSocket(wsUrlGroups);
+    wsGroups.current.onmessage = (event: any) => {
+      try {
+        const data = JSON.parse(event.data);
+        setGroupConversations((prev) => [...prev, data]);
+      } catch (e) {
+        console.error("WebSocket group message parse error:", e);
+      }
+    };
+    wsGroups.current.onerror = (err: any) => {
+      console.error("WebSocket group message error:", err);
+    };
+    wsGroups.current.onclose = () => {};
+
+    return () => {
+      wsNotification.current?.close();
+      wsPrivate.current?.close();
+      wsGroups.current?.close();
+    };
+  }, [user]);
 
   const getConversations = (messages: any[]) => {
     const conversations: Record<string, any> = {}
@@ -203,10 +235,10 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   }
 
   const handleNotificationPress = (notification: any) => {
-    if (notification.type === 'friend_request') {
-      navigation.navigate('FriendsRequests')
-    } else if (notification.type === 'group_add') {
-      navigation.navigate('Groups')
+    if (notification.type === 'friend_request' || notification.type === 'group_add') {
+      navigation.navigate(notification.screen, {});
+    } else {
+        navigation.navigate(notification.screen, { challengeId: notification.challengeId, challName: notification.challName, whichChall: notification.whichChall });
     }
   }
 

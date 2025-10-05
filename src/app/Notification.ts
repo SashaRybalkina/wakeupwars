@@ -29,7 +29,10 @@ class NotificationService {
         throw new Error(`Server error: ${res.status} ${text}`);
       }
 
-      NotificationModule.showNotification(title, body, screen, params);
+      if (title != "Alarm") {
+        NotificationModule.showNotification(title, body, screen, params)
+      }
+
     } catch (error) {
       console.error("Failed to send notification:", error);
     }

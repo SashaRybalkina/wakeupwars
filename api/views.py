@@ -1460,6 +1460,9 @@ class SendNotificationView(APIView):
         )
         
 
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
 class SendFriendRequestView(APIView):
     def post(self, request):
         sender_id = request.data.get("sender_id")
@@ -1472,24 +1475,30 @@ class SendFriendRequestView(APIView):
             return Response({'error': 'Friend request already sent'}, status=status.HTTP_400_BAD_REQUEST)
 
         FriendRequest.objects.create(sender_id=sender_id, recipient_id=recipient_id)
-        # Send push notification to recipient
         sender = User.objects.get(id=sender_id)
         recipient = User.objects.get(id=recipient_id)
-        
-        send_expo_push_notification(
-            recipient,
-            title="New Friend Request",
-            body=f"{sender.name or sender.username} sent you a friend request.",
-            data={"type": "friend_request"}
-        )
-        
+
+        # Save notification to DB
         UserNotification.objects.create(
             user=recipient,
             title="Friend Request",
             body=f"{sender.name or sender.username} sent you a friend request.",
             type="friend_request"
         )
-        
+
+        # Send notification via WebSocket
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"notifications_{recipient_id}",
+            {
+                "type": "notification_event",
+                "title": "Friend Request",
+                "body": f"{sender.name or sender.username} sent you a friend request.",
+                "sender_id": sender_id,
+                "notification_type": "friend_request"
+            }
+        )
+
         return Response({'message': 'Friend request sent successfully'}, status=status.HTTP_201_CREATED)
 
 

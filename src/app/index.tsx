@@ -6,6 +6,7 @@ import {
 } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as Notifications from 'expo-notifications';
+import NotificationService from './Notification';
 
 import { useUser } from './context/UserContext';
 
@@ -56,7 +57,8 @@ import SudokuScreen from './pages/SudokuScreen';
 import EditChallengeSharingFriends from './pages/Challenges/EditChallengeSharingFriends';
 import CreateChallengeForFriend from './pages/Challenges/CreateChallengeForFriend';
 
-const { IntentModule } = NativeModules;
+const { IntentModule, NotificationModule, AlarmModule } = NativeModules;
+const alarmEmitter = new NativeEventEmitter(AlarmModule);
 
 const Stack = createStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -82,10 +84,58 @@ function flushPendingNavigation() {
 
 function App() {
   const { user } = useUser();
+  const wsRef = React.useRef<WebSocket | null>(null);
+
+  React.useEffect(() => {
+    const subscription = alarmEmitter.addListener('AlarmTriggered', (event) => {
+      NotificationService.sendNotification(
+        user?.Id,
+        "Alarm",
+        "Wake up! Time to start your challenge!",
+        event.screen,
+        {
+          challengeId: event.challengeId,
+          challName: event.challName,
+          whichChall: event.whichChall,
+        }
+      );
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   React.useEffect(() => {
     let subscription: any;
     let notificationListener: any;
+
+    // WebSocket notification listener
+    if (user && user.id) {
+      // Replace ws:// with wss:// if using HTTPS
+      const wsUrl = `ws://a20d0c317732.ngrok-free.app/ws/notifications/${user.id}/`;
+      wsRef.current = new WebSocket(wsUrl);
+      wsRef.current.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'notification_event') {
+            // Show notification using native module
+            NotificationModule.showNotification(
+              data.title,
+              data.body,
+              data.screen,
+              {}
+            );
+          }
+        } catch (e) {
+          console.error('WebSocket notification parse error:', e);
+        }
+      };
+      wsRef.current.onerror = (err) => {
+        console.error('WebSocket error:', err);
+      };
+      wsRef.current.onclose = () => {
+        console.log('WebSocket closed');
+      };
+    }
 
     // 1) cold-start intent
     IntentModule.getInitialIntent()
@@ -139,6 +189,7 @@ function App() {
       if (subscription && subscription.remove) subscription.remove();
       else if (subscription) subscription.remove(); // defensive
       if (notificationListener) notificationListener.remove();
+      if (wsRef.current) wsRef.current.close();
     };
   }, [user]);
 

@@ -95,6 +95,10 @@ class UserNotification(models.Model):
     type = models.CharField(max_length=32, default="generic")
     timestamp = models.DateTimeField(auto_now_add=True)
     read = models.BooleanField(default=False)
+    screen = models.CharField(max_length=64, default="Messages", blank=True, null=False)  # default is 'Messages'
+    challengeId = models.IntegerField(null=True, blank=True)
+    challName = models.CharField(max_length=255, null=True, blank=True)
+    whichChall = models.CharField(max_length=64, null=True, blank=True)
 
     def __str__(self):
         return f"Notification for {self.user.username if self.user else 'Unknown'}: {self.title}"
