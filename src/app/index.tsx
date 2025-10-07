@@ -55,6 +55,7 @@ import FriendsSearch from './pages/Profile/FriendSearch';
 import PersChall1 from './pages/Profile/PersChall1';
 import PersChall2 from './pages/Profile/PersChall2';
 import PersChall2Copy from './pages/Profile/PersChall2Copy';
+import PersChall3 from './pages/Profile/PersChall3';
 import SignUpScreen from './pages/SignUp';
 import StartScreen from './pages/StartScreen';
 import SudokuScreen from './pages/SudokuScreen';
@@ -287,6 +288,11 @@ function App() {
         <Stack.Screen
           name="PersChall2Copy"
           component={PersChall2Copy}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PersChall3"
+          component={PersChall3}
           options={{ headerShown: false }}
         />
         <Stack.Screen

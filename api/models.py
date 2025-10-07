@@ -390,8 +390,8 @@ class GamePerformance(models.Model):
 class SkillLevel(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     category = models.ForeignKey(GameCategory, on_delete=models.CASCADE)
-    totalEarned = models.IntegerField()
-    totalPossible = models.IntegerField()
+    totalEarned = models.IntegerField(null=True)
+    totalPossible = models.IntegerField(null=True)
     # the skill level is just (totalEarned / totalPossible) x 10 to get numbers from 1-10
 
     class Meta:

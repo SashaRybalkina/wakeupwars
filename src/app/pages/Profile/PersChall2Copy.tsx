@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import {
   Alert,
   ImageBackground,
@@ -18,6 +18,8 @@ import { Platform } from "react-native"
 import { getMetaFromTuple } from "../Games/NewGamesManagement"
 import { scheduleAlarmsForChallenge, scheduleAlarmsForUser } from "../../alarmService"
 import { useUser } from "../../context/UserContext"
+import { getAccessToken } from "../../auth"
+import { getNextAlarmDate } from "../../../utils/dateUtils"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -31,8 +33,6 @@ const PersChall2Copy: React.FC<Props> = ({ navigation }) => {
   const { user } = useUser()
     
   const [name, setName] = useState("")
-  const [selectedDate, setSelectedDate] = useState(new Date())
-  const [showDatePicker, setShowDatePicker] = useState(false)
 
   const [tempTime, setTempTime] = useState<Date | null>(null)
   const [showTimePicker, setShowTimePicker] = useState(false)
@@ -56,6 +56,7 @@ const PersChall2Copy: React.FC<Props> = ({ navigation }) => {
     SU: 7,
   }
 
+
   const toggleDay = (day: string) => {
     if (selectedDays.includes(day)) {
       setSelectedDays((prev) => prev.filter((d) => d !== day))
@@ -72,20 +73,6 @@ const PersChall2Copy: React.FC<Props> = ({ navigation }) => {
   //   if (date) setSelectedDate(date)
   // }
 
-  // Android + IOS version
-  const onDateChange = (event: any, date?: Date) => {
-    if (event?.type === "dismissed") {
-      setShowDatePicker(false)
-      return
-    }
-  
-    if (date) {
-      setSelectedDate(date)
-      if (Platform.OS === "android") {
-        setShowDatePicker(false)
-      }
-    }
-  }
 
   // const onTimeChange = (_: any, time?: Date) => {
   //   if (time) setTempTime(time)
@@ -166,25 +153,15 @@ const PersChall2Copy: React.FC<Props> = ({ navigation }) => {
     setGamesByDay(updated)
   }
 
-  const formatDate = (date: Date) => {
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'short', 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    }
-    return date.toLocaleDateString(undefined, options)
-  }
-
-  // format as local YYYY-MM-DD (avoids UTC shift from toISOString)
-  const toLocalYMD = (d: Date) => {
+    const toLocalYMD = (d: Date) => {
     const y = d.getFullYear()
     const m = String(d.getMonth() + 1).padStart(2, '0')
     const day = String(d.getDate()).padStart(2, '0')
     return `${y}-${m}-${day}`
   }
 
-  const handleCreateChallenge = async() => {
+
+  const handleNext = async() => {
     if (!name.trim()) {
       Alert.alert("Error", "Please enter a challenge name")
       return
@@ -241,48 +218,22 @@ const PersChall2Copy: React.FC<Props> = ({ navigation }) => {
 
 
 
-    const getNextAlarmDate = (
-      alarmSchedule: { dayOfWeek: number; time: string }[],
-    ): Date | null => {
-      if (!alarmSchedule.length) return null;
-    
-      const now = new Date();
-    
-      for (let offset = 0; offset < 7; offset += 1) {
-        const candidate = new Date(now);
-        candidate.setDate(now.getDate() + offset);
-    
-        const weekday = candidate.getDay() === 0 ? 7 : candidate.getDay(); // Sun = 7
-        const todays = alarmSchedule.filter(a => a.dayOfWeek === weekday);
-        if (!todays.length) continue;
-    
-        if (
-          offset === 0 && // checking today
-          !todays.some(a => {
-            const [hhStr, mmStr] = a.time.split(':');
-            const hh = Number(hhStr ?? '0');
-            const mm = Number(mmStr ?? '0');
-            if (Number.isNaN(hh) || Number.isNaN(mm)) {
-              return false;
-            }
-            const alarmTime = new Date(candidate);
-            alarmTime.setHours(hh, mm, 0, 0);
-            return alarmTime > now; // strictly future; “now” counts as future enough
-          })
-        ) {
-          continue; // all of today’s alarms are already past
-        }
-    
-        return candidate;
-      }
-    
-      return null;
-    };
 
-    // collect day numbers of scheduled alarms
-    const alarmDays = alarmSchedule
-      .map(a => a.dayOfWeek)
-      .filter((d): d is number => d !== undefined);
+      const alarmDays = alarmSchedule.map(a => a.dayOfWeek);
+      const gameDays = gameSchedules.map(g => g.dayOfWeek);
+
+      // find alarm days missing games
+      const missingGames = alarmDays.filter(day => !gameDays.includes(day));
+
+      if (missingGames.length > 0) {
+        Alert.alert(
+          "Error",
+          "Please select at least one game for each day that has an alarm."
+        );
+        return;
+      }
+
+
 
     // find first valid future start date
     const nextAlarmDate = getNextAlarmDate(alarmSchedule);
@@ -290,80 +241,16 @@ const PersChall2Copy: React.FC<Props> = ({ navigation }) => {
       Alert.alert('Error', 'Could not determine start date from schedule');
       return;
     }
-    const start_date = toLocalYMD(nextAlarmDate);
-    const end_date = toLocalYMD(selectedDate);
+    console.log("in here")
+    console.log(toLocalYMD(nextAlarmDate));
+    // const startDate = toLocalYMD(nextAlarmDate);
 
-    if (!start_date) {
-      Alert.alert("Error", "Could not determine start date");
-      return;
-    }
-
-    if (!end_date) {
-      Alert.alert("Error", "Please select an end date");
-      return;
-    }
-
-    const diffMs = new Date(end_date).getTime() - new Date(start_date).getTime();
-    if (diffMs < 0) {
-      Alert.alert('Error', 'End date must be on or after start date');
-      return;
-    }
-    // compute inclusive difference in days
-    const total_days = Math.ceil(diffMs / 86_400_000) + 1; // +1 → inclusive
-    
-    const payload = {
-      userId: user?.id,
-      name,
-      start_date,
-      end_date,
-      total_days,
-      alarm_schedule: alarmSchedule,
-      game_schedules: gameSchedules,
-    };
-
-    try {
-      const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',                      
-      });
-      if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-      const { csrfToken } = await csrfRes.json();     
-      console.log('csrfToken:', csrfToken);
-  
-  
-      const res = await fetch(endpoints.createPersonalChallenge, {
-        method: 'POST',
-        credentials: 'include',                    
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,                
-        },
-        body: JSON.stringify(payload),
-      });
-  
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'Failed to create challenge');
-      }
-  
-      const data = await res.json();
-      console.log('Challenge created:', data);
-
-      // Schedule native alarms on this device for the newly created challenge
-      try {
-        const newId = (data && (data.id ?? data.challenge_id)) as number | undefined;
-        if (newId) {
-          console.log(newId)
-          await scheduleAlarmsForUser(newId, name, Number(user?.id));
-        }
-      } catch (e) {
-        console.warn('Failed to schedule alarms for new challenge', e);
-      }
-      Alert.alert('Success', 'Challenge created successfully', [
-        { text: 'OK', onPress: () => navigation.navigate('PersChall1') },
-      ]);
-    } catch (err: any) {
-      Alert.alert('Error', err.message);
-    }
+    navigation.navigate('PersChall3', {
+                start_date: toLocalYMD(nextAlarmDate),
+                name,
+                alarm_schedule: alarmSchedule,
+                game_schedule: gameSchedules,
+            })
   
   }
 
@@ -517,59 +404,17 @@ const PersChall2Copy: React.FC<Props> = ({ navigation }) => {
             </View>
           )}
 
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>End Date</Text>
-            <Text style={styles.dateDisplay}>{formatDate(selectedDate)}</Text>
-            
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <LinearGradient
-                colors={["rgba(255, 255, 255, 0.2)", "rgba(255, 255, 255, 0.1)"]}
-                style={styles.buttonGradient}
-              >
-                <Ionicons name="calendar-outline" size={20} color="#FFF" style={styles.buttonIcon} />
-                <Text style={styles.buttonText}>Select Date</Text>
-              </LinearGradient>
-            </TouchableOpacity>
 
-            {showDatePicker && (
-              <View style={styles.pickerContainer}>
-                <DateTimePicker
-                  value={selectedDate}
-                  mode="date"
-                  display="spinner"
-                  onChange={onDateChange}
-                  textColor="#FFF"
-                />
-                {/* <TouchableOpacity
-                  style={styles.doneButton}
-                  onPress={() => setShowDatePicker(false)}
-                >
-                  <Text style={styles.doneButtonText}>Done</Text>
-                </TouchableOpacity> */}
-                {Platform.OS !== "android" && (
-                  <TouchableOpacity
-                    style={styles.doneButton}
-                    onPress={() => setShowDatePicker(false)}
-                  >
-                    <Text style={styles.doneButtonText}>Done</Text>
-                  </TouchableOpacity>
-                )}  
-              </View>
-            )}
-          </View>
 
           <TouchableOpacity
             style={styles.createButton}
-            onPress={handleCreateChallenge}
+            onPress={handleNext}
           >
             <LinearGradient
               colors={["#FFD700", "#FFC107"]}
               style={styles.createButtonGradient}
             >
-              <Text style={styles.createButtonText}>Create Challenge</Text>
+              <Text style={styles.createButtonText}>Next</Text>
             </LinearGradient>
           </TouchableOpacity>
         </ScrollView>

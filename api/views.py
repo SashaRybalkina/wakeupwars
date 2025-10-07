@@ -1026,6 +1026,8 @@ class GetChallengeScheduleView(APIView):
         return Response({
             "id": challenge.id,
             "name": challenge.name,
+            "groupId": challenge.groupID_id,
+            "isPublic": challenge.isPublic,
             "startDate": challenge.startDate,
             "endDate": challenge.endDate,
             "totalDays": challenge.totalDays,
@@ -1366,7 +1368,7 @@ class CreatePendingCollaborativeGroupChallengeView(APIView):
                     initiator_id=data['initiator_id'],
                     startDate=None,
                     endDate=None,
-                    totalDays=data['total_days'],
+                    totalDays=None,
                     isPublic=False,
                     isPending=True,
                 )
@@ -1830,6 +1832,7 @@ class CreatePersonalChallengeView(APIView):
                         game_order=game['order']
                     )
 
+            print(challenge.isCompleted)
             return Response({'message': 'Personal challenge created successfully', 'challenge_id': challenge.id}, status=status.HTTP_201_CREATED)
 
         except Exception as e:

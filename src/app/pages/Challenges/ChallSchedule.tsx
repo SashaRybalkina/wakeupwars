@@ -55,6 +55,8 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false)
   const [hasSetAlarms, setHasSetAlarms] = useState<boolean>()
   const [isPending, setIsPending] = useState<boolean>()
+  const [groupId, setGroupId] = useState<Number>() // is personal if groupId null and isPublic false
+  const [isPublic, setIsPublic] = useState<boolean>()
 
   const { user } = useUser()
 
@@ -78,6 +80,12 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const visibleGames = currentDay?.games ?? []
   const visibleAlarms = currentDay?.alarms ?? []
 
+  const parseLocalDate = (dateStr: string) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+
 
 useEffect(() => {
   const fetchSchedule = async () => {
@@ -100,16 +108,18 @@ useEffect(() => {
       // Set challenge dates
       // const startDate = new Date(data.startDate)
       if (data.startDate) {
-        const startDateParts = data.startDate.split("-").map(Number)
-        const startDate = new Date(startDateParts[0], startDateParts[1] - 1, startDateParts[2])
-        setSelectedStartDate(startDate)
+        // const startDateParts = data.startDate.split("-").map(Number)
+        // const startDate = new Date(startDateParts[0], startDateParts[1] - 1, startDateParts[2])
+        setSelectedStartDate(parseLocalDate(data.startDate))
       }
       if (data.endDate) {
-        setSelectedEndDate(new Date(data.endDate))
+        setSelectedEndDate(parseLocalDate(data.endDate))
       }
 
       setMembers(data.members)
       setIsPending(data.isPending)
+      setIsPublic(data.isPublic)
+      setGroupId(data.groupId)
 
       const dedupedSchedule: DaySchedule[] = data.schedule.map((day: DaySchedule) => ({
         ...day,
@@ -341,10 +351,19 @@ const addGameToDay = async (game: { id: number; name: string }) => {
       }
 
 
+  // const formatDate = (date: Date) => {
+  //   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  //   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  //   return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`
+  // }
   const formatDate = (date: Date) => {
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'short', 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    }
+    return date.toLocaleDateString(undefined, options)
   }
 
   const allDaysHaveGames = schedule.every(day => {
@@ -402,7 +421,7 @@ const getInitials = (name: string): string => {
 
             <View style={styles.dateContainer}>
               <Text style={styles.dateLabel}>End date</Text>
-              <Text style={styles.dateValue}>{selectedStartDate ? formatDate(selectedEndDate) : "TBD"}</Text>
+              <Text style={styles.dateValue}>{selectedEndDate ? formatDate(selectedEndDate) : "TBD"}</Text>
               {/* <TouchableOpacity style={styles.dateButton} onPress={() => setShowEndDatePicker(true)}>
                 <Text style={styles.dateButtonText}>Edit End Date</Text>
               </TouchableOpacity> */}
@@ -593,7 +612,7 @@ const getInitials = (name: string): string => {
   </TouchableOpacity>
 )}
 
-{!isPending && !hasSetAlarms && (
+{!isPending && !hasSetAlarms && !(!groupId && !isPublic) && (
   <Button
     title="Set My Alarms"
     onPress={async () => {
