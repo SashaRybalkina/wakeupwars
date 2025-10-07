@@ -194,12 +194,8 @@ const Profile: React.FC<Props> = ({ navigation }) => {
               user.id,
               "Wassupppp",
               "This is a real push notification!",
-              "Wordle",
-              { 
-                challengeId: 30, 
-                challName: "Test", 
-                whichChall: "Test" 
-              }
+              "FriendsRequests",
+              {}
             )
           }
         >

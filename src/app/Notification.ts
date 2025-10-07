@@ -48,9 +48,12 @@ class NotificationService {
 
       if (title != "Alarm") {
         NotificationModule.showNotification(title, body, screen, {
-          challengeId,
-          challName,
-          whichChall,
+          screen,
+          params: {
+            challengeId,
+            challName,
+            whichChall,
+          }
         });
       }
 
