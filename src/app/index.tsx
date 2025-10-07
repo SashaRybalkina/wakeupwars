@@ -119,6 +119,8 @@ function App() {
           const data = JSON.parse(event.data);
           if (data.type === 'notification_event') {
             // Show notification using native module
+            console.log(data.screen);
+            console.log(data);
             NotificationModule.showNotification(
               data.title,
               data.body,

@@ -526,6 +526,8 @@ class AddGroupMemberView(APIView):
     @transaction.atomic
     def post(self, request, group_id):
         data = request.data
+        sender_id = request.data.get("sender_id")
+        recipient_id = request.data.get("recipient_id")
         try:
             friend_id = data.get("friend_id")
             if not friend_id:
@@ -547,7 +549,20 @@ class AddGroupMemberView(APIView):
                 title="Added to Group",
                 body=f"You have been added to the group '{group.name}'.",
                 type="group_add",
-                screen="Groups"
+                screen="Groups",
+            )
+            
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"notifications_{recipient_id}",
+                {
+                    "type": "notification_event",
+                    "title": "Group Invite",
+                    "body": f"You have been invited to group {group.name}!",
+                    "sender_id": sender_id,
+                    "screen": "Groups",
+                    "notification_type": "group_invite"
+                }
             )
 
             return Response({"message": "User added to group successfully."}, status=status.HTTP_201_CREATED)
@@ -1487,7 +1502,7 @@ class SendFriendRequestView(APIView):
             title="Friend Request",
             body=f"{sender.name or sender.username} sent you a friend request.",
             type="friend_request",
-            screen="FriendsRequests"
+            screen="FriendsRequests",
         )
 
         # Send notification via WebSocket
@@ -1497,8 +1512,9 @@ class SendFriendRequestView(APIView):
             {
                 "type": "notification_event",
                 "title": "Friend Request",
-                "body": f"{sender.name or sender.username} sent you a friend request.",
+                "body": f"{sender.name or sender.username} sent you a friend request!",
                 "sender_id": sender_id,
+                "screen": "FriendsRequests",
                 "notification_type": "friend_request"
             }
         )
