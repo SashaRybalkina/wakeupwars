@@ -143,6 +143,14 @@ class Challenge(models.Model):
     name        = models.CharField(max_length=255, default='Challenge')
     isCompleted = models.BooleanField(default=False)
     daysCompleted = models.IntegerField(default=0)
+    
+    def save(self, *args, **kwargs):
+        if self.startDate and self.endDate:
+            self.totalDays = (self.endDate - self.startDate).days
+        else:
+            self.totalDays = 0
+        super().save(*args, **kwargs)
+
 
     # ──────── NEW convenience helpers ────────────────────────────────────────
     members = models.ManyToManyField(

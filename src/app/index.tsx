@@ -56,6 +56,7 @@ import StartScreen from './pages/StartScreen';
 import SudokuScreen from './pages/SudokuScreen';
 import EditChallengeSharingFriends from './pages/Challenges/EditChallengeSharingFriends';
 import CreateChallengeForFriend from './pages/Challenges/CreateChallengeForFriend';
+import { BASE_URL } from './api';
 
 const { IntentModule, NotificationModule, AlarmModule } = NativeModules;
 const alarmEmitter = new NativeEventEmitter(AlarmModule);
@@ -111,7 +112,7 @@ function App() {
     // WebSocket notification listener
     if (user && user.id) {
       // Replace ws:// with wss:// if using HTTPS
-      const wsUrl = `ws://a20d0c317732.ngrok-free.app/ws/notifications/${user.id}/`;
+      const wsUrl = `${BASE_URL.replace(/^http/, "ws")}/ws/notifications/${user.id}/`;
       wsRef.current = new WebSocket(wsUrl);
       wsRef.current.onmessage = (event) => {
         try {

@@ -235,10 +235,18 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   }
 
   const handleNotificationPress = (notification: any) => {
+    console.log(notification.screen);
     if (notification.type === 'friend_request' || notification.type === 'group_add') {
-      navigation.navigate(notification.screen, {});
+      navigation.navigate(notification.screen as string);
     } else {
-        navigation.navigate(notification.screen, { challengeId: notification.challengeId, challName: notification.challName, whichChall: notification.whichChall });
+        navigation.navigate({
+          name: notification.screen as string,
+          params: { 
+            challengeId: notification.challengeId, 
+            challName: notification.challName, 
+            whichChall: notification.whichChall 
+          }
+        });
     }
   }
 

@@ -541,20 +541,13 @@ class AddGroupMemberView(APIView):
 
             # Create the new membership
             GroupMembership.objects.create(groupID=group, uID=user)
-
-            # Send push notification to user
-            send_expo_push_notification(
-                user,
-                title="Added to Group",
-                body=f"You have been added to the group '{group.name}'.",
-                data={"type": "group_add"}
-            )
             
             UserNotification.objects.create(
                 user=user,
                 title="Added to Group",
                 body=f"You have been added to the group '{group.name}'.",
-                type="group_add"
+                type="group_add",
+                screen="Groups"
             )
 
             return Response({"message": "User added to group successfully."}, status=status.HTTP_201_CREATED)
@@ -1433,6 +1426,11 @@ class SendNotificationView(APIView):
         user_id = request.data.get("user_id")
         title = request.data.get("title", "New Notification")
         body = request.data.get("body", "")
+        ttype = request.data.get("type", "")
+        screen = request.data.get("screen", "Messages")
+        challengeId = request.data.get("challengeId")
+        challName = request.data.get("challName")
+        whichChall = request.data.get("whichChall")
 
         try:
             user = User.objects.get(id=user_id)
@@ -1444,6 +1442,11 @@ class SendNotificationView(APIView):
             user=user,
             title=title,
             body=body,
+            type=ttype,
+            screen=screen,
+            challengeId=challengeId,
+            challName=challName,
+            whichChall=whichChall,
         )
 
         # Send push notification
@@ -1483,7 +1486,8 @@ class SendFriendRequestView(APIView):
             user=recipient,
             title="Friend Request",
             body=f"{sender.name or sender.username} sent you a friend request.",
-            type="friend_request"
+            type="friend_request",
+            screen="FriendsRequests"
         )
 
         # Send notification via WebSocket
@@ -2667,6 +2671,10 @@ class SendNotificationView(APIView):
         title = request.data.get("title", "New Notification")
         body = request.data.get("body", "")
         ttype = request.data.get("type", "")
+        screen = request.data.get("screen", "")
+        challengeId = request.data.get("challengeId", "")
+        challName = request.data.get("challName", "")
+        whichChall = request.data.get("whichChall", "")
 
         try:
             user = User.objects.get(id=user_id)
@@ -2679,14 +2687,10 @@ class SendNotificationView(APIView):
             title=title,
             body=body,
             type=ttype,
-        )
-
-        # Send push notification
-        send_expo_push_notification(
-            user,
-            title=title,
-            body=body,
-            data={"notification_id": notification.id}
+            screen=screen,
+            challengeId=challengeId,
+            challName=challName,
+            whichChall=whichChall,
         )
 
         return Response(
@@ -2744,6 +2748,10 @@ class UserNotificationsView(APIView):
                 "title": n.title,
                 "timestamp": n.timestamp,
                 "body": n.body,
+                "screen": n.screen,
+                "challengeId": n.challengeId,
+                "challName": n.challName,
+                "whichChall": n.whichChall,
             }
             for n in notifications
         ]

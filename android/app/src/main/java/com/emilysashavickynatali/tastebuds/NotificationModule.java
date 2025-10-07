@@ -1,97 +1,58 @@
 package com.emilysashavickynatali.tastebuds;
 
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 
-import androidx.annotation.NonNull;
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
+import com.facebook.react.ReactApplication;
+import com.facebook.react.ReactInstanceManager;
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.ReactContext;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.modules.core.DeviceEventManagerModule;
 
-import com.facebook.react.bridge.Promise;
-import com.facebook.react.bridge.ReactApplicationContext;
-import com.facebook.react.bridge.ReactContextBaseJavaModule;
-import com.facebook.react.bridge.ReactMethod;
-import com.facebook.react.bridge.ReadableMap;
+public class NotificationReceiver extends BroadcastReceiver {
 
-import java.util.Map;
-
-public class NotificationModule extends ReactContextBaseJavaModule {
-    private final ReactApplicationContext reactContext;
-    private static final String CHANNEL_ID = "wakeupwars_channel";
-
-    public NotificationModule(ReactApplicationContext reactContext) {
-        super(reactContext);
-        this.reactContext = reactContext;
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            CharSequence name = "WakeUpWars Notifications";
-            String description = "Notifications from WakeUpWars app";
-            int importance = NotificationManager.IMPORTANCE_DEFAULT;
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
-            channel.setDescription(description);
-
-            NotificationManager notificationManager = reactContext.getSystemService(NotificationManager.class);
-            notificationManager.createNotificationChannel(channel);
-        }
-    }
-
-    @NonNull
     @Override
-    public String getName() {
-        return "NotificationModule";
-    }
+    public void onReceive(Context context, Intent intent) {
+        Log.d("NotificationReceiver", "Notification tapped");
 
-    @ReactMethod
-    public void showNotification(String title, String message, String screen, ReadableMap params, Promise promise) {
-        try {
-            Intent intent = new Intent(reactContext, MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            intent.putExtra("screen", screen);
+        String screen = intent.getStringExtra("screen");
+        Bundle params = intent.getBundleExtra("params");
 
-            Bundle bundle = new Bundle();
-            if (params != null) {
-                for (Map.Entry<String, Object> entry : params.toHashMap().entrySet()) {
-                    Object value = entry.getValue();
-                    String key = entry.getKey();
-                    if (value instanceof String) {
-                        bundle.putString(key, (String) value);
-                    } else if (value instanceof Integer) {
-                        bundle.putInt(key, (Integer) value);
-                    } else if (value instanceof Double) {
-                        bundle.putDouble(key, (Double) value);
-                    } else if (value instanceof Boolean) {
-                        bundle.putBoolean(key, (Boolean) value);
-                    }
+        WritableMap map = Arguments.createMap();
+        if (screen != null) map.putString("screen", screen);
+        if (params != null) map.putMap("params", Arguments.fromBundle(params));
+
+        ReactInstanceManager reactInstanceManager = ((ReactApplication) context.getApplicationContext())
+                .getReactNativeHost()
+                .getReactInstanceManager();
+
+        ReactContext reactContext = reactInstanceManager.getCurrentReactContext();
+
+        if (reactContext != null) {
+            Log.d("NotificationReceiver", "React context ready, emitting NewIntent");
+            reactContext
+                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                .emit("NewIntent", map);
+        } else {
+            Log.d("NotificationReceiver", "React context null, waiting for initialization...");
+            reactInstanceManager.addReactInstanceEventListener(new ReactInstanceManager.ReactInstanceEventListener() {
+                @Override
+                public void onReactContextInitialized(ReactContext context) {
+                    Log.d("NotificationReceiver", "React context initialized, emitting NewIntent");
+                    context
+                        .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                        .emit("NewIntent", map);
+                    reactInstanceManager.removeReactInstanceEventListener(this);
                 }
+            });
+
+            if (!reactInstanceManager.hasStartedCreatingInitialContext()) {
+                reactInstanceManager.createReactContextInBackground();
             }
-            intent.putExtra("params", bundle);
-
-            PendingIntent pendingIntent = PendingIntent.getActivity(
-                    reactContext,
-                    (int) System.currentTimeMillis(),
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT |
-                    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_IMMUTABLE : 0)
-            );
-
-            NotificationCompat.Builder builder = new NotificationCompat.Builder(reactContext, CHANNEL_ID)
-                    .setSmallIcon(R.mipmap.ic_launcher)
-                    .setContentTitle(title)
-                    .setContentText(message)
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .setAutoCancel(true)
-                    .setContentIntent(pendingIntent);
-
-            NotificationManagerCompat.from(reactContext).notify((int) System.currentTimeMillis(), builder.build());
-
-            promise.resolve("Notification shown");
-        } catch (Exception e) {
-            promise.reject("NOTIFICATION_ERROR", e);
         }
     }
 }
