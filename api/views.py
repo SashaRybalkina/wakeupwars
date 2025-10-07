@@ -554,7 +554,7 @@ class AddGroupMemberView(APIView):
             
             channel_layer = get_channel_layer()
             async_to_sync(channel_layer.group_send)(
-                f"notifications_{recipient_id}",
+                f"notifications_{friend_id}",
                 {
                     "type": "notification_event",
                     "title": "Group Invite",
