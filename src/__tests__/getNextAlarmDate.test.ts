@@ -9,7 +9,7 @@ describe('getNextAlarmDate', () => {
     jest.useRealTimers();
   });
 
-  it('returns next week’s same weekday if today’s time already passed', () => {
+  it('returns next weeks same weekday if todays time already passed', () => {
     // Set current time: Wed Oct 1 2025 14:30
     jest.setSystemTime(new Date('2025-10-01T14:30:00'));
 

@@ -109,7 +109,7 @@ class GameCategory(models.Model):
 class Game(models.Model):
     name = models.CharField(max_length=255)
     category = models.ForeignKey(GameCategory, on_delete=models.CASCADE)
-    isMultiplayer = models.BooleanField()
+    isMultiplayer = models.BooleanField(null=True) # null if not yet single or multiplayer
     
     # React Native screen to navigate to for this game
     route = models.CharField(max_length=64, null=True, blank=True)
@@ -278,7 +278,7 @@ class UserAvailability(models.Model):
 class ChallengeMembership(models.Model):
     challengeID = models.ForeignKey(Challenge, on_delete=models.CASCADE)
     uID = models.ForeignKey(User, on_delete=models.CASCADE)
-    hasSetAlarms = models.BooleanField(default=False)
+    hasSetAlarms = models.BooleanField(default=False, null=True)
 
     class Meta:
         db_table = 'ChallengeMemberships'

@@ -37,146 +37,114 @@ type GameSchedule = {
 
 
 const PersChall3: React.FC<Props> = ({ navigation }) => {
-      
-  const route = useRoute()
-  const { start_date, name, alarm_schedule, game_schedule } = route.params as {
-    start_date: string; 
-    name: number; 
-    alarm_schedule: { dayOfWeek: number; time: string }[],
-    game_schedule: GameSchedule[]
-  }
-  console.log("param")
-  console.log(start_date)
-  console.log(name)
-  console.log(alarm_schedule)
-  console.log(game_schedule)
-  
+  const route = useRoute();
+  const { first_possible_start_date, name, alarm_schedule, game_schedule } =
+    route.params as {
+      first_possible_start_date: string;
+      name: string;
+      alarm_schedule: { dayOfWeek: number; time: string }[];
+      game_schedule: GameSchedule[];
+    };
 
+    console.log("bro here")
+    console.log(first_possible_start_date)
 
-  const { user } = useUser()
+  const { user } = useUser();
 
   const parseLocalDate = (dateStr: string) => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    return new Date(y, m - 1, d); // JS months are 0-indexed
+    const [y, m, d] = dateStr.split("-").map(Number);
+    return new Date(y, m - 1, d);
   };
-    
-  const [selectedDate, setSelectedDate] = useState(parseLocalDate(start_date))
-  const [showDatePicker, setShowDatePicker] = useState(false)
-  const [currentMonth, setCurrentMonth] = useState(start_date)
 
-  const goToMessages = () => navigation.navigate("Messages")
-  const goToGroups = () => navigation.navigate("Groups")
-  const goToChallenges = () => navigation.navigate("Challenges")
-  const goToProfile = () => navigation.navigate("Profile")
+  const toLocalYMD = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
 
-    const alarmDays = useMemo(
-    () => alarm_schedule.map(a => a.dayOfWeek),
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(first_possible_start_date);
+
+  const alarmDays = useMemo(
+    () => alarm_schedule.map((a) => a.dayOfWeek),
     [alarm_schedule]
-    );
+  );
 
+  const formatDate = (date: Date | null) =>
+    date
+      ? date.toLocaleDateString(undefined, {
+          weekday: "short",
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      : "Not selected";
 
-  const formatDate = (date: Date) => {
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'short', 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+  const getMarkedDatesForMonth = (
+    monthStart: string,
+    minDate: string,
+    alarmSchedule: { dayOfWeek: number; time: string }[]
+  ) => {
+    const marked: Record<string, any> = {};
+    const min = parseLocalDate(minDate);
+
+    const [yearStr, monthStr] = monthStart.split("-");
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10) - 1;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+
+    for (let d = 1; d <= lastDay; d++) {
+      const date = new Date(year, month, d);
+      const isoDate = toLocalYMD(date);
+
+      if (date < min) {
+        marked[isoDate] = { disabled: true, disableTouchEvent: true };
+        continue;
+      }
+
+      const jsDay = date.getDay(); // 0 = Sunday
+      const dayOfWeek = jsDay === 0 ? 7 : jsDay;
+      const enabled = alarmSchedule.some((a) => a.dayOfWeek === dayOfWeek);
+
+      if (!enabled) {
+        marked[isoDate] = { disabled: true, disableTouchEvent: true };
+      }
     }
-    return date.toLocaleDateString(undefined, options)
-  }
+    return marked;
+  };
 
+  const handleStartDayPress = (day: { dateString: string }) => {
+    const selected = parseLocalDate(day.dateString);
+    const weekday = selected.getDay() === 0 ? 7 : selected.getDay();
+    if (!alarm_schedule.some((a) => a.dayOfWeek === weekday)) return;
+    setStartDate(selected);
+    setShowStartPicker(false);
+  };
 
-const toLocalYMD = (d: Date) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
+  const handleEndDayPress = (day: { dateString: string }) => {
+    const selected = parseLocalDate(day.dateString);
+    const weekday = selected.getDay() === 0 ? 7 : selected.getDay();
+    if (!alarm_schedule.some((a) => a.dayOfWeek === weekday)) return;
+    setEndDate(selected);
+    setShowEndPicker(false);
+  };
 
-
-
-
-const getMarkedDatesForMonth = (
-  monthStart: string,
-  startDateStr: string,
-  alarmSchedule: { dayOfWeek: number; time: string }[]
-) => {
-  const marked: Record<string, any> = {};
-
-  const startDate = parseLocalDate(startDateStr);
-
-  const [yearStr, monthStr] = monthStart.split('-');
-  const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10) - 1; // 0-indexed
-
-  const lastDay = new Date(year, month + 1, 0).getDate();
-
-  for (let d = 1; d <= lastDay; d++) {
-    const date = new Date(year, month, d);
-    const isoDate = toLocalYMD(date);
-
-    if (date < startDate) {
-      marked[isoDate] = { disabled: true, disableTouchEvent: true };
-      continue;
-    }
-
-    const jsDay = date.getDay(); // 0 = Sunday
-    const dayOfWeek = jsDay === 0 ? 7 : jsDay;
-    const enabled = alarmSchedule.some(a => a.dayOfWeek === dayOfWeek);
-
-    if (!enabled) {
-      marked[isoDate] = { disabled: true, disableTouchEvent: true };
-    }
-  }
-
-  return marked;
-};
-
-
-// Compute markedDates with selection
-const markedDates = useMemo(() => {
-  const marks = getMarkedDatesForMonth(currentMonth, start_date, alarm_schedule);
-
-  const selDate = toLocalYMD(selectedDate);
-  if (marks[selDate]) {
-    marks[selDate].selected = true;
-    marks[selDate].selectedColor = '#FFD700';
-  } else {
-    marks[selDate] = { selected: true, selectedColor: '#FFD700' };
-  }
-
-  return marks;
-}, [currentMonth, start_date, alarm_schedule, selectedDate]);
-
-
-
-const handleDayPress = (day: { dateString: string }) => {
-  const selected = parseLocalDate(day.dateString);
-  const weekday = selected.getDay() === 0 ? 7 : selected.getDay();
-  if (!alarm_schedule.some(a => a.dayOfWeek === weekday)) return;
-  setSelectedDate(selected);
-};
-
-
-
-
-
-
-  const handleCreateChallenge = async() => {
-    
-    const end_date = toLocalYMD(selectedDate);
-
-
-    if (!end_date) {
-      Alert.alert("Error", "Please select an end date");
+  const handleCreateChallenge = async () => {
+    console.log("uhh")
+    if (!startDate || !endDate) {
+      Alert.alert("Error", "Please select both start and end dates.");
       return;
     }
 
-    const diffMs = new Date(end_date).getTime() - new Date(start_date).getTime();
+    const start_date = toLocalYMD(startDate);
+    const end_date = toLocalYMD(endDate);
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const total_days = Math.ceil(diffMs / 86_400_000) + 1;
 
-    // compute inclusive difference in days
-    const total_days = Math.ceil(diffMs / 86_400_000) + 1; // +1 → inclusive
-    
     const payload = {
       userId: user?.id,
       name,
@@ -186,106 +154,160 @@ const handleDayPress = (day: { dateString: string }) => {
       alarm_schedule,
       game_schedules: game_schedule,
     };
-    console.log(payload)
 
-    try {
-              const accessToken = await getAccessToken();
-              if (!accessToken) {
-                throw new Error("Not authenticated");
-              }
-  
-  
-      const res = await fetch(endpoints.createPersonalChallenge, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          "Authorization": `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(payload),
-      });
-  
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'Failed to create challenge');
-      }
-  
-      const data = await res.json();
-      console.log('Challenge created:', data);
+    console.log(JSON.stringify(payload))
 
-      // Schedule native alarms on this device for the newly created challenge
-      try {
-        const newId = (data && (data.id ?? data.challenge_id)) as number | undefined;
-        if (newId) {
-          console.log(newId)
-          // await scheduleAlarmsForUser(newId, name, Number(user?.id));
-        }
-      } catch (e) {
-        console.warn('Failed to schedule alarms for new challenge', e);
-      }
-      Alert.alert('Success', 'Challenge created successfully', [
-        { text: 'OK', onPress: () => navigation.navigate('PersChall1') },
-      ]);
-    } catch (err: any) {
-      Alert.alert('Error', err.message);
+    // try {
+    //   const accessToken = await getAccessToken();
+    //   if (!accessToken) throw new Error("Not authenticated");
+
+    //   const res = await fetch(endpoints.createPersonalChallenge, {
+    //     method: "POST",
+    //     headers: {
+    //       "Content-Type": "application/json",
+    //       Authorization: `Bearer ${accessToken}`,
+    //     },
+    //     body: JSON.stringify(payload),
+    //   });
+
+    //   if (!res.ok) {
+    //     const error = await res.json();
+    //     throw new Error(error.message || "Failed to create challenge");
+    //   }
+
+    //   const data = await res.json();
+    //   Alert.alert("Success", "Challenge created successfully", [
+    //     { text: "OK", onPress: () => navigation.navigate("PersChall1") },
+    //   ]);
+    // } catch (err: any) {
+    //   Alert.alert("Error", err.message);
+    // }
+  };
+
+  const renderCalendar = (
+    label: string,
+    visible: boolean,
+    onDayPress: (day: any) => void,
+    minDate: string,
+    selectedDate: Date | null
+  ) => {
+    const marks = getMarkedDatesForMonth(
+      currentMonth,
+      minDate,
+      alarm_schedule
+    );
+    if (selectedDate) {
+      const sel = toLocalYMD(selectedDate);
+      marks[sel] = { selected: true, selectedColor: "#FFD700" };
     }
-  
-  }
 
+    return (
+      visible && (
+        <Calendar
+          minDate={minDate}
+          current={currentMonth}
+          onMonthChange={(month) =>
+            setCurrentMonth(`${month.year}-${String(month.month).padStart(2, "0")}-01`)
+          }
+          markedDates={marks}
+          onDayPress={onDayPress}
+          theme={{
+            todayTextColor: "#FFD700",
+            selectedDayBackgroundColor: "#FFD700",
+            arrowColor: "#FFD700",
+          }}
+        />
+      )
+    );
+  };
 
   return (
-    <ImageBackground source={require("../../images/cgpt.png")} style={styles.background} resizeMode="cover">
+    <ImageBackground
+      source={require("../../images/cgpt.png")}
+      style={styles.background}
+      resizeMode="cover"
+    >
       <View style={styles.container}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
           <Ionicons name="arrow-back" size={28} color="#FFF" />
         </TouchableOpacity>
 
         <Text style={styles.pageTitle}>Create Challenge</Text>
 
-        <ScrollView
-          style={styles.scrollContainer}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* START DATE SELECTION */}
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>Select Challenge Start Date</Text>
+            <Text style={styles.dateDisplay}>{formatDate(startDate)}</Text>
 
-<View style={styles.formSection}>
-  <Text style={styles.sectionTitle}>Select End Date</Text>
-  <Text style={styles.dateDisplay}>{formatDate(selectedDate)}</Text>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => setShowStartPicker((p) => !p)}
+            >
+              <LinearGradient
+                colors={["rgba(255,255,255,0.2)", "rgba(255,255,255,0.1)"]}
+                style={styles.buttonGradient}
+              >
+                <Ionicons
+                  name="calendar-outline"
+                  size={20}
+                  color="#FFF"
+                  style={styles.buttonIcon}
+                />
+                <Text style={styles.buttonText}>Select Start Date</Text>
+              </LinearGradient>
+            </TouchableOpacity>
 
-  {/* <TouchableOpacity
-    style={[
-      styles.actionButton,
-      alarmDays.length === 0 && { opacity: 0.5 },
-    ]}
-    disabled={alarmDays.length === 0}
-    onPress={() => setShowDatePicker(true)}
-  >
-    <LinearGradient
-      colors={["rgba(255, 255, 255, 0.2)", "rgba(255, 255, 255, 0.1)"]}
-      style={styles.buttonGradient}
-    >
-      <Ionicons name="calendar-outline" size={20} color="#FFF" style={styles.buttonIcon} />
-      <Text style={styles.buttonText}>
-        {alarmDays.length === 0 ? "Set alarms first" : "Select Date"}
-      </Text>
-    </LinearGradient>
-  </TouchableOpacity> */}
+            {renderCalendar(
+              "Start Date",
+              showStartPicker,
+              handleStartDayPress,
+              first_possible_start_date,
+              startDate
+            )}
+          </View>
 
-<Calendar
-  minDate={toLocalYMD(parseLocalDate(start_date))}
-  current={currentMonth}
-  onMonthChange={(month) =>
-    setCurrentMonth(`${month.year}-${String(month.month).padStart(2, '0')}-01`)
-  }
-  markedDates={markedDates}
-  onDayPress={handleDayPress}
-  theme={{
-    todayTextColor: '#FFD700',
-    selectedDayBackgroundColor: '#FFD700',
-    arrowColor: '#FFD700',
-  }}
-/>
-</View>
+          {/* END DATE SELECTION */}
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>Select Challenge End Date</Text>
+            <Text style={styles.dateDisplay}>{formatDate(endDate)}</Text>
 
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                !startDate && { opacity: 0.5 },
+              ]}
+              disabled={!startDate}
+              onPress={() => setShowEndPicker((p) => !p)}
+            >
+              <LinearGradient
+                colors={["rgba(255,255,255,0.2)", "rgba(255,255,255,0.1)"]}
+                style={styles.buttonGradient}
+              >
+                <Ionicons
+                  name="calendar-outline"
+                  size={20}
+                  color="#FFF"
+                  style={styles.buttonIcon}
+                />
+                <Text style={styles.buttonText}>
+                  {startDate ? "Select End Date" : "Select Start Date First"}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {startDate &&
+              renderCalendar(
+                "End Date",
+                showEndPicker,
+                handleEndDayPress,
+                toLocalYMD(startDate),
+                endDate
+              )}
+          </View>
 
           <TouchableOpacity
             style={styles.createButton}
@@ -300,31 +322,9 @@ const handleDayPress = (day: { dateString: string }) => {
           </TouchableOpacity>
         </ScrollView>
       </View>
-
-      <View style={styles.navBar}>
-        <TouchableOpacity style={styles.navButton} onPress={goToChallenges}>
-          <Ionicons name="star-outline" size={28} color="#FFF" />
-          <Text style={styles.navText}>Challenges</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navButton} onPress={goToGroups}>
-          <Ionicons name="people" size={28} color="#FFD700" />
-          <Text style={styles.activeNavText}>Groups</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navButton} onPress={goToMessages}>
-          <Ionicons name="mail-outline" size={28} color="#FFF" />
-          <Text style={styles.navText}>Messages</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navButton} onPress={goToProfile}>
-          <Ionicons name="person-outline" size={28} color="#FFF" />
-          <Text style={styles.navText}>Profile</Text>
-        </TouchableOpacity>
-      </View>
     </ImageBackground>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   background: {

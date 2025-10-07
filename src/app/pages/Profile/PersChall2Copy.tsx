@@ -241,12 +241,12 @@ const PersChall2Copy: React.FC<Props> = ({ navigation }) => {
       Alert.alert('Error', 'Could not determine start date from schedule');
       return;
     }
-    console.log("in here")
+    console.log("in here2")
     console.log(toLocalYMD(nextAlarmDate));
     // const startDate = toLocalYMD(nextAlarmDate);
 
     navigation.navigate('PersChall3', {
-                start_date: toLocalYMD(nextAlarmDate),
+                first_possible_start_date: toLocalYMD(nextAlarmDate),
                 name,
                 alarm_schedule: alarmSchedule,
                 game_schedule: gameSchedules,
