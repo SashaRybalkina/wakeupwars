@@ -24,6 +24,8 @@ from datetime import time
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate, get_user_model
+
+from api.chat_consumer import ACTIVE_CHAT_USERS
 from .serializers import (UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer,
                           CatSerializer, GameSerializer, FriendSerializer, FriendRequestSerializer, CreateGroupSerializer, SkillLevelSerializer,
                           RewardSettingSerializer, ExternalHandleSerializer,ObligationSerializer, CashPaymentCreateSerializer,
@@ -2596,13 +2598,58 @@ class SendMessageView(APIView):
     def post(self, request, user_id):
         sender = request.user
         recipient = get_object_or_404(User, id=user_id)
-        message_text = request.data.get("message")
+        message_text = request.data.get("message", "").strip()
+
+        if not message_text:
+            return Response({"success": False, "error": "Message cannot be empty"}, status=400)
 
         message = Message.objects.create(
             sender=sender,
             recipient=recipient,
             message=message_text,
+            timestamp=timezone.now()
         )
+
+        # Broadcast message + notification
+        channel_layer = get_channel_layer()
+        ids = sorted([sender.id, recipient.id])
+        room_name = f"chat_user_{ids[0]}_{ids[1]}"
+
+        # Send message event to chat room
+        async_to_sync(channel_layer.group_send)(
+            room_name,
+            {
+                "type": "chat_message",
+                "message": message.message,
+                "sender": {
+                    "id": sender.id,
+                    "name": sender.name,
+                    "username": sender.username,
+                },
+                "recipient_id": recipient.id,
+                "group_id": None,
+                "timestamp": message.timestamp.isoformat(),
+            },
+        )
+        
+        recipient_active = (
+            room_name in ACTIVE_CHAT_USERS
+            and recipient.id in ACTIVE_CHAT_USERS[room_name]
+        )
+
+        if not recipient_active:
+            async_to_sync(channel_layer.group_send)(
+                f"notifications_{recipient.id}",
+                {
+                    "type": "notify",
+                    "event": "new_message",
+                    "sender": sender.username,
+                    "sender_id": sender.id,
+                    "message": message.message,
+                    "timestamp": message.timestamp.isoformat(),
+                },
+            )
+
         return Response({"success": True, "id": message.id})
     
 class ConversationView(APIView):
@@ -2617,7 +2664,7 @@ class SendMessageGroupView(APIView):
     def post(self, request, group_id):
         sender = request.user
         group = get_object_or_404(Group, id=group_id)
-        message_text = request.data.get("message")
+        message_text = request.data.get("message", "").strip()
 
         if not message_text:
             return Response({"success": False, "error": "Message cannot be empty"}, status=400)
@@ -2626,7 +2673,47 @@ class SendMessageGroupView(APIView):
             sender=sender,
             groupID=group,
             message=message_text,
+            timestamp=timezone.now()
         )
+
+        channel_layer = get_channel_layer()
+        room_name = f"chat_group_{group.id}"
+
+        # Broadcast group message
+        async_to_sync(channel_layer.group_send)(
+            room_name,
+            {
+                "type": "chat_message",
+                "message": message.message,
+                "sender": {
+                    "id": sender.id,
+                    "name": sender.name,
+                    "username": sender.username,
+                },
+                "recipient_id": None,
+                "group_id": group.id,
+                "timestamp": message.timestamp.isoformat(),
+            },
+        )
+
+        # Notify other group members
+        member_ids = GroupMembership.objects.filter(groupID=group).values_list("uID_id", flat=True)
+        for uid in member_ids:
+            if uid == sender.id:
+                continue
+            async_to_sync(channel_layer.group_send)(
+                f"notifications_{uid}",
+                {
+                    "type": "notify",
+                    "event": "new_group_message",
+                    "group_id": group.id,
+                    "group_name": group.name,
+                    "sender": sender.username,
+                    "sender_id": sender.id,
+                    "message": message.message,
+                    "timestamp": message.timestamp.isoformat(),
+                },
+            )
 
         return Response({"success": True, "id": message.id})
 
