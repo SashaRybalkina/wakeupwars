@@ -49,6 +49,8 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
     isInitiator: boolean,
   }
 
+  const [startDate, setStartDate] = useState<Date | null>(null)
+  const [endDate, setEndDate] = useState<Date | null>(null)
   const [selectedStartDate, setSelectedStartDate] = useState<Date>(new Date())
   const [selectedEndDate, setSelectedEndDate] = useState<Date>(new Date())
   const [showStartDatePicker, setShowStartDatePicker] = useState(false)
@@ -110,10 +112,10 @@ useEffect(() => {
       if (data.startDate) {
         // const startDateParts = data.startDate.split("-").map(Number)
         // const startDate = new Date(startDateParts[0], startDateParts[1] - 1, startDateParts[2])
-        setSelectedStartDate(parseLocalDate(data.startDate))
+        setStartDate(parseLocalDate(data.startDate))
       }
       if (data.endDate) {
-        setSelectedEndDate(parseLocalDate(data.endDate))
+        setEndDate(parseLocalDate(data.endDate))
       }
 
       setMembers(data.members)
@@ -407,29 +409,22 @@ const getInitials = (name: string): string => {
 
         <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* Start / End Date Section */}
-          <View style={styles.dateSection}>
-            <View style={styles.dateContainer}>
-              <Text style={styles.dateLabel}>Start date</Text>
-              <Text style={styles.dateValue}>{selectedStartDate ? formatDate(selectedStartDate) : "TBD"}</Text>
-              {/* <TouchableOpacity style={styles.dateButton} onPress={() => setShowStartDatePicker(true)}>
-                <Text style={styles.dateButtonText}>Edit Start Date</Text>
-              </TouchableOpacity> */}
-            </View>
-            {showStartDatePicker && (
-              <DateTimePicker value={selectedStartDate} mode="date" display={Platform.OS === "android" ? "default" : "spinner"} onChange={onStartDateChange} />
-            )}
+          {startDate && (
+            <View style={styles.dateSection}>
+              <View style={styles.dateContainer}>
+                <Text style={styles.dateLabel}>Start date</Text>
+                <Text style={styles.dateValue}>{formatDate(startDate)}</Text>
+              </View>
 
-            <View style={styles.dateContainer}>
-              <Text style={styles.dateLabel}>End date</Text>
-              <Text style={styles.dateValue}>{selectedEndDate ? formatDate(selectedEndDate) : "TBD"}</Text>
-              {/* <TouchableOpacity style={styles.dateButton} onPress={() => setShowEndDatePicker(true)}>
-                <Text style={styles.dateButtonText}>Edit End Date</Text>
-              </TouchableOpacity> */}
+              <View style={styles.dateContainer}>
+                <Text style={styles.dateLabel}>End date</Text>
+                <Text style={styles.dateValue}>{formatDate(selectedEndDate)}</Text>
+              </View>
             </View>
-            {showEndDatePicker && (
-              <DateTimePicker value={selectedEndDate} mode="date" display={Platform.OS === "android" ? "default" : "spinner"} onChange={onEndDateChange} />
-            )}
-          </View>
+          )}
+
+
+
 
 
 
@@ -501,7 +496,7 @@ const getInitials = (name: string): string => {
     <Text style={styles.sectionTitle}>
       {selectedDay ? `Games for ${DayOfWeekLabels[selectedDay]}` : "Select a day"}
     </Text>
-    {selectedDay && (
+    {/* {selectedDay && (
       <TouchableOpacity
         style={styles.addGameButtonSmall}
         onPress={() => navigation.navigate("Categories", {
@@ -515,7 +510,7 @@ const getInitials = (name: string): string => {
         <Ionicons name="add-circle" size={24} color="#FFD700" />
         <Text style={styles.addGameTextSmall}>Add</Text>
       </TouchableOpacity>
-    )}
+    )} */}
   </View>
             {visibleGames.length > 0 ? (
               <ScrollView

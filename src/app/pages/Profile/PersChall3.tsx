@@ -38,16 +38,20 @@ type GameSchedule = {
 
 const PersChall3: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { first_possible_start_date, name, alarm_schedule, game_schedule } =
+  const { first_possible_start_date, name, alarm_schedule, game_schedule, chall_type, group_id, members, sing_or_mult, category_ids } =
     route.params as {
       first_possible_start_date: string;
       name: string;
       alarm_schedule: { dayOfWeek: number; time: string }[];
       game_schedule: GameSchedule[];
+      chall_type: string;
+      group_id: number | null;
+      members: { id: number; name: string }[];
+      sing_or_mult: string;
+      category_ids: number[];
     };
 
-    console.log("bro here")
-    console.log(first_possible_start_date)
+    console.log("PersChall3 route params:", route.params);
 
   const { user } = useUser();
 
@@ -134,7 +138,6 @@ const PersChall3: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleCreateChallenge = async () => {
-    console.log("uhh")
     if (!startDate || !endDate) {
       Alert.alert("Error", "Please select both start and end dates.");
       return;
@@ -145,44 +148,132 @@ const PersChall3: React.FC<Props> = ({ navigation }) => {
     const diffMs = endDate.getTime() - startDate.getTime();
     const total_days = Math.ceil(diffMs / 86_400_000) + 1;
 
-    const payload = {
-      userId: user?.id,
-      name,
-      start_date,
-      end_date,
-      total_days,
-      alarm_schedule,
-      game_schedules: game_schedule,
-    };
+    try {
+        const accessToken = await getAccessToken();
+        if (!accessToken) throw new Error("Not authenticated");
 
-    console.log(JSON.stringify(payload))
+        if (chall_type == 'Personal') {
+            const payload = {
+                userId: user?.id,
+                name,
+                start_date,
+                end_date,
+                total_days,
+                alarm_schedule,
+                game_schedules: game_schedule,
+            };
+            console.log(JSON.stringify(payload))
 
-    // try {
-    //   const accessToken = await getAccessToken();
-    //   if (!accessToken) throw new Error("Not authenticated");
+            const res = await fetch(endpoints.createPersonalChallenge, {
+                method: "POST",
+                headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify(payload),
+            });
 
-    //   const res = await fetch(endpoints.createPersonalChallenge, {
-    //     method: "POST",
-    //     headers: {
-    //       "Content-Type": "application/json",
-    //       Authorization: `Bearer ${accessToken}`,
-    //     },
-    //     body: JSON.stringify(payload),
-    //   });
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || "Failed to create challenge");
+            }
 
-    //   if (!res.ok) {
-    //     const error = await res.json();
-    //     throw new Error(error.message || "Failed to create challenge");
-    //   }
+            const data = await res.json();
+            console.log('Challenge created:', data);
 
-    //   const data = await res.json();
-    //   Alert.alert("Success", "Challenge created successfully", [
-    //     { text: "OK", onPress: () => navigation.navigate("PersChall1") },
-    //   ]);
-    // } catch (err: any) {
-    //   Alert.alert("Error", err.message);
-    // }
+            // Schedule native alarms on this device for the newly created challenge
+            try {
+                const newId = (data && (data.id ?? data.challenge_id)) as number | undefined;
+                if (newId) {
+                console.log(newId)
+                // await scheduleAlarmsForUser(newId, name, Number(user?.id));
+                }
+            } catch (e) {
+                console.warn('Failed to schedule alarms for new challenge', e);
+            }
+            Alert.alert('Success', 'Challenge created successfully', [
+                { text: 'OK', onPress: () => navigation.navigate('PersChall1') },
+            ]);
+        }
+
+        else if (chall_type == 'Group') {
+            const payload = {
+                name,
+                start_date,
+                end_date,
+                group_id,
+                initiator_id: Number(user?.id),
+                total_days,
+                members,
+                alarm_schedule,
+                game_schedules: game_schedule
+            };
+            console.log(JSON.stringify(payload))
+
+            const res = await fetch(endpoints.createPendingCollaborativeGroupChallenge(), {
+                method: 'POST',
+                headers: {
+                'Content-Type': 'application/json',
+                "Authorization": `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || 'Failed to save schedule');
+            }
+
+            Alert.alert('Success', 'Schedule saved successfully', [
+                { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId: group_id, groupMembers: members, refresh: Date.now() }) },
+            ]);
+
+        }
+        else if (chall_type == 'Public') {
+            const payload = {
+                name,
+                start_date,
+                end_date,
+                total_days,
+                initiator_id: Number(user?.id),
+                alarm_schedule,
+                game_schedules: game_schedule,
+                sing_or_mult,
+                category_ids,
+            }
+            console.log(payload)
+
+            const res = await fetch(endpoints.createPublicChallenge, {
+                method: 'POST',
+                headers: {
+                'Content-Type': 'application/json',
+                "Authorization": `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify(payload),
+            });
+        
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || 'Failed to create challenge');
+            }
+        
+            const data = await res.json();
+            console.log('Challenge created:', data);
+
+            Alert.alert('Success', 'Challenge created successfully', [
+                { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
+            ]);
+        }
+
+    } catch (err: any) {
+      Alert.alert("Error", err.message);
+    }
+
   };
+
+
+
+
 
   const renderCalendar = (
     label: string,

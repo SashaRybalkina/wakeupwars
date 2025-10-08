@@ -98,11 +98,7 @@ const SomeCategories: React.FC<Props> = ({ navigation }) => {
                       catId: cat.id,
                       categories: categories,
                       singOrMult: singOrMult,
-                      groupId : null,
-                      groupMembers : null,
                       onGameSelected,
-                      challId : null,
-                      challName : null
                     })
                   }}
             >

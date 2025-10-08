@@ -18,19 +18,28 @@ type Props = {
 
 const Games: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, catId, catName, categories, groupId, singOrMult, groupMembers, onGameSelected, challId, challName, friendId } = route.params as {
-    catType: string
+  const { catType, singOrMult, catId, catName, categories, groupId, groupMembers, onGameSelected, challName, friendId, alarmSchedule } = route.params as {
+    catType: string;
+    singOrMult: string;
     catId: number;
     catName: string;
     categories: { id: number; name: string }[];
-    singOrMult: string;
     groupId: number;
     groupMembers: { id: number; name: string }[];
     onGameSelected: (game: { id: number; name: string }) => void;
-    challId: number;
-    challName: number;
+    challName: string;
     friendId?: number;
+    alarmSchedule: { dayOfWeek: number; time: string }[],
   };
+
+  console.log("Games route params:", route.params);
+
+  // catType, singOrMult possibilities
+  // Personal, Singleplayer
+  // Friend, Singeplayer
+  // Group, Neither
+  // Public, Singpleplayer,
+  // Public, Multiplayer
 
   const [games, setGames] = useState<{ id: number; name: String }[]>([]);
 
@@ -93,8 +102,6 @@ const Games: React.FC<Props> = ({ navigation }) => {
               style={styles.gameButton}
               onPress={() => navigation.navigate('GameExpanded', { 
                 catType, 
-                catId,
-                catName, 
                 categories: categories,
                 singOrMult: singOrMult,
                 gameId: game.id, 
@@ -102,9 +109,9 @@ const Games: React.FC<Props> = ({ navigation }) => {
                 groupId, 
                 groupMembers, 
                 onGameSelected,
-                challId,
-                challName,
                 ...(catType === 'Friend' && { friendId }),
+                challName,
+                alarmSchedule
               })}
             >
               <Text style={styles.gameButtonText}>{game.name}</Text>

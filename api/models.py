@@ -116,7 +116,6 @@ class Game(models.Model):
 
     class Meta:
         db_table = 'Games'
-        unique_together = ('name', 'category')
 
     def __str__(self):
         return self.name

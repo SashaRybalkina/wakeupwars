@@ -18,16 +18,18 @@ type Props = {
 
 const Categories: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, groupId, groupMembers, onGameSelected, challId, challName, friendId } = route.params as {
+  const { catType, groupId, groupMembers, singOrMult, onGameSelected, challName, friendId, alarmSchedule } = route.params as {
     catType: string;
     groupId: number;
     groupMembers: { id: number; name: string }[];
-    // singOrMult: string;
+    singOrMult: string;
     onGameSelected: (game: { id: number; name: string }) => void;
-    challId: number;
-    challName: number;
     friendId?: number;
+    challName: string;
+    alarmSchedule: { dayOfWeek: number; time: string }[],
   };
+
+  console.log("Categories route params:", route.params);
 
   const [cats, setCats] = useState<{ id: number; categoryName: string }[]>([]);
   
@@ -55,6 +57,9 @@ const Categories: React.FC<Props> = ({ navigation }) => {
   
     fetchCats();
   }, []);
+
+
+  
 
   return (
     <ImageBackground
@@ -90,16 +95,17 @@ const Categories: React.FC<Props> = ({ navigation }) => {
             <TouchableOpacity
               key={cat.id}
               style={styles.categoryButton}
-              onPress={() => navigation.navigate('GroupChall3', { 
+              onPress={() => navigation.navigate('Games', { 
                 catType, 
+                singOrMult,
                 catId: cat.id, 
                 catName: cat.categoryName, 
                 groupId, 
-                groupMembers, 
+                groupMembers,
                 onGameSelected,
-                challId,
-                challName,
                 ...(catType === 'Friend' && { friendId }),
+                challName,
+                alarmSchedule
               })}
             >
               <Text style={styles.categoryButtonText}>{cat.categoryName}</Text>

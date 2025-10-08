@@ -52,8 +52,8 @@ const GroupChallCollab: React.FC<Props> = ({ navigation }) => {
   const [name, setName] = useState("")
   // const [selectedDate, setSelectedDate] = useState(new Date())
   // const [showDatePicker, setShowDatePicker] = useState(false)
-  const [durationValue, setDurationValue] = useState(1); // default 1
-  const [durationUnit, setDurationUnit] = useState<"weeks" | "months" | "years">("weeks");
+  // const [durationValue, setDurationValue] = useState(1); // default 1
+  // const [durationUnit, setDurationUnit] = useState<"weeks" | "months" | "years">("weeks");
 
   const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
 
@@ -116,7 +116,7 @@ const convertTo24Hour = (time12: string) => {
 
 
 
-    const handleSubmit = async() => {
+    const handleNext = async() => {
         if (!name.trim()) {
             Alert.alert("Error", "Please enter a challenge name")
             return
@@ -137,47 +137,19 @@ const convertTo24Hour = (time12: string) => {
           return [{ dayOfWeek, time: convertTo24Hour(TIMES[time]) }];
         });
 
-        const total_days = getTotalDays(durationValue, durationUnit);
-        const payload = {
+        // const payload = {
+        //   name,
+        //   group_id: groupId,
+        //   members: groupMembers.map((member) => member.id),
+        //   alarm_schedule: alarmSchedule,
+        // };
+
+        navigation.navigate("GroupChallCollab2", {
           name,
-          group_id: groupId,
-          initiator_id: Number(user?.id),
-          total_days,
+          groupId,
           members: groupMembers.map((member) => member.id),
-          alarm_schedule: alarmSchedule,
-        };
-
-        console.log("Payload sent to backend:", payload);
-
-
-        try {
-      const accessToken = await getAccessToken();
-      if (!accessToken) {
-        throw new Error("Not authenticated");
-      }
-
-
-        const res = await fetch(endpoints.createPendingCollaborativeGroupChallenge(), {
-            method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          "Authorization": `Bearer ${accessToken}`,
-        },
-            body: JSON.stringify(payload),
-        });
-
-        if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.message || 'Failed to save schedule');
-        }
-
-        const data = await res.json();
-        Alert.alert('Success', 'Schedule saved successfully', [
-            { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId, groupMembers, refresh: Date.now() }) },
-        ]);
-        } catch (err: any) {
-            Alert.alert('Error', err.message);
-        }
+          alarmSchedule
+        })
 
     }
 
@@ -206,7 +178,7 @@ const convertTo24Hour = (time12: string) => {
             />
           </View>
 
-          <View style={styles.formSection}>
+          {/* <View style={styles.formSection}>
             <Text style={styles.label}>Challenge Duration</Text>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <TextInput
@@ -226,7 +198,7 @@ const convertTo24Hour = (time12: string) => {
                 <Picker.Item label="Years" value="years" />
               </Picker>
             </View>
-          </View>
+          </View> */}
 
           <View style={styles.formSection}>
             <Text style={styles.label}>Select Availability</Text>
@@ -263,12 +235,12 @@ const convertTo24Hour = (time12: string) => {
             </ScrollView>
           </View>
 
-          <TouchableOpacity style={styles.createButton} onPress={handleSubmit}>
+          <TouchableOpacity style={styles.createButton} onPress={handleNext}>
             <LinearGradient
               colors={['#FFD700', '#FFC107']}
               style={styles.createButtonGradient}
             >
-              <Text style={styles.createButtonText}>Save Schedule</Text>
+              <Text style={styles.createButtonText}>Next</Text>
             </LinearGradient>
           </TouchableOpacity>
 

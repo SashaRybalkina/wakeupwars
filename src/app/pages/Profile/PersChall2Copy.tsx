@@ -250,6 +250,7 @@ const PersChall2Copy: React.FC<Props> = ({ navigation }) => {
                 name,
                 alarm_schedule: alarmSchedule,
                 game_schedule: gameSchedules,
+                chall_type: 'Personal'
             })
   
   }

@@ -166,7 +166,7 @@ class GetAvailabilitiesView(APIView):
             chall_id=chall_id
         ).select_related('uID')
 
-        data = [
+        availabilitiesData = [
             {
                 "uID": entry.uID.id,
                 "name": entry.uID.name,
@@ -176,7 +176,44 @@ class GetAvailabilitiesView(APIView):
             for entry in availabilities
         ]
 
-        return Response(data, status=status.HTTP_200_OK)
+        games_by_day = {}
+        games_qs = (
+            GameScheduleGameAssociation.objects
+            .filter(game_schedule__challenge_id=chall_id)
+            .select_related("game_schedule", "game")
+            .order_by("game_schedule__dayOfWeek", "game_order")
+        )
+
+        for g in games_qs:
+            day = g.game_schedule.dayOfWeek
+            games_by_day.setdefault(day, []).append({
+                "id": g.game.id,
+                "name": g.game.name,
+                "order": g.game_order,
+            })
+
+        schedule = []
+        all_days = set(games_by_day.keys())
+        for day in sorted(all_days):
+            schedule.append({
+                "dayOfWeek": day,
+                "games": games_by_day.get(day, [])
+            })
+
+
+        challenge = Challenge.objects.get(id=chall_id)
+        initiator_id = challenge.initiator_id
+
+        print(schedule)
+        print(initiator_id)
+
+        return Response({
+            "availabilities": availabilitiesData,
+            "gameSchedule": schedule,
+            "initiator_id": initiator_id
+        }, status=status.HTTP_200_OK)
+
+        
     
 
 class GetUserAvailabilityView(APIView):
@@ -303,9 +340,13 @@ class SomeCatsListView(APIView):
 
 class GameListView(APIView):
     def get(self, request, cat_id, sing_or_mult):
+        print(sing_or_mult)
         isMult = True
         if sing_or_mult == "Singleplayer":
             isMult = False
+        elif sing_or_mult == 'Neither':
+            isMult = None
+        print(isMult)
         games = Game.objects.filter(category_id=cat_id, isMultiplayer=isMult)
         serializer = GameSerializer(games, many=True)
         return Response(serializer.data)
@@ -371,6 +412,7 @@ class GetChallengeInvitesView(APIView):
             {
                 "id": invite.chall.id,
                 "name": invite.chall.name,
+                "startDate": invite.chall.startDate,
                 "endDate": invite.chall.endDate,
                 "accepted": invite.accepted
             }
@@ -1249,22 +1291,22 @@ class CreatePublicChallengeView(APIView):
                 name=data['name'],
                 groupID_id=None,
                 initiator_id=data['initiator_id'],
-                startDate=None,
-                endDate=None,
+                startDate=data['start_date'],
+                endDate=data['end_date'],
                 totalDays=data['total_days'],
                 isPublic=True,
                 isPending=True
             )
 
-            # ─── Reward config ──────────────────────────────
-            reward_data = data.get('reward')
-            if reward_data:
-                serializer_rs = RewardSettingSerializer(data=reward_data)
-                serializer_rs.is_valid(raise_exception=True)
-                RewardSetting.objects.create(
-                    challenge=challenge,
-                    **serializer_rs.validated_data,
-                )
+            # # ─── Reward config ──────────────────────────────
+            # reward_data = data.get('reward')
+            # if reward_data:
+            #     serializer_rs = RewardSettingSerializer(data=reward_data)
+            #     serializer_rs.is_valid(raise_exception=True)
+            #     RewardSetting.objects.create(
+            #         challenge=challenge,
+            #         **serializer_rs.validated_data,
+            #     )
 
             # Add membership
             ChallengeMembership.objects.create(
@@ -1366,9 +1408,9 @@ class CreatePendingCollaborativeGroupChallengeView(APIView):
                     name=data['name'],
                     groupID_id=data['group_id'],
                     initiator_id=data['initiator_id'],
-                    startDate=None,
-                    endDate=None,
-                    totalDays=None,
+                    startDate=data['start_date'],
+                    endDate=data['end_date'],
+                    totalDays=data['total_days'],
                     isPublic=False,
                     isPending=True,
                 )
@@ -1377,17 +1419,17 @@ class CreatePendingCollaborativeGroupChallengeView(APIView):
                 raise
 
 
-            # ─── Reward config ──────────────────────────────
-            reward_data = data.get('reward')
-            if reward_data:
-                serializer_rs = RewardSettingSerializer(data=reward_data)
-                serializer_rs.is_valid(raise_exception=True)
-                RewardSetting.objects.create(
-                    challenge=challenge,
-                    **serializer_rs.validated_data,
-                )
+            # # ─── Reward config ──────────────────────────────
+            # reward_data = data.get('reward')
+            # if reward_data:
+            #     serializer_rs = RewardSettingSerializer(data=reward_data)
+            #     serializer_rs.is_valid(raise_exception=True)
+            #     RewardSetting.objects.create(
+            #         challenge=challenge,
+            #         **serializer_rs.validated_data,
+            #     )
 
-            print("here1")
+
             # Add inititor membership
             ChallengeMembership.objects.create(
                 challengeID=challenge,
@@ -1410,6 +1452,20 @@ class CreatePendingCollaborativeGroupChallengeView(APIView):
             ]
             PendingGroupChallengeAvailability.objects.bulk_create(availability_entries)
             print("here2")
+
+
+            # Game schedules
+            for g_sched in data['game_schedules']:
+                game_schedule = GameSchedule.objects.create(
+                    challenge=challenge,
+                    dayOfWeek=g_sched['dayOfWeek']
+                )
+                for game in g_sched['games']:
+                    GameScheduleGameAssociation.objects.create(
+                        game_schedule=game_schedule,
+                        game_id=game['id'],
+                        game_order=game['order']
+                    )
 
             # create invites for everyone (accepted = 2 means neither accepted nor declined, 1 
             # means accepted, 0 means declined)
@@ -1832,7 +1888,7 @@ class CreatePersonalChallengeView(APIView):
                         game_order=game['order']
                     )
 
-            print(challenge.isCompleted)
+            # print(challenge.isCompleted)
             return Response({'message': 'Personal challenge created successfully', 'challenge_id': challenge.id}, status=status.HTTP_201_CREATED)
 
         except Exception as e:

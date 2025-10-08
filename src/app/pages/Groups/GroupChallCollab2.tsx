@@ -23,6 +23,7 @@ import { BASE_URL, endpoints } from '../../api';
 import { Picker } from '@react-native-picker/picker';
 import { getAccessToken } from '../../auth';
 import { getMetaFromTuple } from '../Games/NewGamesManagement';
+import { getNextAlarmDate } from '../../../utils/dateUtils';
 
 type Props = { navigation: NavigationProp<any> } 
 // Config 
@@ -36,24 +37,36 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
     members: { id: number; name: string }[]
     alarmSchedule: { dayOfWeek: number; time: string }[], }
 
+  console.log("GroupChallCollab2 route params:", route.params);
+
   const { user } = useUser()
 
   const [selectedDays, setSelectedDays] = useState<string[]>([])
   const [gamesByDay, setGamesByDay] = useState<Record<string, [string, string][]>>({})
 
-  const dayToInt: Record<number, string> = {
-    1: "M",
-    2: "T",
-    3: "W",
-    4: "TH",
-    5: "F",
-    6: "S",
-    7: "SU",
+  const dayToInt: Record<string, number> = {
+    M: 1,
+    T: 2,
+    W: 3,
+    TH: 4,
+    F: 5,
+    S: 6,
+    SU: 7,
   }
+
+  const intToDay: Record<number, string> = {
+  1: "M",
+  2: "T",
+  3: "W",
+  4: "TH",
+  5: "F",
+  6: "S",
+  7: "SU",
+};
 
   const alarmDays = alarmSchedule.map(a => a.dayOfWeek);
   const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"].filter(day =>
-    alarmDays.some(num => dayToInt[num] === day)
+    alarmDays.some(num => intToDay[num] === day)
   );
 
   console.log(DAYS); // ["M", "T"]
@@ -93,6 +106,34 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
     if (updated[day].length === 0) delete updated[day]
     setGamesByDay(updated)
   }
+
+  const toLocalYMD = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
+
+  const getFirstValidStartDate = (alarmDays: number[]): Date => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // normalize to start of today
+
+    for (let i = 1; i <= 7; i++) { // check the next 7 days
+        const candidate = new Date(today);
+        candidate.setDate(today.getDate() + i);
+
+        const jsDay = candidate.getDay(); // 0 = Sunday, 1 = Monday, ...
+        const dayOfWeek = jsDay === 0 ? 7 : jsDay; // convert to 1–7
+
+        if (alarmDays.includes(dayOfWeek)) {
+        return candidate;
+        }
+    }
+
+    // fallback, should never reach here if alarmDays is not empty
+    throw new Error("No valid alarm days provided");
+    };
 
 
 
@@ -137,7 +178,9 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
 
 
             const alarmDays = alarmSchedule.map(a => a.dayOfWeek);
+            console.log(alarmDays)
             const gameDays = gameSchedules.map(g => g.dayOfWeek);
+            console.log(gameDays)
       
             // find alarm days missing games
             const missingGames = alarmDays.filter(day => !gameDays.includes(day));
@@ -150,23 +193,24 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
               return;
             }
 
+            try {            
+                // find first valid future start date
+                const date = getFirstValidStartDate(alarmDays);
+                console.log("first valid date:")
+                console.log(toLocalYMD(date));
 
-        // const payload = {
-        //   name,
-        //   group_id: groupId,
-        //   initiator_id: Number(user?.id),
-        //   total_days,
-        //   members,
-        //   alarm_schedule: alarmSchedule,
-        // };
-
-        navigation.navigate("GroupChallCollab3", {
-          name,
-          groupId,
-          members,
-          alarmSchedule,
-          gameSchedules
-        })
+                navigation.navigate("PersChall3", {
+                    first_possible_start_date: toLocalYMD(date),
+                    name,
+                    alarm_schedule: alarmSchedule,
+                    game_schedule: gameSchedules,
+                    chall_type: 'Group',
+                    group_id: groupId,
+                    members
+                })
+            } catch {
+                console.log("failed to find first valid date")
+            }
 
     }
 
@@ -255,6 +299,10 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
                       onGameSelected: (game: { id: number; name: string }) => {
                         handleGameAdd(game)
                       },
+                      groupId,
+                      challName: name,
+                      groupMembers: members,
+                      alarmSchedule
                     })
                   }}
                 >

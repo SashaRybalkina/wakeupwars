@@ -38,6 +38,7 @@ import GroupChall3 from './pages/Groups/GroupChall3';
 import GroupChall3Old from './pages/Groups/GroupChall3Old';
 import GroupChall4Old from './pages/Groups/GroupChall4Old';
 import GroupChallCollab from './pages/Groups/GroupChallCollab';
+import GroupChallCollab2 from './pages/Groups/GroupChallCollab2';
 import GroupDetails from './pages/Groups/GroupDetails';
 import LoginScreen from './pages/Login';
 import InputOutput from './pages/mainPage';
@@ -248,6 +249,11 @@ function App() {
         <Stack.Screen
           name="GroupChallCollab"
           component={GroupChallCollab}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="GroupChallCollab2"
+          component={GroupChallCollab2}
           options={{ headerShown: false }}
         />
         <Stack.Screen

@@ -434,7 +434,7 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
                   onPress={() => {
                     navigation.navigate("Categories", {
                       catType: "Personal",
-                      singOrMult: "Multiplayer",
+                      singOrMult: "Singleplayer",
                       onGameSelected: (game: { id: number; name: string }) => {
                         handleGameAdd(game)
                       },

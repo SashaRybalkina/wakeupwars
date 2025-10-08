@@ -31,6 +31,7 @@ type Challenge = {
 type PendingChallenge = {
   id: number
   name: string
+  startDate: string
   endDate: string
   accepted: number
 }
@@ -93,7 +94,7 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
             data.challenges = data.challenges.map((challenge: Challenge) => ({
               ...challenge,
               totalDays: challenge.totalDays || 30,
-              isCompleted: challenge.isCompleted || (challenge.endDate ? new Date(challenge.endDate) < now : false),
+              isCompleted: challenge.isCompleted || false,
             }))
           }
 
@@ -110,6 +111,7 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
             (item: PendingChallenge) => ({
               id: item.id,
               name: item.name,
+              startDate: item.startDate,
               endDate: item.endDate,
               accepted: item.accepted
             })
@@ -256,8 +258,10 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
                         navigation.navigate("EditAvailability", {
                           pendingChallengeId: challenge.id,
                           pendingChallengeName: challenge.name,
+                          pendingChallengeStartDate: challenge.startDate,
                           pendingChallengeEndDate: challenge.endDate,
-                          accepted: challenge.accepted
+                          accepted: challenge.accepted,
+                          groupId
                         })
                       }
                     >
@@ -310,8 +314,14 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
 
               <TouchableOpacity
                 style={styles.addNewButton}
+                // onPress={() => {
+                //   navigation.navigate("GroupChall1", {
+                //     groupId: groupData.id,
+                //     groupMembers: groupData.members,
+                //   })
+                // }}
                 onPress={() => {
-                  navigation.navigate("GroupChall1", {
+                  navigation.navigate("GroupChallCollab", {
                     groupId: groupData.id,
                     groupMembers: groupData.members,
                   })
