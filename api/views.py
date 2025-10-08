@@ -1555,6 +1555,7 @@ class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
             return assignment
 
         final_schedule = defaultdict(list)  # {day: [(User, minutes), ...]}
+        day_game_type_mapping = defaultdict(list)  # {day: multiplayer/singleplayer, ...}
 
         for day, entries in valid_days.items():
             # group times per user
@@ -1566,11 +1567,13 @@ class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
             common_times = set.intersection(*user_times.values())
 
             if common_times:
+                day_game_type_mapping[day] = 0 # 0 for multiplayer, 1 for singleplayer
                 # pick the earliest shared time
                 chosen_time = min(common_times)
                 for user in users_in_challenge:
                     final_schedule[day].append((user, chosen_time))
             else:
+                day_game_type_mapping[day] = 1
                 # assign each user the time closest to the group’s median
                 user_assignments = heuristic_assignment(user_times)
                 for user, minutes in user_assignments.items():
@@ -1578,9 +1581,25 @@ class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
         
         print(final_schedule)
 
+        default_to_multiplayer = {43: 10, 44: 12, 45: 30}
+        default_to_singleplayer = {43: 9, 44: 11, 45: 32}
+
         # Persist everything atomically
         try:
             with transaction.atomic():
+                # create the game schedule
+                # on days where everyone is waking up at same time, choose multiplayer version of the
+                # chosen game, otherwise singleplayer
+                for day, singOrMult in day_game_type_mapping:
+                    gsga = get_object_or_404(GameScheduleGameAssociation, game_schedule_challenge_id=chall_id)
+                    if singOrMult == 0: # if multiplayer
+                        newGame = get_object_or_404(Game, id=default_to_multiplayer[gsga.game.id])
+                    else:
+                        newGame = get_object_or_404(Game, id=default_to_singleplayer[gsga.game.id])
+                    gsga.game = newGame
+                    gsga.save(update_fields=["game"])
+
+
                 created_schedules = []
                 for day, user_time_pairs in final_schedule.items():
                     for user, minutes in user_time_pairs:
