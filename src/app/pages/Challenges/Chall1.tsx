@@ -6,6 +6,7 @@ import { type NavigationProp, useFocusEffect, useRoute } from "@react-navigation
 import axios from "axios"
 import { endpoints } from "../../api"
 import { useUser } from "../../context/UserContext"
+import { getAccessToken } from "../../auth"
 import ChallengeCard from "./ChallengeCard"
 
 type Props = {
@@ -35,8 +36,16 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
 
       const fetchChallenges = async () => {
         try {
+          const accessToken = await getAccessToken();
+          if (!accessToken) {
+            throw new Error("Not authenticated");
+          }
           const response = await axios.get(
-            endpoints.challengeList(Number(user.id), whichChall)
+            endpoints.challengeList(Number(user.id), whichChall), {
+              headers: {
+                "Authorization": `Bearer ${accessToken}`,
+              },
+            }
           )
           const data = response.data.map((c: any) => ({
             id: c.id,

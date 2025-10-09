@@ -88,7 +88,9 @@ const EditAvailability: React.FC<Props> = ({ navigation }) => {
   const [userAvailability, setUserAvailability] = useState<AvailabilityEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [isInitiator, setIsInitiator] = useState(false);
-  let challengeStartDate: string | null = null;
+  const [challengeStartDate, setChallengeStartDate] = useState<string | null>(
+    pendingChallengeStartDate ?? null
+  );
 
   const [schedule, setSchedule] = useState<
     {
@@ -150,7 +152,7 @@ const fetchAvailabilities = async () => {
     setUserAvailability(data.availabilities.filter((entry: AvailabilityEntry) => entry.uID === user.id));
     setPendingToggles([]); // clear pending toggles after full refresh
     setIsInitiator(data.initiator_id === user?.id);
-    challengeStartDate = data.start_date;
+    setChallengeStartDate(data.start_date);
 
     const dedupedSchedule: DaySchedule[] = data.gameSchedule.map((day: DaySchedule) => ({
         ...day,
@@ -387,7 +389,8 @@ const handleSubmit = async () => {
 
 
     const handleFinalizeSchedule = async () => {
-
+      console.log("challengeStartDate")
+      console.log(challengeStartDate)
       if (!challengeStartDate) {
         console.warn("Start date not loaded yet");
         return;
