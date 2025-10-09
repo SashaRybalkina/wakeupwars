@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons"
 import type { NavigationProp } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import axios from "axios"
+import { getAccessToken } from "../auth"
 import * as Notifications from 'expo-notifications'
 import {formatDistanceToNow} from 'date-fns'
 const { NotificationModule } = NativeModules;
@@ -46,30 +47,29 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   const wsPrivate = useRef<WebSocket | null>(null)
   const wsGroups = useRef<WebSocket | null>(null)
 
+
   useEffect(() => {
-    const fetchCsrf = async () => {
+    const fetchMessages = async () => {
+      if (!user?.id) return
       try {
-        const res = await fetch(`${BASE_URL}/api/csrf-token/`, { credentials: "include" })
-        const data = await res.json()
-        setCsrfToken(data.csrfToken)
-      } catch (err) {
-        console.error("Failed to fetch CSRF token:", err)
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
+        const response = await fetch(endpoints.messages(Number(user.id)), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
+        const data = await response.json()
+        const friends = data.filter((msg: any) => msg.recipient !== null)
+        setFriendMessages(friends)
+      } catch (error) {
+        console.error("Failed to fetch messages:", error)
       }
     }
-    fetchCsrf()
-  }, [])
-
-  const fetchMessages = async () => {
-    if (!user?.id) return
-    try {
-      const response = await fetch(endpoints.messages(Number(user.id)))
-      const data = await response.json()
-      const friends = data.filter((msg: any) => msg.recipient !== null)
-      setFriendMessages(friends)
-    } catch (error) {
-      console.error("Failed to fetch messages:", error)
-    }
-  }
+    fetchMessages()
+  }, [user])
 
   const fetchGroupConversations = async () => {
     if (!user?.id) return
@@ -285,12 +285,25 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     if (!user?.id || !composeText) return
     setSending(true)
     try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+
       if (composeRecipientId) {
         const response = await axios.post(
           `${BASE_URL}/api/messages/send/${composeRecipientId}/`,
-          { recipient_id: composeRecipientId, message: composeText },
-          { headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }, withCredentials: true }
-        )
+          {
+            recipient_id: composeRecipientId,
+            message: composeText,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
         const newMessage = response.data
         setFriendMessages(prev => [...prev, {
           ...newMessage,
@@ -298,11 +311,19 @@ const Messages: React.FC<Props> = ({ navigation }) => {
           recipient: { id: composeRecipientId },
         }])
       } else if (composeGroupId) {
-        const response = await axios.post(
-          `${BASE_URL}/api/messages/send/group/${composeGroupId}/`,
-          { group_id: composeGroupId, message: composeText },
-          { headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }, withCredentials: true }
-        )
+          const response = await axios.post(
+            `${BASE_URL}/api/messages/send/group/${composeGroupId}/`,
+            {
+              group_id: composeGroupId,
+              message: composeText,
+            },
+            {
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${accessToken}`,
+              },
+            }
+          );
         // Optionally, you may want to refresh groupConversations here
       }
       await fetchMessages()

@@ -14,9 +14,12 @@ import DateTimePicker from "@react-native-community/datetimepicker"
 import { NavigationProp, useRoute } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import { BASE_URL, endpoints } from "../../api"
+import { scheduleAlarmsForChallenge } from "../../alarmService"
 import { Platform } from "react-native"
 import { useUser } from "../../context/UserContext"
 import { Picker } from "@react-native-picker/picker"
+import { getAccessToken } from "../../auth"
+import { getNextAlarmDate } from "../../../utils/dateUtils"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -38,9 +41,8 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
   const { singOrMult, categories } = route.params as {
     singOrMult: string
     categories: { id: number; name: string }[]
-    // isMiscellaneous: boolean
   }
-  console.log(categories)
+  console.log("CreatePublicChall2 route params:", route.params);
 
   const { user } = useUser();
 
@@ -51,11 +53,6 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
 
 
   const [name, setName] = useState("")
-  // const [selectedDate, setSelectedDate] = useState(new Date())
-  // const [showDatePicker, setShowDatePicker] = useState(false)
-  const [durationValue, setDurationValue] = useState(1); // default 1
-  const [durationUnit, setDurationUnit] = useState<"weeks" | "months" | "years">("weeks");
-
 
   const [tempTime, setTempTime] = useState<Date | null>(null)
   const [showTimePicker, setShowTimePicker] = useState(false)
@@ -203,27 +200,21 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
   //   return date.toLocaleDateString(undefined, options)
   // }
 
-  const getTotalDays = (value: number, unit: "weeks" | "months" | "years") => {
-  switch (unit) {
-    case "weeks":
-      return value * 7;
-    case "months":
-      return value * 30; // approximate month as 30 days
-    case "years":
-      return value * 365; // ignoring leap years for simplicity
-    default:
-      return value;
+
+
+    const toLocalYMD = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
   }
-};
 
 
-  const handleCreateChallenge = async() => {
+  const handleNext = async() => {
     if (!name.trim()) {
       Alert.alert("Error", "Please enter a challenge name")
       return
     }
-
-
 
     if (Object.keys(dayTimeMapping).length === 0) {
       Alert.alert("Error", "Please select at least one day and set an alarm time")
@@ -232,22 +223,24 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
 
     console.log("Day-Time Mapping:", dayTimeMapping)
     console.log("Games By Day:", JSON.stringify(gamesByDay, null, 2))
-    // reward validation
-    let reward: any = null;
-    if (rewardType === 'custom') {
-      if (!rewardNote.trim()) {
-        Alert.alert('Error', 'Please enter a description for the custom reward');
-        return;
-      }
-      reward = { type: 'custom', note: rewardNote.trim() };
-    } else {
-      const amt = parseFloat(rewardAmount);
-      if (isNaN(amt) || amt <= 0) {
-        Alert.alert('Error', 'Enter a valid positive amount for the reward');
-        return;
-      }
-      reward = { type: rewardType, amount: amt };
-    }
+
+
+    // // reward validation
+    // let reward: any = null;
+    // if (rewardType === 'custom') {
+    //   if (!rewardNote.trim()) {
+    //     Alert.alert('Error', 'Please enter a description for the custom reward');
+    //     return;
+    //   }
+    //   reward = { type: 'custom', note: rewardNote.trim() };
+    // } else {
+    //   const amt = parseFloat(rewardAmount);
+    //   if (isNaN(amt) || amt <= 0) {
+    //     Alert.alert('Error', 'Enter a valid positive amount for the reward');
+    //     return;
+    //   }
+    //   reward = { type: rewardType, amount: amt };
+    // }
     
     const alarmSchedule = Object.entries(dayTimeMapping)
       .filter(([day, time]) => time && dayToInt[day])
@@ -290,57 +283,36 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
       })
       .filter(Boolean)
 
-    const total_days = getTotalDays(durationValue, durationUnit);
+          const alarmDays = alarmSchedule.map(a => a.dayOfWeek);
+          const gameDays = gameSchedules.map(g => g.dayOfWeek);
+    
+          // find alarm days missing games
+          const missingGames = alarmDays.filter(day => !gameDays.includes(day));
+    
+          if (missingGames.length > 0) {
+            Alert.alert(
+              "Error",
+              "Please select at least one game for each day that has an alarm."
+            );
+            return;
+          }
 
-    const payload = {
-      name,
-      group_id: null,
-      start_date: null,
-      end_date: null,
-      total_days,
-      initiator_id: initiatorId,
-      alarm_schedule: alarmSchedule,
-      game_schedules: gameSchedules,
-      reward,
-      is_public: true,
-      is_pending: true,
-      sing_or_mult: singOrMult === "singleplayer" ? "Singleplayer" : "Multiplayer",
-      category_ids: categories.map(c => c.id),
+    const nextAlarmDate = getNextAlarmDate(alarmSchedule);
+    if (!nextAlarmDate) {
+      Alert.alert('Error', 'Could not determine start date from schedule');
+      return;
     }
-    console.log(payload)
-
-    try {
-      const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',                      
-      });
-      if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-      const { csrfToken } = await csrfRes.json();     
-      console.log('csrfToken:', csrfToken);
-  
-  
-      const res = await fetch(endpoints.createPublicChallenge, {
-        method: 'POST',
-        credentials: 'include',                    
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,                
-        },
-        body: JSON.stringify(payload),
-      });
-  
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'Failed to create challenge');
-      }
-  
-      const data = await res.json();
-      console.log('Challenge created:', data);
-      Alert.alert('Success', 'Challenge created successfully', [
-        { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
-      ]);
-    } catch (err: any) {
-      Alert.alert('Error', err.message);
-    }
+    console.log(toLocalYMD(nextAlarmDate));
+          
+                navigation.navigate("PersChall3", {
+                    first_possible_start_date: toLocalYMD(nextAlarmDate),
+                    name,
+                    alarm_schedule: alarmSchedule,
+                    game_schedule: gameSchedules,
+                    chall_type: 'Public',
+                    sing_or_mult: singOrMult === "singleplayer" ? "Singleplayer" : "Multiplayer",
+                    category_ids: categories.map(c => c.id),
+                })
   
   }
 
@@ -482,13 +454,9 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
                       catType: "Public",
                       categories: categories,
                       singOrMult: singOrMult,
-                      groupId : null,
-                      groupMembers : null,
                       onGameSelected: (game: { id: number; name: string }) => {
                         handleGameAdd(game)
                       },
-                      challId : null,
-                      challName : null
                     })
                   }}
                   // onPress={() => {
@@ -518,7 +486,7 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
             </View>
           )}
 
-          <View style={styles.formSection}>
+          {/* <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>Reward</Text>
             <View style={styles.choiceRow}>
               {REWARD_TYPES.map(rt => (
@@ -573,18 +541,18 @@ const CreatePublicChall2: React.FC<Props> = ({ navigation }) => {
                 <Picker.Item label="Years" value="years" />
               </Picker>
             </View>
-          </View>
+          </View> */}
 
 
           <TouchableOpacity
             style={styles.createButton}
-            onPress={handleCreateChallenge}
+            onPress={handleNext}
           >
             <LinearGradient
               colors={["#FFD700", "#FFC107"]}
               style={styles.createButtonGradient}
             >
-              <Text style={styles.createButtonText}>Create Challenge</Text>
+              <Text style={styles.createButtonText}>Next</Text>
             </LinearGradient>
           </TouchableOpacity>
         </ScrollView>

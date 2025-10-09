@@ -20,6 +20,7 @@ import {
   Platform,
 } from 'react-native';
 import { BASE_URL, endpoints } from '../../api';
+import { getAccessToken } from '../../auth';
 
 type Props = { navigation: NavigationProp<any> } 
 
@@ -36,8 +37,16 @@ const PublicChallSearch1: React.FC<Props> = ({ navigation }) => {
       if (singOrMult) {
       const fetchCats = async () => {
         try {
+                const accessToken = await getAccessToken();
+                if (!accessToken) {
+                  throw new Error("Not authenticated");
+                }
           // TODO: fetch only the categories for multiplayer/singleplayer (whatever was selected)
-          const response = await fetch(endpoints.cats());
+          const response = await fetch(endpoints.cats(), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
           const data = await response.json();
           setCategories(data);
           console.log("Data2: " + JSON.stringify(data));
@@ -64,9 +73,18 @@ const PublicChallSearch1: React.FC<Props> = ({ navigation }) => {
         }
 
         try {
+                const accessToken = await getAccessToken();
+                if (!accessToken) {
+                  throw new Error("Not authenticated");
+                }
             console.log(selectedCategories)
             console.log(singOrMult)
-        const res = await fetch(endpoints.getMatchingChallenges(Number(user?.id), selectedCategories.map(c => c.id), singOrMult === "singleplayer" ? "Singleplayer" : "Multiplayer"));
+        const res = await fetch(endpoints.getMatchingChallenges(Number(user?.id), selectedCategories.map(c => c.id), singOrMult === "singleplayer" ? "Singleplayer" : "Multiplayer"), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
+
 
         const data = await res.json();
         console.log("DATA MATCHES:", JSON.stringify(data, null, 2));

@@ -1,6 +1,9 @@
-import type React from 'react';
+import React from 'react';
 import { useEffect, useState } from 'react';
+import * as SecureStore from "expo-secure-store";
+import { getAccessToken } from "../auth";
 import {
+  Alert,
   ImageBackground,
   ScrollView,
   StyleSheet,
@@ -18,6 +21,8 @@ import { scheduleAlarms } from '../Alarm';
 import { endpoints } from '../api';
 import { useUser } from '../context/UserContext';
 import UserProfileCard from './Components/UserProfileCard';
+const { AlarmModule } = NativeModules;
+import { scheduleAlarmsForUser } from '../alarmService';
 import NotificationService from '../Notification';
 
 type Props = {
@@ -38,36 +43,71 @@ const Profile: React.FC<Props> = ({ navigation }) => {
   const [profileData, setProfileData] = useState<any>(null);
   const { user, setUser, setSkillLevels } = useUser();
 
-  const handleLogout = () => {
+  // const handleLogout = () => {
+  //   setUser(null);
+
+  //   navigation.reset({
+  //     index: 0,
+  //     routes: [{ name: 'Login' }],
+  //   });
+  // };
+
+
+const handleLogout = async () => {
+  try {
+    // 1. Clear tokens from SecureStore
+    await SecureStore.deleteItemAsync("access");
+    await SecureStore.deleteItemAsync("refresh");
+
+    // 2. Clear user context
     setUser(null);
 
+    await AlarmModule.clearLaunchIntent();
+
+    // 3. Reset navigation to login screen
     navigation.reset({
       index: 0,
-      routes: [{ name: 'Login' }],
+      routes: [{ name: "Login" }],
     });
-  };
+  } catch (err: any) {
+    console.error("Logout failed", err);
+    Alert.alert("Error", "Failed to log out. Try again.");
+  }
+};
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      try {
-        const res = await fetch(endpoints.skillLevels(), {
-          credentials: 'include',
-        });
-        setSkillLevels(await res.json());
-      } catch {}
-    })();
-  }, [user, setSkillLevels]);
+
+  // useEffect(() => {
+  //   if (!user) return;
+  //   (async () => {
+  //     try {
+  //       const access = await getAccessToken();
+  //       const res = await fetch(endpoints.skillLevels(), {
+  //         headers: {
+  //           Authorization: `Bearer ${access}`
+  //         }
+  //       });
+  //       setSkillLevels(await res.json());
+  //     } catch {}
+  //   })();
+  // }, [user, setSkillLevels]);
 
   useFocusEffect(
     React.useCallback(() => {
+      console.log("in profile")
+      if (!user) return;
       let cancelled = false;
 
       (async () => {
         try {
-          const res = await fetch(endpoints.skillLevels(), {
-            credentials: 'include',
-          });
+                const access = await getAccessToken();
+                if (!access) {
+                  throw new Error("Not authenticated");
+                }
+        const res = await fetch(endpoints.skillLevels(), {
+          headers: {
+            Authorization: `Bearer ${access}`
+          }
+        });
           const data = await res.json();
           if (!cancelled) setSkillLevels(data);
         } catch (e) {
@@ -78,8 +118,18 @@ const Profile: React.FC<Props> = ({ navigation }) => {
       return () => {
         cancelled = true;
       };
-    }, [setSkillLevels]),
+    }, [user, setSkillLevels]),
   );
+
+    const setUserAlarms = async() => {
+      try {
+        console.log("herein")
+        await scheduleAlarmsForUser(212, 'PAlarm', 5, '');
+      } catch (e) {
+        console.warn('Failed to schedule alarms for new group challenge', e);
+        Alert.alert('Error', 'Failed to schedule alarms');
+      }
+    }
 
   return (
     <ImageBackground
@@ -208,6 +258,7 @@ const Profile: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.logoutText}>Notification</Text>
         </TouchableOpacity>
 
+
         <TouchableOpacity
           style={styles.logoutButton}
           activeOpacity={0.8}
@@ -232,6 +283,20 @@ const Profile: React.FC<Props> = ({ navigation }) => {
             style={styles.logoutIcon}
           />
           <Text style={styles.logoutText}>Alarm</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.logoutButton}
+          activeOpacity={0.8}
+          onPress={setUserAlarms}
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={22}
+            color="#FFF"
+            style={styles.logoutIcon}
+          />
+          <Text style={styles.logoutText}>Test Schedule Alarms</Text>
         </TouchableOpacity>
 
         {/* Add padding at the bottom to ensure content isn't hidden behind the nav bar */}

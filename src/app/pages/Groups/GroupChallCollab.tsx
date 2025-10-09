@@ -20,6 +20,8 @@ import {
   Platform,
 } from 'react-native';
 import { BASE_URL, endpoints } from '../../api';
+import { Picker } from '@react-native-picker/picker';
+import { getAccessToken } from '../../auth';
 
 type Props = { navigation: NavigationProp<any> } 
 // Config 
@@ -48,8 +50,10 @@ const GroupChallCollab: React.FC<Props> = ({ navigation }) => {
   const { user } = useUser()
 
   const [name, setName] = useState("")
-  const [selectedDate, setSelectedDate] = useState(new Date())
-  const [showDatePicker, setShowDatePicker] = useState(false)
+  // const [selectedDate, setSelectedDate] = useState(new Date())
+  // const [showDatePicker, setShowDatePicker] = useState(false)
+  // const [durationValue, setDurationValue] = useState(1); // default 1
+  // const [durationUnit, setDurationUnit] = useState<"weeks" | "months" | "years">("weeks");
 
   const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
 
@@ -63,29 +67,18 @@ const GroupChallCollab: React.FC<Props> = ({ navigation }) => {
     SU: 7,
   }
 
-  const onDateChange = (event: any, date?: Date) => {
-    if (event?.type === "dismissed") {
-      setShowDatePicker(false)
-      return
+  const getTotalDays = (value: number, unit: "weeks" | "months" | "years") => {
+    switch (unit) {
+      case "weeks":
+        return value * 7;
+      case "months":
+        return value * 30; // approximate month as 30 days
+      case "years":
+        return value * 365; // ignoring leap years for simplicity
+      default:
+        return value;
     }
-  
-    if (date) {
-      setSelectedDate(date)
-      if (Platform.OS === "android") {
-        setShowDatePicker(false)
-      }
-    }
-  }
-
-  const formatDate = (date: Date) => {
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'short', 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    }
-    return date.toLocaleDateString(undefined, options)
-  }
+  };
 
   const toggleCell = (day: number, time: number) => {
     setSelectedCells(prev => {
@@ -123,7 +116,7 @@ const convertTo24Hour = (time12: string) => {
 
 
 
-    const handleSubmit = async() => {
+    const handleNext = async() => {
         if (!name.trim()) {
             Alert.alert("Error", "Please enter a challenge name")
             return
@@ -144,49 +137,19 @@ const convertTo24Hour = (time12: string) => {
           return [{ dayOfWeek, time: convertTo24Hour(TIMES[time]) }];
         });
 
-        const payload = {
+        // const payload = {
+        //   name,
+        //   group_id: groupId,
+        //   members: groupMembers.map((member) => member.id),
+        //   alarm_schedule: alarmSchedule,
+        // };
+
+        navigation.navigate("GroupChallCollab2", {
           name,
-          group_id: groupId,
-          initiator_id: Number(user?.id),
-          end_date: selectedDate.toISOString().split("T")[0],
+          groupId,
           members: groupMembers.map((member) => member.id),
-          alarm_schedule: alarmSchedule,
-        };
-
-        console.log("Payload sent to backend:", payload);
-
-
-        try {
-          const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-            credentials: 'include',                      
-          });
-          if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-          const { csrfToken } = await csrfRes.json();     
-          console.log('csrfToken:', csrfToken);
-
-
-        const res = await fetch(endpoints.createPendingCollaborativeGroupChallenge(), {
-            method: 'POST',
-            credentials: 'include',                    
-            headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,                
-            },
-            body: JSON.stringify(payload),
-        });
-
-        if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.message || 'Failed to save schedule');
-        }
-
-        const data = await res.json();
-        Alert.alert('Success', 'Schedule saved successfully', [
-            { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId, groupMembers, refresh: Date.now() }) },
-        ]);
-        } catch (err: any) {
-            Alert.alert('Error', err.message);
-        }
+          alarmSchedule
+        })
 
     }
 
@@ -215,39 +178,27 @@ const convertTo24Hour = (time12: string) => {
             />
           </View>
 
-          <View style={styles.formSection}>
-            <Text style={styles.label}>End Date</Text>
-            <Text style={styles.dateDisplay}>{formatDate(selectedDate)}</Text>
+          {/* <View style={styles.formSection}>
+            <Text style={styles.label}>Challenge Duration</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <TextInput
+                style={[styles.input, { flex: 1, marginRight: 10 }]}
+                keyboardType="numeric"
+                value={String(durationValue)}
+                onChangeText={text => setDurationValue(Number(text) || 0)}
+              />
 
-            <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.actionButton}>
-              <LinearGradient
-                colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
-                style={styles.buttonGradient}
+              <Picker
+                selectedValue={durationUnit}
+                style={{ flex: 1 }}
+                onValueChange={(itemValue) => setDurationUnit(itemValue)}
               >
-                <Ionicons name="calendar-outline" size={20} color="#FFF" style={styles.buttonIcon} />
-                <Text style={styles.buttonText}>Select End Date</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {showDatePicker && (
-              <View style={styles.pickerContainer}>
-                <DateTimePicker
-                  value={selectedDate}
-                  mode="date"
-                  display="spinner"
-                  onChange={onDateChange}
-                />
-                {Platform.OS !== 'android' && (
-                  <TouchableOpacity
-                    style={styles.doneButton}
-                    onPress={() => setShowDatePicker(false)}
-                  >
-                    <Text style={styles.doneButtonText}>Done</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-          </View>
+                <Picker.Item label="Weeks" value="weeks" />
+                <Picker.Item label="Months" value="months" />
+                <Picker.Item label="Years" value="years" />
+              </Picker>
+            </View>
+          </View> */}
 
           <View style={styles.formSection}>
             <Text style={styles.label}>Select Availability</Text>
@@ -284,12 +235,12 @@ const convertTo24Hour = (time12: string) => {
             </ScrollView>
           </View>
 
-          <TouchableOpacity style={styles.createButton} onPress={handleSubmit}>
+          <TouchableOpacity style={styles.createButton} onPress={handleNext}>
             <LinearGradient
               colors={['#FFD700', '#FFC107']}
               style={styles.createButtonGradient}
             >
-              <Text style={styles.createButtonText}>Save Schedule</Text>
+              <Text style={styles.createButtonText}>Next</Text>
             </LinearGradient>
           </TouchableOpacity>
 

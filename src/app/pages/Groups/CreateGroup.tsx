@@ -22,6 +22,7 @@ type Group = {
   members: Friend[];
 };
 import { BASE_URL, endpoints } from "../../api"
+import { getAccessToken } from "../../auth"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -49,7 +50,16 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
     const fetchFriends = async () => {
       try {
         setLoading(true)
-        const response = await fetch(endpoints.friends(Number(user.id)))
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
+        
+        const response = await fetch(endpoints.friends(Number(user.id)), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
         const data = await response.json()
 
         // Add selected property to each friend
@@ -108,18 +118,16 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
         ],
       }
 
-      const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',
-      });
-      const tokenData = await res.json();
-      const csrfToken = tokenData.csrfToken;
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
       const response = await fetch(endpoints.createGroup, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          'X-CSRFToken': csrfToken,
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
         },
-        credentials: 'include',
         body: JSON.stringify(payload),
       })
 

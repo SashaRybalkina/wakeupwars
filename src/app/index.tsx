@@ -4,12 +4,14 @@ import {
   createNavigationContainerRef,
   NavigationContainer,
 } from '@react-navigation/native';
+import type { ParamListBase } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as Notifications from 'expo-notifications';
 import NotificationService from './Notification';
 
 import { useUser } from './context/UserContext';
 
+import BootstrapScreen from './pages/BootstrapScreen';
 import Challenges from './pages/Challenges';
 import Chall1 from './pages/Challenges/Chall1';
 import ChallDetails from './pages/Challenges/ChallDetails';
@@ -36,9 +38,11 @@ import GroupChall3 from './pages/Groups/GroupChall3';
 import GroupChall3Old from './pages/Groups/GroupChall3Old';
 import GroupChall4Old from './pages/Groups/GroupChall4Old';
 import GroupChallCollab from './pages/Groups/GroupChallCollab';
+import GroupChallCollab2 from './pages/Groups/GroupChallCollab2';
 import GroupDetails from './pages/Groups/GroupDetails';
 import LoginScreen from './pages/Login';
 import InputOutput from './pages/mainPage';
+import MainPage from './pages/mainPage';
 import Messages from './pages/Messages';
 import Conversation from './pages/Conversation';
 import PatternGameScreen from './pages/PatternGame/PatternGameScreen';
@@ -51,6 +55,8 @@ import Friends3 from './pages/Profile/Friends3';
 import FriendsSearch from './pages/Profile/FriendSearch';
 import PersChall1 from './pages/Profile/PersChall1';
 import PersChall2 from './pages/Profile/PersChall2';
+import PersChall2Copy from './pages/Profile/PersChall2Copy';
+import PersChall3 from './pages/Profile/PersChall3';
 import SignUpScreen from './pages/SignUp';
 import StartScreen from './pages/StartScreen';
 import SudokuScreen from './pages/SudokuScreen';
@@ -61,13 +67,13 @@ import { BASE_URL } from './api';
 const { IntentModule, NotificationModule, AlarmModule } = NativeModules;
 const alarmEmitter = new NativeEventEmitter(AlarmModule);
 
-const Stack = createStackNavigator();
-export const navigationRef = createNavigationContainerRef();
+const Stack = createStackNavigator<ParamListBase>();
+export const navigationRef = createNavigationContainerRef<ParamListBase>();
 let pendingNavigation: { screen: string; params?: any } | null = null;
 
 function navigate(screen: string, params?: any) {
   if (navigationRef.isReady()) {
-    navigationRef.navigate(screen as never, params as never);
+    navigationRef.navigate(screen, params);
   } else {
     pendingNavigation = { screen, params };
   }
@@ -76,8 +82,8 @@ function navigate(screen: string, params?: any) {
 function flushPendingNavigation() {
   if (pendingNavigation && navigationRef.isReady()) {
     navigationRef.navigate(
-      pendingNavigation.screen as never,
-      pendingNavigation.params as never,
+      pendingNavigation.screen,
+      pendingNavigation.params,
     );
     pendingNavigation = null;
   }
@@ -160,8 +166,9 @@ function App() {
       });
 
     // 2) warm-start intents: subscribe to native event emitter
-    const emitter = new NativeEventEmitter(IntentModule);
-    subscription = emitter.addListener('NewIntent', (data: any) => {
+    const emitter = IntentModule ? new NativeEventEmitter(IntentModule) : null;
+    if (emitter) {
+      subscription = emitter.addListener('NewIntent', (data: any) => {
       console.log('NewIntent event =>', data);
       if (data?.screen) {
         if (!user) {
@@ -171,6 +178,7 @@ function App() {
         }
       }
     });
+    }
 
     // 3) notification tap handler (for foreground/background)
     notificationListener =
@@ -196,12 +204,19 @@ function App() {
     };
   }, [user]);
 
+
   return (
     <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
       <Stack.Navigator
-        initialRouteName="Login"
+        // initialRouteName="Login"
+        initialRouteName="Bootstrap"
         screenOptions={{ animationEnabled: false, headerShown: false }}
       >
+        <Stack.Screen
+          name="Bootstrap"
+          component={BootstrapScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="Categories"
           component={Categories}
@@ -288,6 +303,11 @@ function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
+          name="GroupChallCollab2"
+          component={GroupChallCollab2}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
           name="EditAvailability"
           component={EditAvailability}
           options={{ headerShown: false }}
@@ -320,6 +340,16 @@ function App() {
         <Stack.Screen
           name="PersChall2"
           component={PersChall2}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PersChall2Copy"
+          component={PersChall2Copy}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PersChall3"
+          component={PersChall3}
           options={{ headerShown: false }}
         />
         <Stack.Screen
@@ -408,8 +438,13 @@ function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="mainPage"
-          component={InputOutput}
+          name="PatternGame"
+          component={PatternGameScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MainPage"
+          component={MainPage}
           options={{ headerShown: false }}
         />
         <Stack.Screen
@@ -429,7 +464,7 @@ function App() {
         />
       </Stack.Navigator>
     </NavigationContainer>
-  );
+      );
 }
 
 export default App;

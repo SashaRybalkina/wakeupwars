@@ -35,30 +35,64 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
     """
 
     async def connect(self):
-        self.game_state_id = int(self.scope['url_route']['kwargs']['game_state_id'])
-        self.group_name = f'pattern_{self.game_state_id}'
-        self.user: User = self.scope['user']
+        self.game_state_id = int(self.scope["url_route"]["kwargs"]["game_state_id"])
+        self.group_name = f"pattern_{self.game_state_id}"
+        self.user: User = self.scope["user"]
 
+        # ─── join-window gating ──────────────────────────────────
+        from django.utils import timezone
+        now = timezone.now()
+
+        gs: PatternMemorizationGameState = await sync_to_async(
+            PatternMemorizationGameState.objects.select_related("challenge", "game").get
+        )(id=self.game_state_id)
+
+        if not gs.join_deadline_at:
+            gs.join_deadline_at = (gs.created_at or now) + timezone.timedelta(minutes=2)
+            await sync_to_async(gs.save)(update_fields=["join_deadline_at"])
+
+        # closed?
+        if gs.joins_closed or now > gs.join_deadline_at:
+            await self.close(code=4001)  # JOINS_CLOSED
+            return
+
+        # scores already posted today?
+        ended = await sync_to_async(
+            GamePerformance.objects.filter(
+                challenge=gs.challenge, game=gs.game, date=timezone.localdate()
+            ).exists
+        )()
+        if ended:
+            gs.joins_closed = True
+            await sync_to_async(gs.save)(update_fields=["joins_closed"])
+            await self.close(code=4002)  # GAME_ENDED
+            return
+        # ─────────────────────────────────────────────────────────
+
+        # normal Channels handshake
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
-        # record online users
+        # lobby bookkeeping (same as before)
         conns = set(cache.get(_conns_key(self.game_state_id)) or [])
         conns.add(self.user.id)
         cache.set(_conns_key(self.game_state_id), list(conns), timeout=3600)
 
-        # initial lobby state
         started = bool(cache.get(_started_key(self.game_state_id)) or False)
         ready_ids = set(cache.get(_ready_key(self.game_state_id)) or [])
         expected_count = await self._get_expected_count()
-
         effective_ready = ready_ids & conns
-        await self.send(text_data=json.dumps({
-            "type": "lobby_state",
-            "started": started,
-            "ready_count": len(effective_ready),
-            "expected_count": expected_count,
-        }))
+
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "lobby_state",
+                    "started": started,
+                    "ready_count": len(effective_ready),
+                    "expected_count": expected_count,
+                }
+            )
+        )
 
     async def disconnect(self, close_code):
         # remove from online users
@@ -255,7 +289,38 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
     async def _persist_scores_once(self, scores: list[dict]):
         if not cache.add(_saved_key(self.game_state_id), True, timeout=3600):
             return
-        await sync_to_async(self._save_scores)(scores)
+        await sync_to_async(self._save_scores_and_zero_missing)(scores)
+    
+    def _save_scores_and_zero_missing(self, scores):
+        gs = PatternMemorizationGameState.objects.select_related("challenge", "game").get(id=self.game_state_id)
+        play_date = date.today()
+
+        # save provided scores
+        submitted_ids = set()
+        for row in scores:
+            try:
+                u = User.objects.get(username=row.get("username"))
+            except User.DoesNotExist:
+                continue
+            GamePerformance.objects.update_or_create(
+                challenge=gs.challenge, game=gs.game, user=u, date=play_date,
+                defaults={"score": int(row.get("score", 0))}
+            )
+            submitted_ids.add(u.id)
+
+        # auto-zero missing participants
+        participant_ids = set(
+            ChallengeMembership.objects.filter(challengeID=gs.challenge).values_list("uID_id", flat=True)
+        )
+        for uid in participant_ids - submitted_ids:
+            GamePerformance.objects.update_or_create(
+                challenge=gs.challenge, game=gs.game, user_id=uid, date=play_date,
+                defaults={"score": 0, "auto_generated": True}
+            )
+
+        # lock further joins
+        gs.joins_closed = True
+        gs.save(update_fields=["joins_closed"])
 
     def _save_scores(self, scores: list[dict]):
         gs = PatternMemorizationGameState.objects.select_related("challenge", "game").get(id=self.game_state_id)

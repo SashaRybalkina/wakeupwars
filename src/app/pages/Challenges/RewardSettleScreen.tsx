@@ -17,6 +17,7 @@ import { NavigationProp } from "@react-navigation/native";
 import { useUser } from '../../context/UserContext';
 import { BASE_URL, endpoints } from "../../api";
 import { useRoute } from '@react-navigation/native';
+import { getAccessToken } from "../../auth";
 
 type Props = { navigation: NavigationProp<any> };
 
@@ -60,7 +61,15 @@ const RewardSettleScreen: React.FC<Props> = ({ navigation }) => {
       if (!user) return;
       try {
         setLoading(true);
-        const res = await axios.get(endpoints.myObligations(), { withCredentials: true });
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
+        const res = await axios.get(endpoints.myObligations(), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
         let tp = Array.isArray(res.data?.to_pay) ? res.data.to_pay : [];
         let tr = Array.isArray(res.data?.to_receive) ? res.data.to_receive : [];
 
@@ -85,7 +94,15 @@ const RewardSettleScreen: React.FC<Props> = ({ navigation }) => {
 
   const post = async (url: string, onOk: () => void) => {
     try {
-      await axios.post(url, {}, { withCredentials: true });
+            const accessToken = await getAccessToken();
+            if (!accessToken) {
+              throw new Error("Not authenticated");
+            }
+      await axios.post(url, {}, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       onOk();
     } catch (e) {
       console.error(e);
@@ -95,11 +112,10 @@ const RewardSettleScreen: React.FC<Props> = ({ navigation }) => {
 
     const handlePayExt = async (ob: Obligation) => {
       try {
-        const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-          credentials: "include",
-        });
-        if (!csrfRes.ok) throw new Error("Failed to fetch CSRF token");
-        const { csrfToken } = await csrfRes.json();
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
         const payload = {
           provider: "venmo",
@@ -109,11 +125,10 @@ const RewardSettleScreen: React.FC<Props> = ({ navigation }) => {
 
         const res = await fetch(endpoints.payExternal(ob.id), {
           method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrfToken,
-          },
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+        },
           body: JSON.stringify(payload),
         });
 
@@ -136,12 +151,16 @@ const RewardSettleScreen: React.FC<Props> = ({ navigation }) => {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Yes, I did', onPress: async () => {
           try {
-            const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, { credentials:'include'});
-            const { csrfToken } = await csrfRes.json();
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
             await fetch(endpoints.payCustom(ob.id), {
               method:'POST',
-              credentials:'include',
-              headers:{ 'Content-Type':'application/json', 'X-CSRFToken': csrfToken },
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+        },
               body: JSON.stringify({ note: ob.reward_note || 'Custom reward fulfilled'})
             });
             await refresh();
@@ -156,14 +175,12 @@ const RewardSettleScreen: React.FC<Props> = ({ navigation }) => {
       opts?: { amount?: number | string; note?: string }
     ) => {
       try {
-        // 1) fetch CSRF
-        const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-          credentials: "include",
-        });
-        if (!csrfRes.ok) throw new Error("Failed to fetch CSRF token");
-        const { csrfToken } = await csrfRes.json();
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
-        // 2) POST cash payment
+        //POST cash payment
         const payload = {
           amount: (opts?.amount ?? ob.remaining).toString(),
           note: opts?.note ?? "Cash payment",
@@ -171,11 +188,10 @@ const RewardSettleScreen: React.FC<Props> = ({ navigation }) => {
 
         const res = await fetch(endpoints.payCash(ob.id), {
           method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrfToken,
-          },
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+        },
           body: JSON.stringify(payload),
         });
 
@@ -192,19 +208,18 @@ const RewardSettleScreen: React.FC<Props> = ({ navigation }) => {
 
     const handleConfirm = async (p: Payment) => {
       try {
-        const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-          credentials: "include",
-        });
-        if (!csrfRes.ok) throw new Error("Failed to fetch CSRF token");
-        const { csrfToken } = await csrfRes.json();
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+
 
         const res = await fetch(endpoints.confirmPayment(p.id), {
           method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrfToken,
-          },
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+        },
         });
 
         if (!res.ok) {
@@ -220,19 +235,18 @@ const RewardSettleScreen: React.FC<Props> = ({ navigation }) => {
 
     const handleReject = async (p: Payment) => {
       try {
-        const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-          credentials: "include",
-        });
-        if (!csrfRes.ok) throw new Error("Failed to fetch CSRF token");
-        const { csrfToken } = await csrfRes.json();
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+
 
         const res = await fetch(endpoints.rejectPayment(p.id), {
           method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrfToken,
-          },
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+        },
         });
 
         if (!res.ok) {

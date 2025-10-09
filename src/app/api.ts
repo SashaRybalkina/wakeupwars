@@ -3,6 +3,9 @@ export const BASE_URL = 'https://893c61cdf513.ngrok-free.app';
 export const endpoints = {
   // getToken
   login: `${BASE_URL}/api/login/`,
+  token: `${BASE_URL}/api/token/`,
+  tokenRefresh: `${BASE_URL}/api/token/refresh/`,
+  // getUserInfo: `${BASE_URL}/api/get-user-info/`,
   register: `${BASE_URL}/api/register/`,
   groups: (userId: number) => `${BASE_URL}/api/user-groups/${userId}/`,
   getMatchingChallenges: (userId: number, categoryIds: number[], singOrMult: string) =>
@@ -40,6 +43,10 @@ export const endpoints = {
     `${BASE_URL}/api/challenge-schedule/${challId}/`,
   getChallengeSchedule: (challId: number) =>
     `${BASE_URL}/api/get-challenge-schedule/${challId}/`,
+  getChallengeUserSchedule: (challId: number, userId: number) =>
+    `${BASE_URL}/api/get-challenge-user-schedule/${challId}/${userId}/`,
+  getHasSetAlarms: (challId: number, userId: number) => `${BASE_URL}/api/get-has-set-alarms/${challId}/${userId}/`,
+  setUserHasSetAlarms: (challId: number, userId: number) => `${BASE_URL}/api/set-user-has-set-alarms/${challId}/${userId}/`,
   createManualGroupChallenge: `${BASE_URL}/api/create-manual-group-challenge/`,
   createPendingCollaborativeGroupChallenge: () =>
     `${BASE_URL}/api/create-pending-collaborative-group-challenge/`,
@@ -90,6 +97,7 @@ export const endpoints = {
   csrfToken: `${BASE_URL}/api/csrf-token/`,
 
   myObligations: () => `${BASE_URL}/api/obligations/me/`,
+
   payExternal: (id: number) =>
     `${BASE_URL}/api/obligations/${id}/pay_external/`,
   payCash: (id: number) => `${BASE_URL}/api/obligations/${id}/pay_cash/`,

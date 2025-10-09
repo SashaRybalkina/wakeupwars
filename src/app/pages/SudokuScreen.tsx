@@ -13,6 +13,7 @@ import {
 import { NavigationProp, useRoute } from '@react-navigation/native';
 import { endpoints, BASE_URL } from '../api';
 import { useUser } from '../context/UserContext';
+import { getAccessToken } from '../auth';
 
 const CELL_SIZE = 35;
 const BORDER_WIDTH_THIN = 1;
@@ -104,7 +105,15 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
 
     const refreshSkills = async () => {
       try {
-        const res = await fetch(endpoints.skillLevels(), { credentials: "include" });
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
+        const res = await fetch(endpoints.skillLevels(), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
         const data = await res.json();
         setSkillLevels(data);
       } catch (err) {
@@ -120,12 +129,17 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
      scores: { username: string; score: number; accuracy?: number; inaccuracy?: number }[];
    }) => {
      try {
-       const token = await fetch(`${BASE_URL}/api/csrf-token/`, { credentials: 'include' });
-       const { csrfToken } = await token.json();
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+
        await fetch(endpoints.submitGameScores(), {
          method: 'POST',
-         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-         credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            "Authorization": `Bearer ${accessToken}`,
+          },
          body: JSON.stringify(payload),
        });
 
@@ -137,23 +151,28 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   // INITIALIZE GAME
   const initGame = async () => {
     try {
-      const token = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',
-      });
-      const tokenData = await token.json();
-      const csrfToken = tokenData.csrfToken;
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
-      console.log("token in initGame: " + csrfToken);
       const res = await fetch(endpoints.createSudokuGame, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,
+          "Authorization": `Bearer ${accessToken}`,
         },
-        credentials: 'include',
         body: JSON.stringify({ challenge_id: challengeId }),
       });
 
+      if (res.status === 403) {
+        const data = await res.json();
+        if (data.code === 'JOINS_CLOSED' || data.code === 'GAME_ENDED') {
+            Alert.alert('Join closed', 'This game can no longer be joined.');
+            navigation.goBack();
+            return;
+        }
+    }
       const data = await res.json();
       console.log("Response data:", data); // Check the response from the server
 
@@ -182,7 +201,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
 
       // WebSocket connection for multiplayer
       if (is_multiplayer) {
-        const ws = new WebSocket(`${BASE_URL.replace(/^http/, 'ws')}/ws/sudoku/${game_state_id}/`);
+        const ws = new WebSocket(`${BASE_URL.replace(/^http/, 'ws')}/ws/sudoku/${game_state_id}/?token=${accessToken}`);
 
         ws.onopen = () => console.log("[WebSocket] connected");
 
@@ -330,24 +349,22 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
           socket.send(JSON.stringify(message));
         } else {
           // Single-player — validate via API
-          const token = await fetch(`${BASE_URL}/api/csrf-token/`, {
-            credentials: 'include',
-          });
-          const tokenData = await token.json();
-          const csrfToken = tokenData.csrfToken;
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
           const res = await fetch(endpoints.validateSudokuMove, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken,
+              "Authorization": `Bearer ${accessToken}`,
             },
             body: JSON.stringify({
               game_state_id: gameStateId,
               index,
               value,
             }),
-            credentials: 'include',
           });
 
           const data = await res.json();

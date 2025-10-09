@@ -4,6 +4,8 @@ from django.db import transaction
 from asgiref.sync import sync_to_async
 from typing import List, Dict, Any
 import random
+from django.utils import timezone
+from datetime import timedelta
 
 from api.models import (
     PatternMemorizationGameState,
@@ -38,7 +40,7 @@ def _build_full_pattern(max_rounds: int, start_len: int = 4) -> List[List[str]]:
 
 
 @transaction.atomic  # ensure all DB changes are committed together or rolled back (all-or-nothing)
-def get_or_create_pattern_game(challenge_id: int, user) -> Dict[str, Any]:
+def get_or_create_pattern_game(challenge_id: int, user, allow_join: bool = True) -> Dict[str, Any]:
     """
     Create (or reuse) a PatternMemorizationGameState for a given challenge
     and ensure the current user has a player row.
@@ -72,18 +74,24 @@ def get_or_create_pattern_game(challenge_id: int, user) -> Dict[str, Any]:
             pattern_sequence=pattern,
             is_completed=False
         )
+
+        # set join deadline to 2 minutes after creation
+        deadline = timezone.now() + timedelta(minutes=2)
+        game_state.join_deadline_at = deadline
+        game_state.save(update_fields=["join_deadline_at"])
         
         # let the developer see the pattern in console for testing
         print(f"[PATTERN][create] gamestate={game_state.id} chall={challenge_id} rounds={max_rounds}", flush=True)
         for i, seq in enumerate(pattern, start=1):
             print(f"  - round {i}: {seq}", flush=True)
 
-    # Ensure user is recorded as a player
-    PatternMemorizationGamePlayer.objects.get_or_create(
-        game_state=game_state,
-        player=user,
-        defaults={"rounds_completed": 0, "score": 0, "last_round_success": True}
-    )
+    # Ensure user is recorded as a player only if allowed
+    if allow_join:
+        PatternMemorizationGamePlayer.objects.get_or_create(
+            game_state=game_state,
+            player=user,
+            defaults={"rounds_completed": 0, "score": 0, "last_round_success": True}
+        )
 
     result = {
         "game_id": game_state.game.id,

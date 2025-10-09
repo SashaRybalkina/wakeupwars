@@ -10,6 +10,7 @@ import PendingChallengeCard from "../Challenges/PendingChallengeCard"
 import { useFocusEffect } from "@react-navigation/native"
 import { ActivityIndicator } from "react-native"
 import { useUser } from "../../context/UserContext"
+import { getAccessToken } from "../../auth"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -30,6 +31,7 @@ type Challenge = {
 type PendingChallenge = {
   id: number
   name: string
+  startDate: string
   endDate: string
   accepted: number
 }
@@ -73,8 +75,17 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
         console.log("[GroupDetails] set isLoading → true");
         setIsLoading(true)
         try {
-          console.log("Fetching from:", endpoints.groupProfile(groupId))
-          const response = await fetch(endpoints.groupProfile(groupId))
+          const accessToken = await getAccessToken();
+          if (!accessToken) {
+            throw new Error("Not authenticated");
+          }
+
+          const response = await fetch(endpoints.groupProfile(groupId), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
+
           const data = await response.json()
   
           // Add totalDays if not present and determine if challenge is completed
@@ -83,19 +94,24 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
             data.challenges = data.challenges.map((challenge: Challenge) => ({
               ...challenge,
               totalDays: challenge.totalDays || 30,
-              isCompleted: challenge.isCompleted || (challenge.endDate ? new Date(challenge.endDate) < now : false),
+              isCompleted: challenge.isCompleted || false,
             }))
           }
 
           setGroupData(data)
 
           // Check for pending invites
-          const inviteResponse = await fetch(endpoints.getChallengeInvites(Number(user.id), groupId));
+          const inviteResponse = await fetch(endpoints.getChallengeInvites(Number(user.id), groupId), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
           const inviteData = await inviteResponse.json();
           const formatted = inviteData.invited_challenges.map(
             (item: PendingChallenge) => ({
               id: item.id,
               name: item.name,
+              startDate: item.startDate,
               endDate: item.endDate,
               accepted: item.accepted
             })
@@ -242,8 +258,10 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
                         navigation.navigate("EditAvailability", {
                           pendingChallengeId: challenge.id,
                           pendingChallengeName: challenge.name,
+                          pendingChallengeStartDate: challenge.startDate,
                           pendingChallengeEndDate: challenge.endDate,
-                          accepted: challenge.accepted
+                          accepted: challenge.accepted,
+                          groupId
                         })
                       }
                     >
@@ -296,8 +314,14 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
 
               <TouchableOpacity
                 style={styles.addNewButton}
+                // onPress={() => {
+                //   navigation.navigate("GroupChall1", {
+                //     groupId: groupData.id,
+                //     groupMembers: groupData.members,
+                //   })
+                // }}
                 onPress={() => {
-                  navigation.navigate("GroupChall1", {
+                  navigation.navigate("GroupChallCollab", {
                     groupId: groupData.id,
                     groupMembers: groupData.members,
                   })

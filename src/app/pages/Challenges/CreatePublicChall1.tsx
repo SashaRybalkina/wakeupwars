@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { NavigationProp } from "@react-navigation/native";
 import { BASE_URL, endpoints } from "../../api";
+import { getAccessToken } from "../../auth";
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -27,8 +28,16 @@ const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
     if (singOrMult) {
     const fetchCats = async () => {
       try {
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
         // TODO: fetch only the categories for multiplayer/singleplayer (whatever was selected)
-        const response = await fetch(endpoints.cats());
+        const response = await fetch(endpoints.cats(), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
         const data = await response.json();
         setCategories(data);
         console.log("Data2: " + JSON.stringify(data));

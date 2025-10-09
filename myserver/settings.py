@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
+import os
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -113,13 +115,29 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    )
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),   # default 15 minutes
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),     # default 7 days
+}
+
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# Align server-side date calculations with US Mountain time (local for WakeUpWars users)
+TIME_ZONE = 'America/Denver'
 
 USE_I18N = True
 
@@ -135,6 +153,21 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# --- Celery configuration -----------------------------
+# Broker / backend default to local Redis; override via env vars in production.
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+
+from datetime import timedelta
+
+CELERY_BEAT_SCHEDULE = {
+    # "close-joins-and-zero-no-shows-every-minute": {
+    #     "task": "api.tasks.close_joins_and_zero_no_shows",
+    #     "schedule": timedelta(minutes=1),
+    # },
+}
+# ------------------------------------------------------
 
 from pathlib import Path
 import os

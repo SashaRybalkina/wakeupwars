@@ -3,6 +3,7 @@ package com.emilysashavickynatali.tastebuds
 import android.os.Build
 import android.os.Bundle
 import android.content.Intent
+import android.os.Bundle as AndroidBundle
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -10,6 +11,9 @@ import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnable
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 
 import expo.modules.ReactActivityDelegateWrapper
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.facebook.react.ReactApplication
 
 class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,6 +60,26 @@ class MainActivity : ReactActivity() {
   override fun onNewIntent(intent: Intent?) {
       super.onNewIntent(intent)
       setIntent(intent)
+      // Emit NewIntent to JS so app can navigate when already running
+      try {
+          val app = application as ReactApplication
+          val reactContext = app.reactNativeHost.reactInstanceManager.currentReactContext
+          if (reactContext != null && intent != null) {
+              val payload = Arguments.createMap()
+              if (intent.hasExtra("screen")) {
+                  payload.putString("screen", intent.getStringExtra("screen"))
+              }
+              val params = intent.getBundleExtra("params")
+              if (params != null) {
+                  payload.putMap("params", bundleToWritableMap(params))
+              }
+              reactContext
+                  .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                  .emit("NewIntent", payload)
+          }
+      } catch (_: Exception) {
+          // best-effort; avoid crashing if context not ready
+      }
   }
 
   /**
@@ -76,4 +100,27 @@ class MainActivity : ReactActivity() {
       // because it's doing more than [Activity.moveTaskToBack] in fact.
       super.invokeDefaultOnBackPressed()
   }
+
+  // Helper to convert Android Bundle to WritableMap (mirror of IntentModule)
+  private fun bundleToWritableMap(bundle: AndroidBundle?): com.facebook.react.bridge.WritableMap {
+      val map = Arguments.createMap()
+      if (bundle == null) return map
+      for (key in bundle.keySet()) {
+          val value = bundle.get(key)
+          when (value) {
+              null -> map.putNull(key)
+              is String -> map.putString(key, value)
+              is Int -> map.putInt(key, value)
+              is Double -> map.putDouble(key, value)
+              is Float -> map.putDouble(key, value.toDouble())
+              is Boolean -> map.putBoolean(key, value)
+              is Long -> map.putDouble(key, value.toDouble())
+              is AndroidBundle -> map.putMap(key, bundleToWritableMap(value))
+              else -> map.putString(key, value.toString())
+          }
+      }
+      return map
+  }
 }
+
+

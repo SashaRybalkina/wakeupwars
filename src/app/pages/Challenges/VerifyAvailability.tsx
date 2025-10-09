@@ -20,6 +20,7 @@ import {
   Platform,
 } from 'react-native';
 import { BASE_URL, endpoints } from '../../api';
+import { getAccessToken } from '../../auth';
 
 type Props = { navigation: NavigationProp<any> } 
 // Config 
@@ -100,7 +101,15 @@ const convertTo24Hour = (time12: string) => {
   useEffect(() => {
     const fetchAvailability = async () => {
       try {
-        const res = await fetch(endpoints.getUserAvailability(Number(user?.id)));
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
+        const res = await fetch(endpoints.getUserAvailability(Number(user?.id)), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
         if (!res.ok) throw new Error("Failed to fetch availability");
         const data: { dayOfWeek: number; alarmTime: string }[] = await res.json();
 
@@ -142,20 +151,17 @@ const convertTo24Hour = (time12: string) => {
 
 
         try {
-          const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-            credentials: 'include',                      
-          });
-          if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-          const { csrfToken } = await csrfRes.json();     
-          console.log('csrfToken:', csrfToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
         
         const res = await fetch(endpoints.setUserAvailability(Number(user?.id)), {
             method: 'POST',
-            credentials: 'include',                    
             headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,                
+              'Content-Type': 'application/json',
+              "Authorization": `Bearer ${accessToken}`,
             },
             body: JSON.stringify(payload),
         });

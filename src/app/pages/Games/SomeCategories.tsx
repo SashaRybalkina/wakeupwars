@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useRoute } from '@react-navigation/native';
 import { endpoints } from '../../api';
+import { getAccessToken } from '../../auth';
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -35,8 +36,16 @@ const SomeCategories: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     const fetchCats = async () => {
       try {
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
         // fetch the categories for multiplayer/singleplayer (whatever was selected)
-        const response = await fetch(endpoints.someCats(categories.map(c => c.id)));
+        const response = await fetch(endpoints.someCats(categories.map(c => c.id)), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
         const data = await response.json();
         setCats(data); 
         console.log("Data: " + data);
@@ -89,11 +98,7 @@ const SomeCategories: React.FC<Props> = ({ navigation }) => {
                       catId: cat.id,
                       categories: categories,
                       singOrMult: singOrMult,
-                      groupId : null,
-                      groupMembers : null,
                       onGameSelected,
-                      challId : null,
-                      challName : null
                     })
                   }}
             >

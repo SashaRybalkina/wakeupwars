@@ -6,6 +6,7 @@ import { type NavigationProp, useRoute } from "@react-navigation/native"
 import UserProfileCard from "../Components/UserProfileCard"
 import { BASE_URL, endpoints } from "../../api"
 import { LinearGradient } from "expo-linear-gradient"
+import { getAccessToken } from "../../auth"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -62,18 +63,17 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
     }
 
     try {
-      const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',
-      });
-      const tokenData = await res.json();
-      const csrfToken = tokenData.csrfToken;
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+      
       const response = await fetch(endpoints.addGroupMember(groupId!), {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          'X-CSRFToken': csrfToken,
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
         },
-        credentials: 'include',
         body: JSON.stringify(payload),
       })
 

@@ -18,6 +18,7 @@ import { useRoute, type NavigationProp } from "@react-navigation/native";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import axios from "axios";
 import { endpoints, leaderboardHistory } from "../../api";   // <- helper added in api.ts
+import { getAccessToken } from "../../auth";
 
 type LeaderRow = { name: string; points: number; rank: number };
 type RouteParams = { challId: number; myName: string };
@@ -75,9 +76,16 @@ const LeaderboardDetails: React.FC<Props> = ({ navigation }) => {
       setErr(null);
 
       try {
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
+              
         const res = await axios.get(endpoints.leaderboard(challId), {
-          withCredentials: true,
-        });
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
         if (ignore) return;
 
         const data = res.data;
@@ -99,10 +107,16 @@ const LeaderboardDetails: React.FC<Props> = ({ navigation }) => {
 
       (async () => {
         try {
+                const accessToken = await getAccessToken();
+                if (!accessToken) {
+                  throw new Error("Not authenticated");
+                }
           // GET /api/challenge-detail/<id>/  →  { startDate: "YYYY-MM-DD", endDate: "YYYY-MM-DD", ... }
           const res = await axios.get(endpoints.challengeDetail(challId), {
-            withCredentials: true,
-          });
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
           if (cancelled) return;
 
             setMinDate(parseLocalDate(res.data.startDate));   // 2025-09-02
@@ -128,8 +142,16 @@ const LeaderboardDetails: React.FC<Props> = ({ navigation }) => {
       setLoading(true);
       setErr(null);
       try {
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
         const url = leaderboardHistory(challId, startDate ?? undefined, endDate ?? undefined);
-        const res = await axios.get(url, { withCredentials: true });
+        const res = await axios.get(url, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
         if (!ignore) setHistory(res.data.history ?? {});
       } catch {
         if (!ignore) setErr("Failed to load history");

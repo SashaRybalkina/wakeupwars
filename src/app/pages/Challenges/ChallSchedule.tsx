@@ -14,7 +14,7 @@
 // import { endpoints } from "../../api"
 // // import styles from "./ChallSchedule.styles"
 import { useState, useEffect } from "react"
-import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform, Alert } from "react-native"
+import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform, Alert, Button } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { type NavigationProp, useRoute } from "@react-navigation/native"
@@ -23,13 +23,15 @@ import { BASE_URL, endpoints } from "../../api"
 import ChallengeCard from "./ChallengeCard"
 import { LinearGradient } from "expo-linear-gradient"
 import { useUser } from "../../context/UserContext"
+import { getAccessToken } from "../../auth"
+import { scheduleAlarmsForUser } from "../../alarmService"
 // import { DayOfWeek, DayOfWeekLabels } from "./DayOfWeek";
 
 type Alarm = { userName: string; alarmTime: string }
 type DaySchedule = {
   dayOfWeek: number
   alarms: Alarm[]
-  games: { name: string; order: number }[]
+  games: { id?: number; name: string; order: number; screen?: string }[]
 }
 
 
@@ -44,13 +46,20 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
     challName: string, 
     fromSearch: boolean,
     userAverageSkillLevel: number,
-    isInitiator: boolean
+    isInitiator: boolean,
   }
 
+  const [startDate, setStartDate] = useState<Date | null>(null)
+  const [endDate, setEndDate] = useState<Date | null>(null)
   const [selectedStartDate, setSelectedStartDate] = useState<Date>(new Date())
   const [selectedEndDate, setSelectedEndDate] = useState<Date>(new Date())
   const [showStartDatePicker, setShowStartDatePicker] = useState(false)
   const [showEndDatePicker, setShowEndDatePicker] = useState(false)
+  const [hasSetAlarms, setHasSetAlarms] = useState<boolean>()
+  const [isPending, setIsPending] = useState<boolean>()
+  const [groupId, setGroupId] = useState<Number>() // is personal if groupId null and isPublic false
+  const [isPublic, setIsPublic] = useState<boolean>()
+  const [isMember, setIsMember] = useState<boolean>()
 
   const { user } = useUser()
 
@@ -74,19 +83,46 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const visibleGames = currentDay?.games ?? []
   const visibleAlarms = currentDay?.alarms ?? []
 
+  const parseLocalDate = (dateStr: string) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+
 
 useEffect(() => {
   const fetchSchedule = async () => {
     try {
-      const res = await axios.get(endpoints.getChallengeSchedule(challId))
-      const data = res.data
+            const accessToken = await getAccessToken();
+            if (!accessToken) {
+              throw new Error("Not authenticated");
+            }
+      const [scheduleRes, alarmsRes] = await Promise.all([
+        axios.get(endpoints.getChallengeSchedule(challId), {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }),
+        axios.get(endpoints.getHasSetAlarms(challId, Number(user?.id)), {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        })
+      ]);
+
+      const data = scheduleRes.data;
 
       // Set challenge dates
-      const startDate = new Date(data.startDate)
-      setSelectedStartDate(startDate)
-      setSelectedEndDate(new Date(data.endDate))
+      // const startDate = new Date(data.startDate)
+      if (data.startDate) {
+        // const startDateParts = data.startDate.split("-").map(Number)
+        // const startDate = new Date(startDateParts[0], startDateParts[1] - 1, startDateParts[2])
+        setStartDate(parseLocalDate(data.startDate))
+      }
+      if (data.endDate) {
+        setEndDate(parseLocalDate(data.endDate))
+      }
 
       setMembers(data.members)
+      setIsPending(data.isPending)
+      setIsPublic(data.isPublic)
+      setGroupId(data.groupId)
 
       const dedupedSchedule: DaySchedule[] = data.schedule.map((day: DaySchedule) => ({
         ...day,
@@ -106,6 +142,8 @@ useEffect(() => {
       if (data.schedule.length > 0) {
         setSelectedDay(data.schedule[0].dayOfWeek)
       }
+
+      setHasSetAlarms(alarmsRes.data.hasSetAlarms);
     } catch (err) {
       console.error(err)
     }
@@ -148,12 +186,6 @@ const addGameToDay = async (game: { id: number; name: string }) => {
   );
 
   try {
-      const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-          credentials: 'include',                      
-  });
-  if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-  const { csrfToken } = await csrfRes.json();  
-
 
         const payload = {
           challengeId: challId,
@@ -164,12 +196,15 @@ const addGameToDay = async (game: { id: number; name: string }) => {
 
         console.log("Payload sent to backend:", payload);
 
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
         const res = await fetch(endpoints.addGameToSchedule(), {
             method: 'POST',
-            credentials: 'include',                    
             headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,                
+              'Content-Type': 'application/json',
+              "Authorization": `Bearer ${accessToken}`,
             },
             body: JSON.stringify(payload),
         });
@@ -222,47 +257,44 @@ const addGameToDay = async (game: { id: number; name: string }) => {
   }
 
 
-  const handleGamePress = (game: {name: string, order: number}, index: number) => {
-    game.name = game.name.toLowerCase();
+  const handleGamePress = (game: { name: string; order: number; screen?: string }, index: number) => {
+    // Prefer backend-provided screen for dynamic navigation
+    if (game.screen) {
+      navigation.navigate(game.screen, { challengeId: challId });
+      return;
+    }
 
-
-    if (game.name.includes("sudoku")) { // If the sudoku exists and matches certain names
+    // Fallback to name-based routing if screen is not provided
+    const lowered = game.name.toLowerCase();
+    if (lowered.includes("sudoku")) {
       goToSudoku();
-    }
-    else if (game.name.includes("wordle")) {
+    } else if (lowered.includes("wordle")) {
       goToWordle();
-    }
-    // If the pattern game exists and matches certain names
-    else if (game.name.includes("pattern")) {
+    } else if (lowered.includes("pattern")) {
       goToPattern();
-    }
-    else {
-      // removeGame(index);
+    } else {
+      // no-op for unknown games on this screen
     }
   }
 
     const handleJoinPublicChallenge = async () => {
   
           try {
-            const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-              credentials: 'include',                      
-            });
-            if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-            const { csrfToken } = await csrfRes.json();     
-            console.log('csrfToken:', csrfToken);
 
             const payload = {
               challenge_id: challId,
               user_average_skill_level: userAverageSkillLevel
             }
   
-          
+                const accessToken = await getAccessToken();
+                if (!accessToken) {
+                  throw new Error("Not authenticated");
+                }
           const res = await fetch(endpoints.joinPublicChallenge(Number(user?.id)), {
               method: 'POST',
-              credentials: 'include',                    
               headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken,                
+                'Content-Type': 'application/json',
+                "Authorization": `Bearer ${accessToken}`,
               },
               body: JSON.stringify(payload),
           });
@@ -272,7 +304,16 @@ const addGameToDay = async (game: { id: number; name: string }) => {
               throw new Error(error.message || 'Failed to join challenge');
           }
   
-          const data = await res.json();
+          setIsPending(false)
+            try {
+                if (challId) {
+                console.log(challId)
+                // await scheduleAlarmsForUser(challId, challName, Number(user?.id));
+                setHasSetAlarms(true)
+                }
+            } catch (e) {
+                console.warn('Failed to schedule alarms for new challenge', e);
+            }
           Alert.alert('Success', 'Joined Challenge', [
               { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
           ]);
@@ -283,52 +324,89 @@ const addGameToDay = async (game: { id: number; name: string }) => {
       }
 
 
-        const handleFinalizePublicChallenge = async () => {
+      //   const handleFinalizePublicChallenge = async () => {
   
-          try {
-            const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-              credentials: 'include',                      
-            });
-            if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-            const { csrfToken } = await csrfRes.json();     
-            console.log('csrfToken:', csrfToken);
+      //     try {
 
-            const payload = {
-              challenge_id: challId,
-            }
+      //       const payload = {
+      //         challenge_id: challId,
+      //       }
+
+      //   const accessToken = await getAccessToken();
+      //   if (!accessToken) {
+      //     throw new Error("Not authenticated");
+      //   }
   
           
-          const res = await fetch(endpoints.finalizePublicChallenge(), {
-              method: 'POST',
-              credentials: 'include',                    
-              headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken,                
-              },
-              body: JSON.stringify(payload),
-          });
+      //     const res = await fetch(endpoints.finalizePublicChallenge(), {
+      //         method: 'POST',
+      //         headers: {
+      //           'Content-Type': 'application/json',
+      //           "Authorization": `Bearer ${accessToken}`,
+      //         },
+      //         body: JSON.stringify(payload),
+      //     });
   
-          if (!res.ok) {
-              const error = await res.json();
-              throw new Error(error.message || 'Failed to finalize challenge');
-          }
+      //     if (!res.ok) {
+      //         const error = await res.json();
+      //         throw new Error(error.message || 'Failed to finalize challenge');
+      //     }
   
-          const data = await res.json();
-          Alert.alert('Success', 'Finalized Challenge', [
-              { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
-          ]);
-          } catch (err: any) {
-              Alert.alert('Error', err.message);
-          }
+      //     const data = await res.json();
+      //     Alert.alert('Success', 'Finalized Challenge', [
+      //         { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
+      //     ]);
+      //     } catch (err: any) {
+      //         Alert.alert('Error', err.message);
+      //     }
   
-      }
+      // }
 
 
+  // const formatDate = (date: Date) => {
+  //   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  //   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  //   return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`
+  // }
   const formatDate = (date: Date) => {
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'short', 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    }
+    return date.toLocaleDateString(undefined, options)
   }
+
+  // const allDaysHaveGames = schedule.every(day => {
+  //   if (day.alarms.length > 0) {
+  //     return day.games.length > 0
+  //   }
+  //   return true
+  // })
+
+  const generatePastelColor = (name: string): string => {
+  // Simple hash function to generate a number from a string
+  const hash = name.split("").reduce((acc, char) => {
+    return char.charCodeAt(0) + ((acc << 5) - acc)
+  }, 0)
+
+  // Generate pastel colors by keeping high lightness and medium saturation
+  const h = hash % 360 // Hue: 0-359
+  const s = 60 + (hash % 20) // Saturation: 60-79%
+  const l = 80 + (hash % 10) // Lightness: 80-89%
+
+  return `hsl(${h}, ${s}%, ${l}%)`
+}
+
+// Function to get initials from name
+const getInitials = (name: string): string => {
+  return name
+    .split(" ")
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("")
+    .substring(0, 2) // Limit to 2 characters
+}
 
   return (
     <ImageBackground source={require("../../images/tertiary.png")} style={styles.background} resizeMode="cover">
@@ -341,29 +419,49 @@ const addGameToDay = async (game: { id: number; name: string }) => {
 
         <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* Start / End Date Section */}
-          <View style={styles.dateSection}>
-            <View style={styles.dateContainer}>
-              <Text style={styles.dateLabel}>Start date</Text>
-              <Text style={styles.dateValue}>{formatDate(selectedStartDate)}</Text>
-              <TouchableOpacity style={styles.dateButton} onPress={() => setShowStartDatePicker(true)}>
-                <Text style={styles.dateButtonText}>Edit Start Date</Text>
-              </TouchableOpacity>
-            </View>
-            {showStartDatePicker && (
-              <DateTimePicker value={selectedStartDate} mode="date" display={Platform.OS === "android" ? "default" : "spinner"} onChange={onStartDateChange} />
-            )}
+          {startDate && (
+            <View style={styles.dateSection}>
+              <View style={styles.dateContainer}>
+                <Text style={styles.dateLabel}>Start date</Text>
+                <Text style={styles.dateValue}>{formatDate(startDate)}</Text>
+              </View>
 
-            <View style={styles.dateContainer}>
-              <Text style={styles.dateLabel}>End date</Text>
-              <Text style={styles.dateValue}>{formatDate(selectedEndDate)}</Text>
-              <TouchableOpacity style={styles.dateButton} onPress={() => setShowEndDatePicker(true)}>
-                <Text style={styles.dateButtonText}>Edit End Date</Text>
-              </TouchableOpacity>
+              <View style={styles.dateContainer}>
+                <Text style={styles.dateLabel}>End date</Text>
+                <Text style={styles.dateValue}>{formatDate(selectedEndDate)}</Text>
+              </View>
             </View>
-            {showEndDatePicker && (
-              <DateTimePicker value={selectedEndDate} mode="date" display={Platform.OS === "android" ? "default" : "spinner"} onChange={onEndDateChange} />
-            )}
-          </View>
+          )}
+
+
+
+
+
+
+          {(fromSearch === true || isPending === true) && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Enrolled Members</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.membersScroll}>
+                {members.map((member, index) => {
+                  const initials = getInitials(member.name)
+                  const backgroundColor = generatePastelColor(member.name)
+
+                  return (
+                    <View key={index} style={styles.memberCard}>
+                      <View style={[styles.memberAvatar, { backgroundColor }]}>
+                        <Text style={styles.memberInitials}>{initials}</Text>
+                      </View>
+                      <Text style={styles.memberName}>{member.name}</Text>
+                    </View>
+                  )
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+
+
+
 
           {/* Days + Alarms Section */}
           <View style={styles.alarmSection}>
@@ -408,7 +506,7 @@ const addGameToDay = async (game: { id: number; name: string }) => {
     <Text style={styles.sectionTitle}>
       {selectedDay ? `Games for ${DayOfWeekLabels[selectedDay]}` : "Select a day"}
     </Text>
-    {selectedDay && (
+    {/* {selectedDay && (
       <TouchableOpacity
         style={styles.addGameButtonSmall}
         onPress={() => navigation.navigate("Categories", {
@@ -422,7 +520,7 @@ const addGameToDay = async (game: { id: number; name: string }) => {
         <Ionicons name="add-circle" size={24} color="#FFD700" />
         <Text style={styles.addGameTextSmall}>Add</Text>
       </TouchableOpacity>
-    )}
+    )} */}
   </View>
             {visibleGames.length > 0 ? (
               <ScrollView
@@ -508,7 +606,7 @@ const addGameToDay = async (game: { id: number; name: string }) => {
   </TouchableOpacity>
 )}
 
-{isInitiator === true && (
+{/* {isInitiator === true && (
   <TouchableOpacity style={styles.createButton} onPress={handleFinalizePublicChallenge}>
     <LinearGradient
       colors={['#FFD700', '#FFC107']}
@@ -517,7 +615,50 @@ const addGameToDay = async (game: { id: number; name: string }) => {
       <Text style={styles.createButtonText}>Finalize Challenge</Text>
     </LinearGradient>
   </TouchableOpacity>
+)} */}
+
+{!isPending && !hasSetAlarms && (
+  <Button
+    title="Set My Alarms"
+    onPress={async () => {
+      // if (!allDaysHaveGames) {
+      //   Alert.alert("Error", "Select at least one game for each scheduled alarm");
+      //   return;
+      // }
+
+      try {
+        // 1. Schedule alarms locally
+        await scheduleAlarmsForUser(challId, challName, Number(user?.id));
+
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
+        // 2. Mark in backend that user has set their alarms
+        const res = await fetch(
+          endpoints.setUserHasSetAlarms(challId, Number(user?.id)),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+        setHasSetAlarms(true);
+        console.log("Alarms set and API updated");
+      } catch (e) {
+        console.warn("Failed to set alarms", e);
+        Alert.alert("Failed", "Failed to schedule alarms for new challenge", [
+          { text: "OK" },
+        ]);
+      }
+    }}
+    // disabled={!allDaysHaveGames}
+  />
+
 )}
+
 
         </ScrollView>
       </View>
@@ -879,6 +1020,42 @@ const styles = StyleSheet.create({
     color: '#333',
     fontSize: 18,
     fontWeight: '700',
+  },
+    section: {
+    marginBottom: 20,
+  },
+    membersScroll: {
+    flexDirection: "row",
+    marginBottom: 10,
+  },
+  memberCard: {
+    alignItems: "center",
+    marginRight: 20,
+    width: 70,
+  },
+  memberAvatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.5)",
+  },
+  memberInitials: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#333",
+  },
+  memberName: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 0.5, height: 0.5 },
+    textShadowRadius: 1,
   },
 })
 

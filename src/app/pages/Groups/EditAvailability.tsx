@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { scheduleAlarms } from '../../Alarm';
 import {
   View,
   Text,
@@ -12,8 +13,11 @@ import {
 import { NavigationProp, useRoute } from '@react-navigation/native';
 import { useUser } from '../../context/UserContext';
 import { BASE_URL, endpoints } from '../../api';
+import { getAccessToken } from '../../auth';
+import { scheduleAlarmsForUser } from '../../alarmService';
 
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"];
+const DayOfWeekLabels: Record<number, string> = { 1: "M", 2: "T", 3: "W", 4: "TH", 5: "F", 6: "S", 7: "SU" }
 // Zero-pad to match API format like "06:00"
 // const TIMES = Array.from({ length: 12 }, (_, i) => `${String(i + 6).padStart(2, '0')}:00`);
 
@@ -36,7 +40,8 @@ const TIMES = Array.from({ length: 44 }, (_, i) => {
 
 
 type Props = {
-  navigation: NavigationProp<any>
+  // use any to include .replace; or define proper stack prop if available
+  navigation: any
 }
 
 type AvailabilityEntry = {
@@ -45,6 +50,11 @@ type AvailabilityEntry = {
   dayOfWeek: number;
   alarmTime: string; // may come as "HH:MM" or "HH:MM:SS"
 };
+
+type DaySchedule = {
+  dayOfWeek: number
+  games: { id?: number; name: string; order: number }[]
+}
 
 const transparentColors = [
   'rgba(255, 0, 0, 0.3)',
@@ -64,9 +74,11 @@ const toHHMM = (t?: string) => (t ? t.slice(0, 5) : '');
 
 const EditAvailability: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { pendingChallengeId, pendingChallengeName, pendingChallengeEndDate, accepted } = route.params as { 
+  const { pendingChallengeId, pendingChallengeName, pendingChallengeStartDate, pendingChallengeEndDate, accepted, groupId } = route.params as { 
+    groupId: number,
     pendingChallengeId: number, 
     pendingChallengeName: string, 
+    pendingChallengeStartDate: string,
     pendingChallengeEndDate: string,
     accepted: number };
 
@@ -76,6 +88,21 @@ const EditAvailability: React.FC<Props> = ({ navigation }) => {
   const [userAvailability, setUserAvailability] = useState<AvailabilityEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [isInitiator, setIsInitiator] = useState(false);
+  const [challengeStartDate, setChallengeStartDate] = useState<string | null>(
+    pendingChallengeStartDate ?? null
+  );
+
+  const [schedule, setSchedule] = useState<
+    {
+      dayOfWeek: number
+      games: { name: string; order: number }[]
+    }[]
+  >([])
+
+  // Which day is currently selected by the user
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
+  const currentDay = schedule.find((d) => d.dayOfWeek === selectedDay)
+  const visibleGames = currentDay?.games ?? []
 
   const uniqueUserIds = [...new Set(availability.map(a => a.uID))];
 
@@ -90,7 +117,10 @@ const EditAvailability: React.FC<Props> = ({ navigation }) => {
   }, [availability]);
 
 
-
+const activeDays = useMemo(() => {
+  const uniqueDays = new Set(availability.map(a => a.dayOfWeek));
+  return Array.from(uniqueDays).sort((a, b) => a - b);
+}, [availability]);
 
 
 const [pendingToggles, setPendingToggles] = useState<AvailabilityEntry[]>([]);
@@ -107,17 +137,33 @@ const fetchAvailabilities = async () => {
   }
   setLoading(true);
   try {
-    const res = await fetch(endpoints.getAvailabilities(pendingChallengeId));
+          const accessToken = await getAccessToken();
+          if (!accessToken) {
+            throw new Error("Not authenticated");
+          }
+    const res = await fetch(endpoints.getAvailabilities(pendingChallengeId), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
     const data = await res.json();
-    console.log('Availability:', data);
-    setAvailability(data);
-    setUserAvailability(data.filter((entry: AvailabilityEntry) => entry.uID === user.id));
+    console.log(data);
+    setAvailability(data.availabilities);
+    setUserAvailability(data.availabilities.filter((entry: AvailabilityEntry) => entry.uID === user.id));
     setPendingToggles([]); // clear pending toggles after full refresh
-    
-    const res2 = await fetch(endpoints.getInitiator(pendingChallengeId));
-    const data2 = await res2.json();
-    console.log('Initiator: ', data2.initiator_id);
-    setIsInitiator(data2.initiator_id === user?.id);
+    setIsInitiator(data.initiator_id === user?.id);
+    setChallengeStartDate(data.start_date);
+
+    const dedupedSchedule: DaySchedule[] = data.gameSchedule.map((day: DaySchedule) => ({
+        ...day,
+      }))
+
+    setSchedule(dedupedSchedule)
+
+    if (data.gameSchedule.length > 0) {
+      setSelectedDay(data.gameSchedule[0].dayOfWeek)
+    }
+
   } catch (error) {
     console.error("Error fetching availabilities:", error);
   } finally {
@@ -129,9 +175,54 @@ useEffect(() => {
   fetchAvailabilities();
 }, [pendingChallengeId, user]);
 
-// --- updated toggleCell: also maintain pendingToggles as symmetric diff ---
-const toggleCell = (dayIdx: number, timeIdx: number) => {
-  const dayOfWeek = dayIdx + 1;
+
+
+// // --- updated toggleCell: also maintain pendingToggles as symmetric diff ---
+// const toggleCell = (dayIdx: number, timeIdx: number) => {
+//   const dayOfWeek = dayIdx + 1;
+//   const timeStr = TIMES[timeIdx];
+//   if (!timeStr || !user?.id || !user?.name) return;
+
+//   const entryMatches = (entry: AvailabilityEntry) =>
+//     entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr;
+
+//   const isUserInCell = userAvailability.some(entryMatches);
+//   const newEntry: AvailabilityEntry = {
+//     uID: Number(user.id),
+//     name: user.name,
+//     dayOfWeek,
+//     alarmTime: timeStr,
+//   };
+
+//   if (!isUserInCell) {
+//     // add locally
+//     setUserAvailability(prev => [...prev, newEntry]);
+//     setAvailability(prev => [...prev, newEntry]);
+//   } else {
+//     // remove locally
+//     setUserAvailability(prev =>
+//       prev.filter(entry => !(entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr))
+//     );
+//     setAvailability(prev =>
+//       prev.filter(entry => !(entry.uID === user.id && entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr))
+//     );
+//   }
+
+//   // maintain pendingToggles as symmetric difference (toggle in/out)
+//   setPendingToggles(prev => {
+//     const exists = prev.some(e => e.dayOfWeek === dayOfWeek && toHHMM(e.alarmTime) === timeStr);
+//     if (exists) {
+//       // user toggled this cell back — remove from pending
+//       return prev.filter(e => !(e.dayOfWeek === dayOfWeek && toHHMM(e.alarmTime) === timeStr));
+//     } else {
+//       // record new toggle
+//       return [...prev, newEntry];
+//     }
+//   });
+// };
+
+
+const toggleCell = (dayOfWeek: number, timeIdx: number) => {
   const timeStr = TIMES[timeIdx];
   if (!timeStr || !user?.id || !user?.name) return;
 
@@ -147,31 +238,20 @@ const toggleCell = (dayIdx: number, timeIdx: number) => {
   };
 
   if (!isUserInCell) {
-    // add locally
     setUserAvailability(prev => [...prev, newEntry]);
     setAvailability(prev => [...prev, newEntry]);
   } else {
-    // remove locally
-    setUserAvailability(prev =>
-      prev.filter(entry => !(entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr))
-    );
-    setAvailability(prev =>
-      prev.filter(entry => !(entry.uID === user.id && entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === timeStr))
-    );
+    setUserAvailability(prev => prev.filter(e => !entryMatches(e)));
+    setAvailability(prev => prev.filter(e => !(e.uID === user.id && entryMatches(e))));
   }
 
-  // maintain pendingToggles as symmetric difference (toggle in/out)
   setPendingToggles(prev => {
-    const exists = prev.some(e => e.dayOfWeek === dayOfWeek && toHHMM(e.alarmTime) === timeStr);
-    if (exists) {
-      // user toggled this cell back — remove from pending
-      return prev.filter(e => !(e.dayOfWeek === dayOfWeek && toHHMM(e.alarmTime) === timeStr));
-    } else {
-      // record new toggle
-      return [...prev, newEntry];
-    }
+    const exists = prev.some(entryMatches);
+    if (exists) return prev.filter(e => !entryMatches(e));
+    return [...prev, newEntry];
   });
 };
+
 
 
 
@@ -216,20 +296,18 @@ const handleSubmit = async () => {
       alarmTime, // already "HH:MM"
     }));
 
-    const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-      credentials: 'include',
-    });
-    if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-    const { csrfToken } = await csrfRes.json();
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
     const res = await fetch(
       endpoints.setChallAvailability(Number(user?.id), pendingChallengeId),
       {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,
+          "Authorization": `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ availability: payload }),
       }
@@ -240,7 +318,9 @@ const handleSubmit = async () => {
     setPendingToggles([]);
     await fetchAvailabilities();
 
-    Alert.alert('Success', 'Your availability was saved.');
+    Alert.alert('Success', 'Your availability was saved.', [
+      { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId }) },
+    ]);
   } catch (err: any) {
     Alert.alert('Error', err.message);
   }
@@ -286,18 +366,16 @@ const handleSubmit = async () => {
 
     const handleDecline = async () => {
         try {
-            const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-                credentials: 'include',                      
-        });
-        if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-        const { csrfToken } = await csrfRes.json();   
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
       const res = await fetch(endpoints.declineChallengeInvite(Number(user?.id), pendingChallengeId), {
         method: 'POST',
-        credentials: 'include',                    
         headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken,                
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
         },
       });
 
@@ -311,41 +389,73 @@ const handleSubmit = async () => {
 
 
     const handleFinalizeSchedule = async () => {
+      console.log("challengeStartDate")
+      console.log(challengeStartDate)
+      if (!challengeStartDate) {
+        console.warn("Start date not loaded yet");
+        return;
+      }
+
+      // TODO: the commented version will be final version (don't allow people to finalize on the start date
+      // to give people time to set alarms, but for the sake of demoing, use the uncommented code below)
+      // if (new Date() >= new Date(challengeStartDate)) {
+      //   alert("Start date already passed.");
+      //   return;
+      // }
+      if (new Date() > new Date(challengeStartDate)) {
+        alert("Start date already passed.");
+        return;
+      }
+
       try {
-        const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, { credentials: 'include' });
-        if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-        const { csrfToken } = await csrfRes.json();
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
         const res = await fetch(endpoints.finalizeCollaborativeGroupChallengeSchedule(pendingChallengeId), {
           method: 'POST',
-          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,
+            "Authorization": `Bearer ${accessToken}`,
           },
         });
         if (!res.ok) throw new Error(`Failed to finalize schedule. (${res.status})`);
 
-        let challenge_id: number | null = null;
-        const text = await res.text();
-        if (text) {
-          try {
-            const json = JSON.parse(text);
-            challenge_id = json?.challenge_id ?? null;
-          } catch {
-            // not JSON — ignore; we’ll fall back to pending id
-          }
-        }
+        // let challenge_id: number | null = null;
+        // const text = await res.text();
+        // if (text) {
+        //   try {
+        //     const json = JSON.parse(text);
+        //     challenge_id = json?.challenge_id ?? null;
+        //   } catch {
+        //     // not JSON — ignore; we’ll fall back to pending id
+        //   }
+        // }
 
-        const targetId = challenge_id ?? pendingChallengeId;
+        // try {
+        //     console.log("setting user alarms for challenge:")
+        //     console.log(pendingChallengeId)
+        //     // await scheduleAlarmsForUser(pendingChallengeId, pendingChallengeName, Number(user?.id));
+        // } catch (e) {
+        //     console.warn('Failed to schedule alarms for new challenge', e);
+        // }
+
+        // const targetId = challenge_id ?? pendingChallengeId;
         Alert.alert('Success', 'Schedule finalized.', [
           {
             text: 'OK',
+            // onPress: () =>
+            //   navigation.navigate('ChallDetails', {
+            //     challId: pendingChallengeId,
+            //     challName: pendingChallengeName,
+            //     whichChall: 'Group',
+            //   }),
             onPress: () =>
-              navigation.replace('ChallDetails', {
-                challId: targetId,
+              navigation.navigate('ChallSchedule', {
+                challId: pendingChallengeId,
                 challName: pendingChallengeName,
-                whichChall: 'Group',
+                fromSearch: false,
               }),
           },
         ]);
@@ -369,8 +479,108 @@ return (
     >
       <View style={styles.challengeInfoContainer}>
         <Text style={styles.challengeTitle}>{pendingChallengeName}</Text>
+        <Text style={styles.challengeEndDate}>Starts: {pendingChallengeStartDate}</Text>
         <Text style={styles.challengeEndDate}>Ends: {pendingChallengeEndDate}</Text>
       </View>
+
+
+
+
+
+          {/* Days + Alarms Section */}
+          <View style={styles.alarmSection}>
+            <Text style={styles.sectionTitle}>Challenge Days</Text>
+            <ScrollView horizontal contentContainerStyle={{ flexDirection: "row", paddingVertical: 8 }}>
+{activeDays.map((dayNum, idx) => {
+  const dayLabel = DAYS[dayNum - 1];
+  // find the schedule object for this label
+  const dayData = schedule.find((d) => DayOfWeekLabels[d.dayOfWeek] === dayLabel)
+  const isActive = dayData?.dayOfWeek === selectedDay
+
+  return (
+    <View key={idx} style={{ alignItems: "center", marginHorizontal: 6 }}>
+      <TouchableOpacity
+        style={[styles.dayCircle, isActive && styles.activeDayCircle]}
+        onPress={() => dayData && setSelectedDay(dayData.dayOfWeek)} // set selectedDay
+      >
+        <Text style={[styles.dayText, isActive && styles.activeDayText]}>{dayLabel}</Text>
+      </TouchableOpacity>
+    </View>
+  )
+})}
+
+            </ScrollView>
+          </View>
+
+          {/* Games Section */}
+<View style={styles.gamesSection}>
+  <View style={styles.gamesSectionHeader}>
+    <Text style={styles.sectionTitle}>
+      {selectedDay ? `Games for ${DayOfWeekLabels[selectedDay]}` : "Select a day"}
+    </Text>
+  </View>
+            {visibleGames.length > 0 ? (
+              <ScrollView
+                horizontal={true}
+                showsHorizontalScrollIndicator={true}
+                contentContainerStyle={styles.gamesScrollContainer}
+              >
+                <View style={styles.gamesGrid}>
+                  {visibleGames.map((game, index) => {
+                    // const name = (game[0] || "").trim();
+                    const lower = game.name.toLowerCase();
+                    const isSudoku = lower.includes("sudoku");   
+                    const isPattern = lower.includes("pattern"); 
+
+                    return (
+                      <TouchableOpacity
+                        key={index}
+                        style={[styles.gameCard, isSudoku && styles.sudokuGameCard]}
+                        // onPress={() => handleGamePress(game, index)}
+                      >
+                        <Text style={styles.gameTitle}>{game.name}</Text>
+
+                        {isSudoku ? (
+                          <>
+                            <ImageBackground
+                              source={require("../../images/sudoku.png")}
+                              style={styles.sudokuImage}
+                              resizeMode="contain"
+                            />
+                          </>
+                        ) : isPattern ? (
+                          <>
+                            <ImageBackground
+                              source={require("../../images/patternGame.png")}
+                              style={styles.sudokuImage}
+                              resizeMode="contain"
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <Text style={styles.gameDetail}>Repeats: -</Text>
+                            <Text style={styles.gameDetail}>Minutes: -</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            ) : (
+
+    <View style={styles.emptyGamesContainer}>
+      <Text style={styles.emptyGamesText}>Select a day to see games</Text>
+    </View>
+    
+  )}
+
+</View>
+
+
+
+
+
 
       <Text style={styles.title}>Edit Your Availability</Text>
 
@@ -381,11 +591,14 @@ return (
             <View style={styles.grid}>
               <View style={styles.row}>
                 <View style={styles.cell} />
-                {DAYS.map((day, idx) => (
-                  <View key={idx} style={styles.cell}>
-                    <Text style={styles.headerText}>{day}</Text>
-                  </View>
-                ))}
+                {activeDays.map((dayNum) => {
+                  const dayLabel = DAYS[dayNum - 1]; // since DAYS[0] = "Mon"
+                  return (
+                    <View key={dayNum} style={styles.cell}>
+                      <Text style={styles.headerText}>{dayLabel}</Text>
+                    </View>
+                  );
+                })}
               </View>
 
               {TIMES.map((time, timeIdx) => (
@@ -394,18 +607,17 @@ return (
                     <Text style={styles.headerText}>{formatTo12Hour(time)}</Text>
                   </View>
 
-{DAYS.map((_, dayIdx) => {
-  const users = getUsersInSlot(dayIdx, timeIdx);
+{activeDays.map((dayOfWeek) => {
+  const users = availability.filter(
+    entry => entry.dayOfWeek === dayOfWeek && toHHMM(entry.alarmTime) === time
+  );
   const isUserHere = users.some(u => u.uID === user?.id);
 
   return (
     <TouchableOpacity
-      key={`${dayIdx}-${timeIdx}`}
-      style={[
-        styles.cell,
-        styles.interactiveCell,
-      ]}
-      onPress={() => toggleCell(dayIdx, timeIdx)}
+      key={`${dayOfWeek}-${timeIdx}`}
+      style={[styles.cell, styles.interactiveCell]}
+      onPress={() => toggleCell(dayOfWeek, timeIdx)} // pass actual dayOfWeek
     >
       {users.length > 0 && (
         <View pointerEvents="none" style={styles.stripeOverlay}>
@@ -423,6 +635,7 @@ return (
     </TouchableOpacity>
   );
 })}
+
 
                 </View>
               ))}
@@ -457,7 +670,7 @@ return (
 
       {isInitiator && uniqueUserIds.length > 1 && (
         <TouchableOpacity style={styles.saveButton} onPress={handleFinalizeSchedule}>
-          <Text style={styles.saveButtonText}>Finalize Challenge Schedule</Text>
+          <Text style={styles.saveButtonText}>Finalize Challenge</Text>
         </TouchableOpacity>
       )}
 
@@ -604,8 +817,116 @@ challengeEndDate: {
   color: '#FFF',
   fontStyle: 'italic',
 },
-
-
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#FFF",
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  alarmSection: {
+    marginBottom: 20,
+  },
+    dayCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    marginBottom: 8,
+  },
+  selectedDayCircle: {
+    backgroundColor: "#FFD700",
+    shadowColor: "#FFD700",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  activeDayCircle: {
+    backgroundColor: "#FFA500",
+    shadowColor: "#FFA500",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  dayText: {
+    fontWeight: "700",
+    fontSize: 15,
+    color: "#FFF",
+  },
+  selectedDayText: {
+    color: "#000",
+  },
+  activeDayText: {
+    color: "#000",
+  },
+  sudokuImage: {
+    width: 50,
+    height: 50,
+    marginTop: 4,
+  },
+    gameTitle: {
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  gameDetail: {
+    color: "#DDD",
+    fontSize: 12,
+    marginBottom: 3,
+  },
+    emptyGamesContainer: {
+    backgroundColor: "rgba(30, 30, 40, 0.6)",
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 150,
+  },
+  emptyGamesText: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 16,
+    fontWeight: "500",
+    marginVertical: 10,
+  },
+    gamesScrollContainer: {
+    paddingBottom: 10,
+  },
+  gamesGrid: {
+    flexDirection: "row",
+    paddingRight: 20,
+  },
+  gameCard: {
+    backgroundColor: "rgba(50, 50, 60, 0.7)",
+    borderRadius: 15,
+    padding: 12,
+    width: 130,
+    marginRight: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    height: 130,
+  },
+  sudokuGameCard: {
+    borderColor: "rgba(255, 215, 0, 0.3)",
+    backgroundColor: "rgba(60, 60, 70, 0.8)",
+    width: 140,
+    height: 160,
+  },
+    gamesSection: {
+    marginBottom: 20,
+  },
+  gamesSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+  },
 });
 
 export default EditAvailability;

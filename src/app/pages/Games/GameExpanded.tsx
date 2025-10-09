@@ -18,12 +18,10 @@ type Props = {
 
 const GameExpanded: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  console.log("Route params:", route.params);
+  console.log("Game expanded route params:", route.params);
 
-  const { catType, catId, catName, categories, singOrMult, gameId, gameName, groupId, groupMembers, onGameSelected, challId, challName, friendId } = route.params as {
+  const { catType, categories, singOrMult, gameId, gameName, groupId, groupMembers, onGameSelected, friendId, challName, alarmSchedule } = route.params as {
     catType: string;
-    catId: number;
-    catName: string;
     categories: { id: number; name: string }[];
     singOrMult: string;
     gameId: number;
@@ -31,9 +29,11 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
     groupId: number;
     groupMembers: { id: number; name: string }[];
     onGameSelected: (game: { id: number; name: string }) => void;
-    challId: number;
-    challName: number;
+    // challId: number;
+    // challName: number;
     friendId?: number;
+    challName: number;
+    alarmSchedule: { dayOfWeek: number; time: string }[],
   };
 
   // Here we use our new mapping system to get the correct image and description.
@@ -43,16 +43,16 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
     if (onGameSelected) {
       onGameSelected({ id: gameId, name: gameName });
     }
-    if (catType == 'Personal') navigation.navigate('PersChall2');
-    else if (catType == 'Group') navigation.navigate('GroupChall2', { groupId, groupMembers });
+    if (catType == 'Personal') navigation.navigate('PersChall2Copy');
+    else if (catType == 'Group') navigation.navigate('GroupChallCollab2', { name: challName, groupId, members: groupMembers, alarmSchedule });
     else if (catType === 'Public') {
-      // navigation.navigate('CreatePublicChall2', { 
-      //   singOrMult: singOrMult,
-      //   categories: categories,
-      // });
-      navigation.dispatch(StackActions.pop(3));
+      navigation.navigate('CreatePublicChall2', { 
+        singOrMult: singOrMult,
+        categories: categories,
+      });
+      // navigation.dispatch(StackActions.pop(3));
     }
-    else if (catType == 'Schedule') navigation.navigate('ChallSchedule', { challId, challName });
+    // else if (catType == 'Schedule') navigation.navigate('ChallSchedule', { challId, challName });
     else if (catType == 'Friend') navigation.navigate('CreateChallengeForFriend', { friendId }); // here, groupId is actually friendId
   };
 

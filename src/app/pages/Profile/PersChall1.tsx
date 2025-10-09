@@ -11,6 +11,7 @@ import axios from "axios"
 import { endpoints } from "../../api"
 import ChallengeCard from "../Challenges/ChallengeCard"
 import PendingChallengeActionCard from "../Challenges/PersonalPendingChallengeCard"
+import { getAccessToken } from "../../auth"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -26,16 +27,28 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
   const fetchChallenges = async () => {
     try {
       setLoading(true)
-        // TODO: see if this works:
 
       // fetch all personal challenges
-      const response = await axios.get(endpoints.challengeList(Number(user!.id), "Personal"))
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+
+      const response = await axios.get(endpoints.challengeList(Number(user!.id), "Personal"), {
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+        },
+      });
 
       // attach alarm schedule for each challenge
       const challengesWithAlarms = await Promise.all(
         response.data.map(async (c: any) => {
           try {
-            const scheduleRes = await axios.get(endpoints.challengeSchedule(c.id))
+            const scheduleRes = await axios.get(endpoints.challengeSchedule(c.id), {
+              headers: {
+                "Authorization": `Bearer ${accessToken}`,
+              },
+            });
             const alarmSchedule = scheduleRes.data.map((day: any) => ({
               dayOfWeek: day.dayOfWeek,
               alarmTime: day.alarmTime,
@@ -50,7 +63,8 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
               totalDays: c.totalDays,
               daysOfWeek: c.daysOfWeek ?? [],
               alarmSchedule,
-              isCompleted: c.endDate ? new Date(c.endDate) < new Date() : false,
+              // isCompleted: c.endDate ? new Date(c.endDate) < new Date() : false,
+              isCompleted: c.isCompleted,
             }
           } catch {
             return {
@@ -62,7 +76,8 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
               totalDays: c.totalDays ?? 30, // TODO: fix this
               daysOfWeek: c.daysOfWeek ?? [],
               alarmSchedule: [],
-              isCompleted: c.endDate ? new Date(c.endDate) < new Date() : false,
+              // isCompleted: c.endDate ? new Date(c.endDate) < new Date() : false,
+              isCompleted: c.isCompleted,
             }
           }
         })
@@ -70,7 +85,11 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
       setChallenges(challengesWithAlarms)
 
       // fetch pending invites
-      const pendingRes = await axios.get(endpoints.getPersonalChallengeInvites(Number(user!.id)))
+      const pendingRes = await axios.get(endpoints.getPersonalChallengeInvites(Number(user!.id)), {
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+        },
+      });
       setPendingChallenges(pendingRes.data || [])
     } catch (error) {
       console.error("Failed to fetch challenges:", error)
@@ -89,14 +108,18 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
   // --- accept challenge ---
   const handleAccept = async (challId: number) => {
     try {
-      const csrfResp = await axios.get(endpoints.csrfToken, { withCredentials: true })
-      const csrfToken = csrfResp.data.csrfToken
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
-      await axios.post(
-        endpoints.acceptPersonalChallenge(Number(user!.id), challId),
-        {},
-        { withCredentials: true, headers: { "X-CSRFToken": csrfToken } }
-      )
+      const res = await fetch(endpoints.acceptPersonalChallenge(Number(user!.id), challId), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+        },
+      });
 
       Alert.alert("Challenge Accepted", `You accepted challenge ${challId}`)
 
@@ -111,14 +134,18 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
   // --- decline challenge ---
   const handleDecline = async (challId: number) => {
     try {
-      const csrfResp = await axios.get(endpoints.csrfToken, { withCredentials: true })
-      const csrfToken = csrfResp.data.csrfToken
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
 
-      await axios.post(
-        endpoints.declinePersonalChallenge(Number(user!.id), challId),
-        {},
-        { withCredentials: true, headers: { "X-CSRFToken": csrfToken } }
-      )
+      const res = await fetch(endpoints.declinePersonalChallenge(Number(user!.id), challId), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+        },
+      });
 
       Alert.alert("Challenge Declined", `You declined challenge ${challId}`)
 
@@ -247,7 +274,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
               )}
               <TouchableOpacity
                 style={styles.addNewButton}
-                onPress={() => navigation.navigate("PersChall2")}
+                onPress={() => navigation.navigate("PersChall2Copy")}
               >
                 <Text style={styles.addNewButtonText}>Add new +</Text>
               </TouchableOpacity>

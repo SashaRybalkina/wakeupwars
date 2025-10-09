@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useRoute } from '@react-navigation/native';
 import { endpoints } from '../../api';
+import { getAccessToken } from '../../auth';
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -17,27 +18,44 @@ type Props = {
 
 const Games: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { catType, catId, catName, categories, groupId, singOrMult, groupMembers, onGameSelected, challId, challName, friendId } = route.params as {
-    catType: string
+  const { catType, singOrMult, catId, catName, categories, groupId, groupMembers, onGameSelected, challName, friendId, alarmSchedule } = route.params as {
+    catType: string;
+    singOrMult: string;
     catId: number;
     catName: string;
     categories: { id: number; name: string }[];
-    singOrMult: string;
     groupId: number;
     groupMembers: { id: number; name: string }[];
     onGameSelected: (game: { id: number; name: string }) => void;
-    challId: number;
-    challName: number;
+    challName: string;
     friendId?: number;
+    alarmSchedule: { dayOfWeek: number; time: string }[],
   };
+
+  console.log("Games route params:", route.params);
+
+  // catType, singOrMult possibilities
+  // Personal, Singleplayer
+  // Friend, Singeplayer
+  // Group, Neither
+  // Public, Singpleplayer,
+  // Public, Multiplayer
 
   const [games, setGames] = useState<{ id: number; name: String }[]>([]);
 
   useEffect(() => {
     const fetchGames = async () => {
       try {
+              const accessToken = await getAccessToken();
+              if (!accessToken) {
+                throw new Error("Not authenticated");
+              }
         // fetch the games in whatever category was selected
-        const response = await fetch(endpoints.games(catId, singOrMult));
+        const response = await fetch(endpoints.games(catId, singOrMult), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
         const data = await response.json();
         setGames(data); 
       } catch (error) {
@@ -84,8 +102,6 @@ const Games: React.FC<Props> = ({ navigation }) => {
               style={styles.gameButton}
               onPress={() => navigation.navigate('GameExpanded', { 
                 catType, 
-                catId,
-                catName, 
                 categories: categories,
                 singOrMult: singOrMult,
                 gameId: game.id, 
@@ -93,9 +109,9 @@ const Games: React.FC<Props> = ({ navigation }) => {
                 groupId, 
                 groupMembers, 
                 onGameSelected,
-                challId,
-                challName,
                 ...(catType === 'Friend' && { friendId }),
+                challName,
+                alarmSchedule
               })}
             >
               <Text style={styles.gameButtonText}>{game.name}</Text>

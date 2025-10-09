@@ -4,6 +4,11 @@ import PendingPublicChallengeCard from "./PendingPublicChallengeCard"
 
 type Props = { navigation: NavigationProp<any> } 
 
+// interface Participant {
+//   id: number;
+//   username: string;
+// }
+
 interface ChallengeMatch {
   summary: {
     id: number;
@@ -11,6 +16,7 @@ interface ChallengeMatch {
     totalDays: number;
     daysOfWeek: string[]; 
     numParticipants: number;
+    // participants: Participant[];
     categories: string[],
     averageSkillLevel: number;
   };
@@ -34,7 +40,7 @@ const PublicChallSearch2: React.FC<Props> = ({ navigation }) => {
                 challId: m.summary.id,
                 challName: m.summary.name,
                 fromSearch: true,
-                userAverageSkillLevel: m.userAverageSkillLevel
+                userAverageSkillLevel: m.userAverageSkillLevel,
             })
             }
             style={styles.challengeContainer}

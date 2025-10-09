@@ -16,6 +16,9 @@ import { LinearGradient } from "expo-linear-gradient"
 import { BASE_URL, endpoints } from "../../api"
 import { Platform } from "react-native"
 import { getMetaFromTuple } from "../Games/NewGamesManagement"
+import { getAccessToken } from "../../auth"
+import { scheduleAlarmsForChallenge } from "../../alarmService"
+import { getNextAlarmDate } from "../../../utils/dateUtils"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -194,6 +197,14 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
     return date.toLocaleDateString(undefined, options)
   }
 
+  // format as local YYYY-MM-DD (avoids UTC shift from toISOString)
+  const toLocalYMD = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
   const showRewardInfo = () => {
     Alert.alert('Rewards', 'Choose the reward the winner will get. \n\nMoney: Send a USD amount. \nPoints: In-app points. \nCustom: Any creative prize. \n\nAfter saving, rewards are locked.');
   };
@@ -228,12 +239,12 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
       reward = { type: rewardType, amount: amt };
     }
     
-    const alarmSchedule = Object.entries(dayTimeMapping)
-      .filter(([day, time]) => time && dayToInt[day])
+    const alarmSchedule: { dayOfWeek: number; time: string }[] = Object.entries(dayTimeMapping)
+      .filter(([day, time]) => time && dayToInt[day] !== undefined)
       .map(([day, time]) => ({
-        dayOfWeek: dayToInt[day],
-        time,
-      }))
+        dayOfWeek: dayToInt[day] as number,
+        time: time as string,
+      }));
     console.log("Filtered Alarm Schedule:", alarmSchedule)
 
     const gameSchedules = Object.entries(gamesByDay || {})
@@ -271,33 +282,63 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
 
     console.log("Group Members:", groupMembers)
 
+
+    // collect day numbers of scheduled alarms
+    const alarmDays = alarmSchedule
+      .map(a => a.dayOfWeek)
+      .filter((d): d is number => d !== undefined);
+
+    // find first valid future start date
+    const nextAlarmDate = getNextAlarmDate(alarmSchedule);
+    if (!nextAlarmDate) {
+      Alert.alert('Error', 'Could not determine start date from schedule');
+      return;
+    }
+    const start_date = toLocalYMD(nextAlarmDate);
+    const end_date = toLocalYMD(selectedDate);
+
+    if (!start_date) {
+      Alert.alert("Error", "Could not determine start date");
+      return;
+    }
+
+    if (!end_date) {
+      Alert.alert("Error", "Please select an end date");
+      return;
+    }
+
+    const diffMs = new Date(end_date).getTime() - new Date(start_date).getTime();
+    if (diffMs < 0) {
+      Alert.alert('Error', 'End date must be on or after start date');
+      return;
+    }
+    // compute inclusive difference in days
+    const total_days = Math.ceil(diffMs / 86_400_000) + 1; // +1 → inclusive
+    
     const payload = {
       name,
       group_id: groupId,
-      start_date: new Date().toLocaleDateString('en-CA'),
-      end_date: selectedDate.toISOString().split("T")[0],
-      members: groupMembers.map((member) => member.id),
+      start_date,
+      end_date,
+      total_days,
+      members: groupMembers.map(m => m.id),
       alarm_schedule: alarmSchedule,
       game_schedules: gameSchedules,
       reward,
-    }
-    console.log(payload)
+    };
 
     try {
-      const csrfRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: 'include',                      
-      });
-      if (!csrfRes.ok) throw new Error('Failed to fetch CSRF token');
-      const { csrfToken } = await csrfRes.json();     
-      console.log('csrfToken:', csrfToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
   
   
       const res = await fetch(endpoints.createManualGroupChallenge, {
         method: 'POST',
-        credentials: 'include',                    
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,                
+          "Authorization": `Bearer ${accessToken}`,
         },
         body: JSON.stringify(payload),
       });
@@ -309,6 +350,16 @@ const GroupChall2: React.FC<Props> = ({ navigation }) => {
   
       const data = await res.json();
       console.log('Challenge created:', data);
+
+      // Schedule native alarms on this device for the newly created challenge
+      try {
+        const newId = (data && (data.id ?? data.challenge_id)) as number | undefined;
+        if (newId) {
+          await scheduleAlarmsForChallenge(newId, name);
+        }
+      } catch (e) {
+        console.warn('Failed to schedule alarms for new group challenge', e);
+      }
       Alert.alert('Success', 'Challenge created successfully', [
         { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId, groupMembers }) },
       ]);

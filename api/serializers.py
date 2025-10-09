@@ -44,7 +44,7 @@ class CatSerializer(serializers.ModelSerializer):
 class GameSerializer(serializers.ModelSerializer):
     class Meta:
         model = Game
-        fields = ['id', 'name', 'category', 'isMultiplayer']
+        fields = ['id', 'name', 'category', 'isMultiplayer', 'route']
 
 class SkillLevelSerializer(serializers.ModelSerializer):
     category = CatSerializer()
@@ -61,7 +61,7 @@ class ChallengeSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Challenge
         fields = [
-            'id', 'name', 'startDate', 'endDate',
+            'id', 'name', 'startDate', 'endDate', 'totalDays',
             'isGroupChallenge', 'daysOfWeek', 'daysCompleted',
             'isCompleted',
         ]
@@ -69,9 +69,25 @@ class ChallengeSummarySerializer(serializers.ModelSerializer):
     def get_isGroupChallenge(self, obj):
         return obj.groupID is not None
 
+    # def get_daysOfWeek(self, obj):
+    #     day_numbers = obj.gameschedule_set.values_list('dayOfWeek', flat=True)
+    #     return [calendar.day_name[day][0] for day in day_numbers]
+
     def get_daysOfWeek(self, obj):
-        day_numbers = obj.gameschedule_set.values_list('dayOfWeek', flat=True)
-        return [calendar.day_name[day][0] for day in day_numbers]
+        # Pull dayOfWeek values through ChallengeAlarmSchedule → AlarmSchedule
+        day_numbers = (
+            obj.challengealarmschedule_set
+            .values_list("alarm_schedule__dayOfWeek", flat=True)
+            .distinct()
+        )
+
+        print(list(day_numbers))
+
+        numeric_to_label = {1: "M", 2: "T", 3: "W", 4: "TH", 5: "F", 6: "S", 7: "SU"}
+
+        day_labels = [numeric_to_label[d] for d in sorted(day_numbers)]
+        return list(day_labels)
+    
 
     def get_isCompleted(self, obj):
         # Prefer a real model flag if you have one
@@ -90,6 +106,7 @@ class ChallengeSummarySerializer(serializers.ModelSerializer):
 class PendingPublicChallengeSummarySerializer(serializers.ModelSerializer):
     daysOfWeek = serializers.SerializerMethodField()
     numParticipants = serializers.SerializerMethodField()
+    # participants = serializers.SerializerMethodField()
     categories = serializers.SerializerMethodField()
     averageSkillLevel = serializers.SerializerMethodField()
 
