@@ -58,10 +58,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         # Fetch sender object
         sender = await database_sync_to_async(User.objects.get)(id=sender_id)
+        group_name = None
 
         # Determine which room to broadcast to
         if group_id:
             room_group_name = f'chat_group_{group_id}'
+            group = await database_sync_to_async(Group.objects.get)(id=group_id)
+            group_name = group.name
         elif sender_id and recipient_id:
             ids = sorted([int(sender_id), int(recipient_id)])
             room_group_name = f'chat_user_{ids[0]}_{ids[1]}'
@@ -81,6 +84,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     },
                     'recipient_id': recipient_id,
                     'group_id': group_id,
+                    'group_name': group_name,
                     'timestamp': timestamp,
                 }
             )

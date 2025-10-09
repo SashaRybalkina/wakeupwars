@@ -1,6 +1,7 @@
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { BASE_URL, endpoints } from "../api"
+import { NativeModules } from 'react-native';
 import { useUser } from "../context/UserContext"
 import {
   ImageBackground,
@@ -20,7 +21,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import axios from "axios"
 import * as Notifications from 'expo-notifications'
 import {formatDistanceToNow} from 'date-fns'
-import NotificationService from '../Notification'
+const { NotificationModule } = NativeModules;
 
 type Props = {
   navigation: NavigationProp<any>
@@ -64,39 +65,25 @@ const Messages: React.FC<Props> = ({ navigation }) => {
       const response = await fetch(endpoints.messages(Number(user.id)))
       const data = await response.json()
       const friends = data.filter((msg: any) => msg.recipient !== null)
-  
-      // Convert to conversations with last_message
-      const conversationsMap: Record<number, any> = {}
-      friends.forEach(msg => {
-        const otherUser = msg.sender.id === user.id ? msg.recipient : msg.sender
-        if (!otherUser) return
-        const id = otherUser.id
-        if (!conversationsMap[id] || new Date(msg.timestamp) > new Date(conversationsMap[id].last_message.timestamp)) {
-          conversationsMap[id] = { sender: msg.sender, recipient: msg.recipient, last_message: msg }
-        }
-      })
-  
-      setFriendMessages(Object.values(conversationsMap))
+      setFriendMessages(friends)
     } catch (error) {
       console.error("Failed to fetch messages:", error)
     }
-  }  
+  }
+
+  const fetchGroupConversations = async () => {
+    if (!user?.id) return
+    try {
+      const response = await fetch(`${BASE_URL}/api/user/${user.id}/group-conversations/`)
+      const data = await response.json()
+      setGroupConversations(data)
+    } catch (error) {
+      console.error("Failed to fetch group conversations:", error)
+    }
+  }
 
   useEffect(() => {
     fetchMessages()
-  }, [user])
-
-  useEffect(() => {
-    const fetchGroupConversations = async () => {
-      if (!user?.id) return
-      try {
-        const response = await fetch(`${BASE_URL}/api/user/${user.id}/group-conversations/`)
-        const data = await response.json()
-        setGroupConversations(data)
-      } catch (error) {
-        console.error("Failed to fetch group conversations:", error)
-      }
-    }
     fetchGroupConversations()
   }, [user])
 
@@ -175,39 +162,24 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     };
     wsNotification.current.onclose = () => {};
 
-    // All 1-1 chats WebSocket
+    // Private messages WebSocket (aggregate all 1-1 chats for this user)
     const wsUrlPrivate = `${BASE_URL.replace(/^http/, "ws")}/ws/chat/users/${user.id}/`;
     wsPrivate.current = new WebSocket(wsUrlPrivate);
     wsPrivate.current.onmessage = (event: any) => {
       try {
-        const data = JSON.parse(event.data)
-        setFriendMessages(prev => {
-          const updated = [...prev]
-          const index = updated.findIndex(
-            conv =>
-              (conv.sender.id === data.sender.id && conv.recipient.id === data.recipient.id) ||
-              (conv.sender.id === data.recipient.id && conv.recipient.id === data.sender.id)
-          )
-          if (index !== -1) {
-            updated[index] = {...updated[index], last_message: { ...data }}
-          } else {
-            updated.push({ sender: data.sender, recipient: data.recipient, last_message: data })
-          }
-          return updated
-        })
-        // Push notification logic
-        const otherUserId = data.sender.id === user.id ? data.recipient.id : data.sender.id;
-        if (activeConversationId !== otherUserId) {
-          NotificationService.sendNotification(
-            user.id,
-            "New Message",
-            `${data.sender.name}: ${data.message}`,
-            "Conversation",
-            { challengeId: undefined, challName: undefined, whichChall: undefined }
-          );
+        const data = JSON.parse(event.data);
+        fetchMessages();
+        setFriendMessages((prev) => [...prev, data]);
+
+        if (activeConversationId !== (data.sender.id === user.id ? data.recipient_id : data.sender.id)) {
+          NotificationModule.showNotification(data.sender.name, data.message, 'Messages', {
+            screen: 'Messages',
+            params: {}
+          });
         }
+
       } catch (e) {
-        console.error("WebSocket private message parse error:", e)
+        console.error("WebSocket private message parse error:", e);
       }
     };
     wsPrivate.current.onerror = (err: any) => {
@@ -215,34 +187,25 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     };
     wsPrivate.current.onclose = () => {};
 
-    // All group chats WebSocket
+    // Group messages WebSocket (aggregate all groups for this user)
+    // You may want to open a socket for each group, but here is a single example for groupId=0 (broadcast)
     const wsUrlGroups = `${BASE_URL.replace(/^http/, "ws")}/ws/chat/groups/${user.id}/`;
     wsGroups.current = new WebSocket(wsUrlGroups);
     wsGroups.current.onmessage = (event: any) => {
       try {
-        const data = JSON.parse(event.data)
-        setGroupConversations(prev => {
-          const updated = [...prev]
-          const index = updated.findIndex(grp => grp.group_id === data.group_id)
-          if (index !== -1) {
-            updated[index] = { ...updated[index], last_message: { ...data } }
-          } else {
-            updated.push({ group_id: data.group_id, group_name: data.group_name || `Group ${data.group_id}`, last_message: data })
-          }
-          return updated
-        })
-        // Push notification logic for groups
+        const data = JSON.parse(event.data);
+        fetchGroupConversations();
+        setGroupConversations((prev) => [...prev, data]);
+
         if (activeGroupId !== data.group_id) {
-          NotificationService.sendNotification(
-            user.id,
-            "New Group Message",
-            `${data.sender.name}: ${data.message}`,
-            "Conversation",
-            { challengeId: undefined, challName: undefined, whichChall: undefined }
-          );
+          NotificationModule.showNotification(data.sender.name + ", " + data.group_name, data.message, 'Messages', {
+            screen: 'Messages',
+            params: {}
+          });
         }
+
       } catch (e) {
-        console.error("WebSocket group message parse error:", e)
+        console.error("WebSocket group message parse error:", e);
       }
     };
     wsGroups.current.onerror = (err: any) => {
@@ -256,6 +219,29 @@ const Messages: React.FC<Props> = ({ navigation }) => {
       wsGroups.current?.close();
     };
   }, [user, activeConversationId, activeGroupId]);
+
+  const getConversations = (messages: any[]) => {
+    const conversations: Record<string, any> = {}
+    messages.forEach((msg) => {
+      const otherUser = msg.sender.id === user?.id ? msg.recipient : msg.sender
+      if (!otherUser) return
+      const conversationId = otherUser.id
+      if (
+        !conversations[conversationId] ||
+        new Date(msg.timestamp) > new Date(conversations[conversationId].timestamp)
+      ) {
+        conversations[conversationId] = {
+          otherUser,
+          lastMessage: msg,
+        }
+      }
+    })
+    return Object.values(conversations).sort(
+      (a: any, b: any) =>
+        new Date(b.lastMessage.timestamp).getTime() -
+        new Date(a.lastMessage.timestamp).getTime()
+    )
+  }
 
   const openConversation = (message: any) => {
     const otherUserId = message.sender.id === user?.id ? message.recipient.id : message.sender.id
@@ -475,21 +461,20 @@ const Messages: React.FC<Props> = ({ navigation }) => {
         >
           {selected === "Friends" ? (
             friendMessages.length > 0 ? (
-              friendMessages.map((conv: any, index: number) => {
-                const { sender, recipient, last_message } = conv
-                const otherUser = sender.id === user?.id ? recipient : sender
-                const isMine = last_message.sender.id === user?.id
+              getConversations(friendMessages).map((conv: any, index: number) => {
+                const { otherUser, lastMessage } = conv
+                const isMine = lastMessage.sender.id === user?.id
                 return (
                   <MessageItem
                     key={otherUser.id}
                     name={otherUser.name || otherUser.username}
-                    text={`${isMine ? "You" : otherUser.name}: ${last_message.message}`}
+                    text={`${isMine ? "You" : otherUser.name}: ${lastMessage.message}`}
                     index={index}
-                    timestamp={last_message.timestamp}
-                    onPress={() => openConversation(last_message)}
+                    timestamp={lastMessage.timestamp}
+                    onPress={() => openConversation(lastMessage)}
                   />
                 )
-              })              
+              })
             ) : (
               <EmptyState />
             )
@@ -502,14 +487,12 @@ const Messages: React.FC<Props> = ({ navigation }) => {
                 let timestamp = ""
                 let senderName = ""
                 let isMine = false
-              
                 if (lastMessage) {
                   senderName = lastMessage.sender?.name || lastMessage.sender?.username || "Someone"
-                  isMine = lastMessage.sender.id === user?.id
                   text = `${isMine ? "You" : senderName}: ${lastMessage.message}`
                   timestamp = lastMessage.timestamp
+                  isMine = lastMessage.sender.id === user?.id
                 }
-              
                 return (
                   <MessageItem
                     key={group.group_id}
@@ -520,7 +503,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
                     onPress={() => openGroupConversation(group.group_id, groupName)}
                   />
                 )
-              })              
+              })
             ) : (
               <EmptyState />
             )
