@@ -237,10 +237,8 @@ const Messages: React.FC<Props> = ({ navigation }) => {
       }
     })
     return Object.values(conversations).sort(
-      (a: any, b: any) =>
-        new Date(b.lastMessage.timestamp).getTime() -
-        new Date(a.lastMessage.timestamp).getTime()
-    )
+      (a: any, b: any) => b.lastMessage.id - a.lastMessage.id
+    );
   }
 
   const openConversation = (message: any) => {
@@ -480,7 +478,13 @@ const Messages: React.FC<Props> = ({ navigation }) => {
             )
           ) : selected === "Groups" ? (
             groupConversations.length > 0 ? (
-              groupConversations.map((group: any, index: number) => {
+              groupConversations
+              .map(group => ({
+                ...group,
+                lastMessageId: group.last_message?.id || 0
+              }))
+              .sort((a, b) => b.lastMessageId - a.lastMessageId)
+              .map((group: any, index: number) => {
                 const groupName = group.group_name || `Group ${group.group_id}`
                 const lastMessage = group.last_message
                 let text = "No messages yet"
