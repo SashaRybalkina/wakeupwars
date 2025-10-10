@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons"
 import { BASE_URL } from "../api"
 import { useUser } from "../context/UserContext"
+import { getAccessToken } from "../auth"
 
 type Props = {
   route: any
@@ -20,30 +21,13 @@ type Props = {
 
 const Conversation: React.FC<Props> = ({ route }) => {
   const { user, setActiveConversationId, setActiveGroupId } = useUser()
-  const { recipientId, recipientName, otherUserId, groupId } = route.params
+  const { otherUserId, groupId } = route.params
   const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState("")
   const [sending, setSending] = useState(false)
-  const [csrfToken, setCsrfToken] = useState<string>("")
 
   const ws = useRef<WebSocket | null>(null)
-  const flatListRef = useRef<FlatList>(null) // 👈 FlatList ref for auto-scroll
-
-  // Fetch CSRF token
-  useEffect(() => {
-    const fetchCsrf = async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
-          credentials: "include",
-        })
-        const data = await res.json()
-        setCsrfToken(data.csrfToken)
-      } catch (err) {
-        console.error("Failed to fetch CSRF token:", err)
-      }
-    }
-    fetchCsrf()
-  }, [])
+  const flatListRef = useRef<FlatList>(null)
 
   // Connect WebSocket
   useEffect(() => {
@@ -71,7 +55,6 @@ const Conversation: React.FC<Props> = ({ route }) => {
     }
   }, [user, otherUserId, groupId])
 
-  // Fetch conversation history
   useEffect(() => {
     const fetchConversation = async () => {
       if (!user?.id) return
@@ -83,7 +66,18 @@ const Conversation: React.FC<Props> = ({ route }) => {
           url = `${BASE_URL}/api/conversation/${user.id}/${otherUserId}/`
         } else return
 
-        const response = await fetch(url)
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          }
+        })
         const data = await response.json()
         setMessages(data)
       } catch (error) {
@@ -93,7 +87,6 @@ const Conversation: React.FC<Props> = ({ route }) => {
     fetchConversation()
   }, [user, otherUserId, groupId])
 
-  // Manage active conversation/group state
   useEffect(() => {
     if (groupId) {
       setActiveGroupId(groupId)
@@ -109,14 +102,12 @@ const Conversation: React.FC<Props> = ({ route }) => {
     }
   }, [groupId, otherUserId, setActiveConversationId, setActiveGroupId])
 
-  // Auto-scroll to bottom whenever messages change
   useEffect(() => {
     if (messages.length > 0) {
       flatListRef.current?.scrollToEnd({ animated: true })
     }
   }, [messages])
 
-  // Send message
   const sendMessage = async () => {
     if (!newMessage.trim() || !user?.id) return
     setSending(true)
@@ -148,7 +139,7 @@ const Conversation: React.FC<Props> = ({ route }) => {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <FlatList
-        ref={flatListRef} // 👈 attach ref here
+        ref={flatListRef}
         data={messages}
         keyExtractor={(_: any, index: number) => index.toString()}
         renderItem={({ item }) => (

@@ -186,7 +186,11 @@ const Messages: React.FC<Props> = ({ navigation }) => {
         if (activeConversationId !== (data.sender.id === user.id ? data.recipient_id : data.sender.id)) {
           NotificationModule.showNotification(data.sender.name, data.message, 'Messages', {
             screen: 'Messages',
-            params: {}
+            params: {
+              challengeId: null,
+              challName: null,
+              whichChall: null,
+            }
           });
         }
 
