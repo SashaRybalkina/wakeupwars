@@ -154,10 +154,14 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
       //console.log(`[Wordle] Challenge=${challengeId}, game_state_id=${game_state_id}, answer=${answer}`);
 
       if (is_multiplayer) {
-        const ws = new WebSocket(
-          `${BASE_URL.replace(/^http/, 'ws')}/ws/wordle/${game_state_id}/`,
-        );
+        // ✅ Added: include token in WebSocket connection URL
+        const wsUrl = `${BASE_URL.replace(/^http/, 'ws')}/ws/wordle/${game_state_id}/?token=${accessToken}`;
+        console.log("[WebSocket] Connecting to:", wsUrl); // ✅ Added: debug log
+        const ws = new WebSocket(wsUrl);
+        
         ws.onopen = () => console.log('[WebSocket] connected');
+        ws.onclose = () => console.log('[WebSocket] 🔌 disconnected');
+        ws.onerror = (e) => console.error('[WebSocket] ❌ error:', e);
 
         ws.onmessage = (event) => {
           const msg: ServerToClientMessage = JSON.parse(event.data);
