@@ -257,13 +257,12 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     );
   }
 
-  const openConversation = (message: any) => {
-    const otherUserId = message.sender.id === user?.id ? message.recipient.id : message.sender.id
-    navigation.navigate("Conversation", { otherUserId })
+  const openConversation = (otherUserId: number, otherUserName: string) => {
+    navigation.navigate("Conversation", { otherUserId, groupId: null, groupName: null, otherUserName })
   }
 
   const openGroupConversation = (groupId: number, groupName: string) => {
-    navigation.navigate("Conversation", { groupId, recipientName: groupName })
+    navigation.navigate("Conversation", { otherUserId: null, groupId, groupName, otherUserName: null })
   }
 
   const handleNotificationPress = (notification: any) => {
@@ -287,10 +286,13 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   const goToChallenges = () => navigation.navigate("Challenges")
   const goToProfile = () => navigation.navigate("Profile")
 
+  const tabWidth = width / 3
+  const reducedTabWidth = tabWidth * 0.9
+  
   const translateX = indicatorPosition.interpolate({
     inputRange: [0, 1, 2],
-    outputRange: [0, width * 0.425, width * 0.85],
-  })
+    outputRange: [0, reducedTabWidth, reducedTabWidth * 2],
+  })  
 
   const getTimeAgo = (timestamp: string) => {
     if (!timestamp) return ""
@@ -509,7 +511,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
                     text={`${isMine ? "You" : otherUser.name}: ${lastMessage.message}`}
                     index={index}
                     timestamp={lastMessage.timestamp}
-                    onPress={() => openConversation(lastMessage)}
+                    onPress={() => openConversation(otherUser.id, otherUser.name)}
                   />
                 )
               })
