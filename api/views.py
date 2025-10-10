@@ -628,17 +628,80 @@ class SetUserHasSetAlarmsView(APIView):
             challengeID_id=chall_id,
             uID_id=user_id
         )
-
         membership.hasSetAlarms = True
         membership.save()
-
-        return Response(
-            {"message": "Marked alarm set in backend"},
-            status=status.HTTP_200_OK
-        )
-
         
+        challenge = get_object_or_404(Challenge, id=chall_id)
 
+        # Otherwise try to build and enqueue background tasks
+        try:
+            initiator_id = (
+                challenge.initiator_id
+                or ChallengeMembership.objects.filter(challengeID=challenge)
+                    .values_list("uID_id", flat=True).first()
+            )
+            logger.info("Initiator ID: %s", initiator_id)
+            if not initiator_id:
+                return Response(
+                    {"error": "No user available to initialize game states."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Build (time, game_id) pairs from schedule
+            slot_tasks = set()
+            for cas in ChallengeAlarmSchedule.objects.filter(challenge=challenge)\
+                                                    .select_related("alarm_schedule"):
+                day = cas.alarm_schedule.dayOfWeek
+                t_obj = cas.alarm_schedule.alarmTime
+                logger.info("Day: %s, Time: %s", day, t_obj)
+                game_ids = (
+                    GameScheduleGameAssociation.objects
+                    .filter(game_schedule__challenge=challenge,
+                            game_schedule__dayOfWeek=day)
+                    .values_list("game_id", flat=True)
+                )
+                logger.info("Game IDs: %s", game_ids)
+                for gid in game_ids:
+                    slot_tasks.add((t_obj, gid))
+
+            if not slot_tasks:
+                return Response(
+                    {"error": "No schedule found to queue tasks."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            queued = 0
+            for t_obj, game_id in slot_tasks:
+                alarm_dt = timezone.make_aware(
+                    datetime.combine(challenge.startDate, t_obj),
+                    timezone.get_current_timezone(),
+                )
+                g_name = Game.objects.get(id=game_id).name.lower()
+                if "sudoku" in g_name:
+                    code = "sudoku"
+                elif "wordle" in g_name:
+                    code = "wordle"
+                elif "pattern" in g_name:
+                    code = "pattern"
+                else:
+                    continue
+
+                open_join_window.apply_async(
+                    args=[challenge.id, game_id, code, initiator_id],
+                    eta=alarm_dt,
+                )
+                queued += 1
+
+            return Response(
+                {"message": "Marked alarm set in backend & background tasks queued.", "queued": True, "count": queued},
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to queue tasks: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 class GetPendingPublicChallengesView(APIView):
     def get(self, request, user_id):
@@ -1674,8 +1737,7 @@ class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
 
 
                 challenge.isPending = False
-                challenge.save(update_fields=["isPending"])
-
+                challenge.save(update_fields=["isPending"]) 
                 # delete all invites
                 GroupChallengeInvite.objects.filter(chall=challenge).delete()
 
