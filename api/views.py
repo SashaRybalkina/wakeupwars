@@ -51,8 +51,6 @@ from .serializers import ChallengeSummarySerializer
 from sudoku import Sudoku
 import time
 from django.contrib.auth import login
-from django.views.decorators.csrf import ensure_csrf_cookie
-from django.middleware.csrf import get_token
 from asgiref.sync import async_to_sync
 import traceback
 from api.services.skill import recompute_skill_for_user
@@ -71,17 +69,6 @@ import requests
 
 User = get_user_model()
 WORD_LIST = words
-
-
-# class GetUserInfoView(APIView):
-    # def get(self, request):
-    #     return Response(UserSerializer(request.user).data)
-
-
-# @ensure_csrf_cookie
-# def get_csrf_token(request):
-#     token = get_token(request)
-#     return JsonResponse({'csrfToken': token})
 
 
 class SetChallAvailabilityView(APIView):

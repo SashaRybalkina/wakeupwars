@@ -1,11 +1,10 @@
-export const BASE_URL = 'https://893c61cdf513.ngrok-free.app';
+export const BASE_URL = 'https://4eb7780e7e00.ngrok-free.app';
 
 export const endpoints = {
   // getToken
   login: `${BASE_URL}/api/login/`,
   token: `${BASE_URL}/api/token/`,
   tokenRefresh: `${BASE_URL}/api/token/refresh/`,
-  // getUserInfo: `${BASE_URL}/api/get-user-info/`,
   register: `${BASE_URL}/api/register/`,
   groups: (userId: number) => `${BASE_URL}/api/user-groups/${userId}/`,
   getMatchingChallenges: (userId: number, categoryIds: number[], singOrMult: string) =>

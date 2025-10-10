@@ -3,7 +3,6 @@ from django.contrib.auth.models import AbstractUser
 from django.db.models import Sum
 from django.utils import timezone
 from django.conf import settings
-from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 

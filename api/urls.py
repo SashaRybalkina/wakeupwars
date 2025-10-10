@@ -21,7 +21,7 @@ from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalCh
                     SkillLevelsView, CreatePublicChallengeView, RewardSettingView, 
                     CreateSudokuGameView, ValidateSudokuMoveView, CreatePatternGameView, 
                     ValidatePatternMoveView, CreateWordleGameView, ValidateWordleMoveView, 
-                    SavePushTokenView, UserNotificationsView, DeleteNotificationView, get_csrf_token)
+                    SavePushTokenView, UserNotificationsView, DeleteNotificationView)
 
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -175,7 +175,6 @@ urlpatterns = [
     path('sudoku/validate/', ValidateSudokuMoveView.as_view(), name='validate-sudoku'),
     path('create-wordle/', CreateWordleGameView.as_view(), name='create-wordle'),
     path('wordle/validate/', ValidateWordleMoveView.as_view(), name='validate-wordle'),
-    # path('csrf-token/', get_csrf_token, name='get-csrf-token'),
     path("create-personal-challenge/", CreatePersonalChallengeView.as_view(), name="create_personal_challenge"),
     path('pattern/create/',   CreatePatternGameView.as_view(),   name='pattern-create'),
     path('pattern/validate/', ValidatePatternMoveView.as_view(), name='pattern-validate'),

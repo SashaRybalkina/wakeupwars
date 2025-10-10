@@ -1,5 +1,6 @@
 import { BASE_URL } from "./api";
 import { NativeModules } from 'react-native';
+import { getAccessToken } from "./auth";
 const { NotificationModule } = NativeModules;
 
 class NotificationService {
@@ -12,23 +13,20 @@ class NotificationService {
     params?: { challengeId?: number; challName?: string; whichChall?: string }
   ) {
     try {
-      // 1️⃣ Fetch CSRF token
-      const tokenRes = await fetch(`${BASE_URL}/api/csrf-token/`, {
-        credentials: "include", // include cookies
-      });
-      const tokenData = await tokenRes.json();
-      const csrfToken = tokenData.csrfToken;
-
       const challengeId = params?.challengeId ?? null;
       const challName = params?.challName ?? null;
       const whichChall = params?.whichChall ?? null;
 
-      // 2️⃣ Send notification with CSRF token in headers
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+
       const res = await fetch(`${BASE_URL}/api/notifications/`, {
         method: "POST",
         headers: {
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
-          "X-CSRFToken": csrfToken, // <-- add CSRF token here
         },
         credentials: "include",
         body: JSON.stringify({ 

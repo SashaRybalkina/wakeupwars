@@ -42,39 +42,43 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   const [composeRecipientId, setComposeRecipientId] = useState("")
   const [composeGroupId, setComposeGroupId] = useState("")
   const [sending, setSending] = useState(false)
-  const [csrfToken, setCsrfToken] = useState<string>("")
   const wsNotification = useRef<WebSocket | null>(null)
   const wsPrivate = useRef<WebSocket | null>(null)
   const wsGroups = useRef<WebSocket | null>(null)
 
 
-  useEffect(() => {
-    const fetchMessages = async () => {
-      if (!user?.id) return
-      try {
-              const accessToken = await getAccessToken();
-              if (!accessToken) {
-                throw new Error("Not authenticated");
-              }
-        const response = await fetch(endpoints.messages(Number(user.id)), {
-                headers: {
-                  Authorization: `Bearer ${accessToken}`
-                }
-              });
-        const data = await response.json()
-        const friends = data.filter((msg: any) => msg.recipient !== null)
-        setFriendMessages(friends)
-      } catch (error) {
-        console.error("Failed to fetch messages:", error)
+  const fetchMessages = async () => {
+    if (!user?.id) return
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
       }
+      const response = await fetch(endpoints.messages(Number(user.id)), {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+      const data = await response.json()
+      const friends = data.filter((msg: any) => msg.recipient !== null)
+      setFriendMessages(friends)
+    } catch (error) {
+      console.error("Failed to fetch messages:", error)
     }
-    fetchMessages()
-  }, [user])
+  }
 
   const fetchGroupConversations = async () => {
     if (!user?.id) return
     try {
-      const response = await fetch(`${BASE_URL}/api/user/${user.id}/group-conversations/`)
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+      const response = await fetch(`${BASE_URL}/api/user/${user.id}/group-conversations/`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
       const data = await response.json()
       setGroupConversations(data)
     } catch (error) {
@@ -91,7 +95,15 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     const fetchNotifications = async () => {
       if (!user?.id) return
       try {
-        const response = await fetch(endpoints.notifications(Number(user.id)))
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+        const response = await fetch(endpoints.notifications(Number(user.id)), {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
         const data = await response.json()
         setNotifications(data)
       } catch (error) {
@@ -385,12 +397,15 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     }
   
     const deleteNotification = async (id: number) => {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
       try {
         const response = await fetch(`${BASE_URL}/api/notifications/${id}/delete/`, {
           method: "DELETE",
           headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrfToken,
+            Authorization: `Bearer ${accessToken}`
           },
           credentials: "include",
         })
