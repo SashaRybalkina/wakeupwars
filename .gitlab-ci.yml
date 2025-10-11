@@ -22,8 +22,7 @@ test_backend:
     - python -m pip install --upgrade pip
     - python -m pip install -r requirements.txt
   script:
-    - cd api
-    - python manage.py test
+    - python manage.py test api.tests
   artifacts:
     when: always
     reports:
