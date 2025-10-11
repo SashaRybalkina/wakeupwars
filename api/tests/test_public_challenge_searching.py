@@ -1,6 +1,7 @@
 from rest_framework.test import APITestCase
 from rest_framework import status
 from django.utils.timezone import now, timedelta
+from rest_framework.test import APIClient
 from api.models import Challenge, GameCategory, User, UserAvailability, SkillLevel, PublicChallengeConfiguration, PublicChallengeCategoryAssociation, AlarmSchedule, ChallengeAlarmSchedule
 
 
@@ -29,7 +30,8 @@ class GetMatchingChallengesViewTests(APITestCase):
         self.skillLevel = SkillLevel.objects.create(user=self.user3, category=self.cat2, totalEarned=80, 
                                                     totalPossible=100)
         
-        self.client.login(username="u1", password="pass")
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
 
 
     def test_category_matching(self):

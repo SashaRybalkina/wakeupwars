@@ -33,7 +33,7 @@ test_frontend:
     - npm ci
   script:
     - cd src
-    - npm run test:unit -- --ci --coverage
+    - npm run test:unit:ci
   artifacts:
     paths:
       - src/coverage/
