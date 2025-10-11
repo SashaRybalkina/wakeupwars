@@ -9,9 +9,11 @@ variables:
 
 # Cache dependencies to speed up CI
 cache:
+  key: ${CI_COMMIT_REF_SLUG}
   paths:
-    - .venv/
-    - node_modules/
+    - .cache/pip/
+    - .npm/
+  policy: pull-push  # pull first, then push updated cache
 
 test_backend:
   stage: test
