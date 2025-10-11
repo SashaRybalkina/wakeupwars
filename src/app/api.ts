@@ -1,4 +1,4 @@
-export const BASE_URL = 'https://960a95335fa2.ngrok-free.app';
+export const BASE_URL = 'http://192.168.50.248:8000';
 
 export const endpoints = {
   // getToken
@@ -85,6 +85,8 @@ export const endpoints = {
 
   createPersonalChallenge: `${BASE_URL}/api/create-personal-challenge/`,
   leaderboard: (id: number) => `${BASE_URL}/api/challenge-leaderboard/${id}/`,
+  getPerformances: (challId: number) =>
+    `${BASE_URL}/api/get-performances/${challId}/`,
   submitGameScores: () => `${BASE_URL}/api/submit-game-scores/`,
   addGameToSchedule: () => `${BASE_URL}/api/add-game-to-schedule/`,
   skillLevels: () => `${BASE_URL}/api/skill-levels/`,

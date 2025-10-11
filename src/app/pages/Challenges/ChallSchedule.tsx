@@ -260,7 +260,7 @@ const addGameToDay = async (game: { id: number; name: string }) => {
   const handleGamePress = (game: { name: string; order: number; screen?: string }, index: number) => {
     // Prefer backend-provided screen for dynamic navigation
     if (game.screen) {
-      navigation.navigate(game.screen, { challengeId: challId });
+      navigation.navigate(game.screen, { challengeId: challId, challName: 'Hmm', whichChall: 'Personal' });
       return;
     }
 

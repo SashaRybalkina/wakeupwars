@@ -2234,6 +2234,21 @@ class ChallengeLeaderboardView(APIView):
             payload["history"] = history
 
         return Response(payload, status=status.HTTP_200_OK)
+    
+
+class GetPerformancesView(APIView):
+    def get(self, request, chall_id):
+        performances = (
+            GamePerformance.objects
+            .filter(challenge_id=chall_id)
+            .annotate(game_name=F('game__name'))   # ✅ give it a unique alias
+            .values('date', 'game_name', 'score')  # ✅ now use that alias in .values()
+            .order_by('-date')[:5]
+        )
+
+        print(list(performances))
+        return Response(list(performances))
+    
 
 # AI generated
 class SubmitGameScoresView(APIView):

@@ -88,6 +88,9 @@
     "ts-jest": "^29.4.4",
     "typescript": "~5.3.3"
   },
+  "jest": {
+    "preset": "jest-expo"
+  },
   "overrides": {
     "react-dom": "18.2.0"
   },

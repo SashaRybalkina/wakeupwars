@@ -1,0 +1,41 @@
+stages:
+  - test
+
+variables:
+  # Prevents Django from using your production DB
+  DATABASE_URL: "sqlite:///db.sqlite3"
+  PYTHONPATH: "${CI_PROJECT_DIR}"
+  DJANGO_SETTINGS_MODULE: "api.settings"
+
+# Cache dependencies to speed up CI
+cache:
+  paths:
+    - .venv/
+    - node_modules/
+
+test_backend:
+  stage: test
+  image: python:3.11
+  before_script:
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+  script:
+    - cd api
+    - python manage.py test
+  artifacts:
+    when: always
+    reports:
+      junit: test-results.xml
+
+test_frontend:
+  stage: test
+  image: node:20
+  before_script:
+    - npm ci
+  script:
+    - cd src
+    - npm run test:unit -- --ci --coverage
+  artifacts:
+    paths:
+      - coverage/
+    when: always

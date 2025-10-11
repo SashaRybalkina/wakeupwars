@@ -74,6 +74,8 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
     challName: string
     whichChall: string
   }
+  console.log("ChallDetails route params:", route.params);
+
   const { user } = useUser()
   const myName = user?.username || ""
 
@@ -90,14 +92,21 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
   const [toPay, setToPay] = useState<Obligation[]>([]);
   const [toReceive, setToReceive] = useState<Obligation[]>([]);
   const [canEditReward,setCanEditReward]=useState<boolean>(false);
+  
   // leaderboard setup
   type LeaderRow = { name: string; points: number; rank: number }
-
   const [leaderboard, setLeaderboard] = useState<LeaderRow[]>([])
   const [lbLoading, setLbLoading] = useState(false)
   const [lbError, setLbError] = useState<string | null>(null)
   const [lbSince, setLbSince] = useState<string | null>(null)
   const [lbUntil, setLbUntil] = useState<string | null>(null)
+
+  // personal challenge history
+  type Performance = { date: string; game: string; score: number };
+  const [performances, setPerformances] = useState<Performance[]>([]);
+  const [perfLoading, setPerfLoading] = useState(false);
+  const [perfError, setPerfError] = useState<string | null>(null);
+
 
   // reward editor
   const [reward, setReward] = useState<any|null>(null);   // fetched reward_setting
@@ -165,41 +174,43 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
         setLbLoading(true);
         setLbError(null);
 
-      const accessToken = await getAccessToken();
-      if (!accessToken) {
-        throw new Error("Not authenticated");
-      }
-        const res = await fetch(`${endpoints.leaderboard(challId)}?t=${Date.now()}`, {
-                headers: {
-                  Authorization: `Bearer ${accessToken}`
-                }
-              });
-
-
-        const text = await res.text();
-        const d: any = text ? JSON.parse(text) : null;
-
-        const rows = Array.isArray(d) ? d : d?.leaderboard ?? [];
-        setLeaderboard(rows);
-        setLbSince(d?.since ?? null);
-        setLbUntil(d?.until ?? null);
-
-        if (rows.length === 0) {
-          setTimeout(async () => {
-            try {
-              const res2 = await fetch(`${endpoints.leaderboard(challId)}?t=${Date.now()}`, {
-                headers: {
-                  Authorization: `Bearer ${accessToken}`
-                }
-              });
-              const txt2 = await res2.text();
-              const d2: any = txt2 ? JSON.parse(txt2) : null;
-              setLeaderboard(Array.isArray(d2) ? d2 : d2?.leaderboard ?? []);
-              setLbSince(d2?.since ?? null);
-              setLbUntil(d2?.until ?? null);
-            } catch {}
-          }, 500);
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
         }
+
+          const res = await fetch(`${endpoints.leaderboard(challId)}?t=${Date.now()}`, {
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`
+                  }
+                });
+
+
+          const text = await res.text();
+          const d: any = text ? JSON.parse(text) : null;
+
+          const rows = Array.isArray(d) ? d : d?.leaderboard ?? [];
+          setLeaderboard(rows);
+          setLbSince(d?.since ?? null);
+          setLbUntil(d?.until ?? null);
+
+          if (rows.length === 0) {
+            setTimeout(async () => {
+              try {
+                const res2 = await fetch(`${endpoints.leaderboard(challId)}?t=${Date.now()}`, {
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`
+                  }
+                });
+                const txt2 = await res2.text();
+                const d2: any = txt2 ? JSON.parse(txt2) : null;
+                setLeaderboard(Array.isArray(d2) ? d2 : d2?.leaderboard ?? []);
+                setLbSince(d2?.since ?? null);
+                setLbUntil(d2?.until ?? null);
+              } catch {}
+            }, 500);
+          }
+
       } catch (err) {
         console.error(err);
         setLbError('Failed to load leaderboard');
@@ -208,12 +219,60 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
       }
     };
 
+
+
+const loadPerformances = async () => {
+  try {
+    setPerfLoading(true);
+    setPerfError(null);
+
+    const accessToken = await getAccessToken();
+    if (!accessToken) throw new Error("Not authenticated");
+
+    const res = await fetch(endpoints.getPerformances(challId), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
+
+    if (!res.ok) throw new Error(`Failed to load performances (${res.status})`);
+
+    const data = await res.json();
+    console.log(data)
+
+    // Expect backend to return an array of objects like:
+    // [{ date: "2025-10-10", game: "Memory Match", score: 87 }, ...]
+    // Sort by date descending and keep last 5
+    // const recent = Array.isArray(data) ? data : [];
+
+    // setPerformances(recent);
+    const formatted = data.map((p: any) => ({
+      date: p.date,
+      game: p.game_name,  // rename here
+      score: p.score,
+    }));
+    setPerformances(formatted);
+
+  } catch (err: any) {
+    console.error(err);
+    setPerfError(err.message || "Failed to load performances");
+  } finally {
+    setPerfLoading(false);
+  }
+};
+
+
+
     // run every time the screen gains focus
     useFocusEffect(
       useCallback(() => {
-        loadLeaderboard();
-        return () => {};   // no cleanup needed
-      }, [challId]),
+        if (whichChall === "Personal") {
+          loadPerformances();
+        } else {
+          loadLeaderboard();
+        }
+        return () => {};
+      }, [challId, whichChall])
     );
 
     async function loadMyObligations() {
@@ -405,70 +464,104 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Leaderboard Section */}
-          <View style={styles.leaderboardCard}>
-            <View style={styles.leaderboardHeader}>
-              <Ionicons name="trophy" size={24} color="#FFD700" style={styles.trophyIcon} />
-              <Text style={styles.leaderboardTitle}>RANKING</Text>
+{/* Leaderboard or Performance Section */}
+{(whichChall === "Group" || whichChall === "Public") && (
+  <View style={styles.leaderboardCard}>
+    <View style={styles.leaderboardHeader}>
+      <Ionicons name="trophy" size={24} color="#FFD700" style={styles.trophyIcon} />
+      <Text style={styles.leaderboardTitle}>RANKING</Text>
+    </View>
+
+    {lbSince && lbUntil && (
+      <Text style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", marginBottom: 8, fontSize: 12 }}>
+        Window: {lbSince} – {lbUntil}
+      </Text>
+    )}
+
+    {lbLoading && <Text style={{ color: "#FFF", textAlign: "center" }}>Loading…</Text>}
+    {lbError && <Text style={{ color: "#F88", textAlign: "center" }}>{lbError}</Text>}
+
+    {!lbLoading && !lbError && displayRows.length === 0 && (
+      <Text style={{ color: "rgba(255,255,255,0.8)", textAlign: "center" }}>No scores yet — be the first!</Text>
+    )}
+
+    {!lbLoading &&
+      !lbError &&
+      displayRows.map((row, index) => {
+        if ("ellipsis" in row) {
+          return (
+            <View key={`ellipsis-${index}`} style={styles.rankItem}>
+              <Text style={styles.ellipsisText}>…</Text>
             </View>
+          );
+        }
 
-            {lbSince && lbUntil && (
-              <Text style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", marginBottom: 8, fontSize: 12 }}>
-                Window: {lbSince} – {lbUntil}
-              </Text>
-            )}
-
-            {lbLoading && <Text style={{ color: "#FFF", textAlign: "center" }}>Loading…</Text>}
-            {lbError && <Text style={{ color: "#F88", textAlign: "center" }}>{lbError}</Text>}
-
-            {!lbLoading && !lbError && displayRows.length === 0 && (
-              <Text style={{ color: "rgba(255,255,255,0.8)", textAlign: "center" }}>No scores yet — be the first!</Text>
-            )}
-
-            {/* single compact loop */}
-            {!lbLoading &&
-              !lbError &&
-              displayRows.map((row, index) => {
-                if ("ellipsis" in row) {
-                  return (
-                    <View key={`ellipsis-${index}`} style={styles.rankItem}>
-                      <Text style={styles.ellipsisText}>…</Text>
-                    </View>
-                  )
-                }
-
-                return (
-                  <View key={`${row.name}-${index}`} style={styles.rankItem}>
-                    <View style={styles.rankPosition}>
-                      <Text style={styles.rankEmoji}>{getRankEmoji(row.rank)}</Text>
-                    </View>
-                    <Text style={[styles.rankName, row.name === myName && { color: "#FFD700" }]}>
-                      {row.name === myName ? "You" : row.name}
-                    </Text>
-                    <Text style={styles.rankPoints}>{row.points} pts</Text>
-                  </View>
-                )
-              })}
-
-            <TouchableOpacity
-              style={styles.viewDetailsButton}
-              onPress={() =>
-                navigation.navigate("LeaderboardDetails", {
-                  challId,
-                  myName,
-                })
-              }
-            >
-              <LinearGradient
-                colors={["#FFD700", "#FFA500"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.viewDetailsGradient}
-              >
-                <Text style={styles.viewDetailsText}>View leaderboard details</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+        return (
+          <View key={`${row.name}-${index}`} style={styles.rankItem}>
+            <View style={styles.rankPosition}>
+              <Text style={styles.rankEmoji}>{getRankEmoji(row.rank)}</Text>
+            </View>
+            <Text style={[styles.rankName, row.name === myName && { color: "#FFD700" }]}>
+              {row.name === myName ? "You" : row.name}
+            </Text>
+            <Text style={styles.rankPoints}>{row.points} pts</Text>
           </View>
+        );
+      })}
+
+    <TouchableOpacity
+      style={styles.viewDetailsButton}
+      onPress={() =>
+        navigation.navigate("LeaderboardDetails", {
+          challId,
+          myName,
+        })
+      }
+    >
+      <LinearGradient
+        colors={["#FFD700", "#FFA500"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.viewDetailsGradient}
+      >
+        <Text style={styles.viewDetailsText}>View leaderboard details</Text>
+      </LinearGradient>
+    </TouchableOpacity>
+  </View>
+)}
+
+{whichChall === "Personal" && (
+  <View style={styles.leaderboardCard}>
+    <View style={styles.leaderboardHeader}>
+      <Ionicons name="time-outline" size={24} color="#FFD700" style={styles.trophyIcon} />
+      <Text style={styles.leaderboardTitle}>Recent Performances</Text>
+    </View>
+
+    {perfLoading && <Text style={{ color: "#FFF", textAlign: "center" }}>Loading…</Text>}
+    {perfError && <Text style={{ color: "#F88", textAlign: "center" }}>{perfError}</Text>}
+
+    {!perfLoading && !perfError && performances.length === 0 && (
+      <Text style={{ color: "rgba(255,255,255,0.8)", textAlign: "center" }}>No games played yet.</Text>
+    )}
+
+    {!perfLoading &&
+      !perfError &&
+    performances.map((p, index) => (
+      <View key={index} style={styles.performanceRow}>
+        <Text style={styles.performanceDate}>{p.date}</Text>
+        <Text
+          style={styles.performanceGame}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {p.game}
+        </Text>
+        <Text style={styles.performanceScore}>{p.score}</Text>
+      </View>
+      ))}
+  </View>
+)}
+
 
           {/* Reward config (only if collaborative and not set) */}
           {reward === null && canEditReward && (
@@ -949,6 +1042,32 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: "center",
     width: "100%",
+  },
+    performanceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  performanceDate: {
+    color: "#FFD700",
+    fontWeight: "600",
+    width: 90, // fixed width for alignment
+  },
+  performanceGame: {
+    flex: 1, // allows flexible width
+    color: "#FFF",
+    fontSize: 15,
+    marginHorizontal: 8,
+  },
+  performanceScore: {
+    color: "#00FFAA",
+    fontWeight: "bold",
+    width: 50, // fixed width for alignment
+    textAlign: "right",
   },
 })
 

@@ -73,6 +73,7 @@ from .views import (
     ValidateWordleMoveView,
     GetHasSetAlarmsView,
     SetUserHasSetAlarmsView,
+    GetPerformancesView,
 )
 
 
@@ -153,6 +154,7 @@ urlpatterns = [
     path('pattern/validate/', ValidatePatternMoveView.as_view(), name='pattern-validate'),
     path('challenge-leaderboard/<int:chall_id>/', ChallengeLeaderboardView.as_view(), name='challenge-leaderboard'),
     path("challenge-leaderboard/<int:chall_id>/history/", ChallengeDailyHistoryView.as_view(), name="challenge-leaderboard-history"),
+    path('get-performances/<int:chall_id>/', GetPerformancesView.as_view(), name='get-performances'),
     path('submit-game-scores/', SubmitGameScoresView.as_view(), name='submit-game-scores'),
     path('add-game-to-schedule/', AddGameToScheduleView.as_view(), name='add-game-to-schedule'),
     path('skill-levels/', SkillLevelsView.as_view(), name="skill-levels"),
