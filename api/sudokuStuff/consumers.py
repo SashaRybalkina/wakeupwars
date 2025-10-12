@@ -39,9 +39,9 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             gs.join_deadline_at = (gs.created_at or now) + timezone.timedelta(minutes=2)
             await sync_to_async(gs.save)(update_fields=["join_deadline_at"])
 
-        if gs.joins_closed or now > gs.join_deadline_at:
-            await self.close(code=4001)
-            return
+        # if gs.joins_closed or now > gs.join_deadline_at:
+        #     await self.close(code=4001)
+        #     return
 
         ended = await sync_to_async(
             GamePerformance.objects.filter(
@@ -75,7 +75,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_send(
             self.group_name,
             {
-                'type': 'player.joined',
+                'type': 'player_joined',
                 'player': self.user.username,
                 'color': self.color,
             }
@@ -92,14 +92,26 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             value = data['value']
 
             result = await validate_sudoku_move(self.game_state_id, self.user, index, value)
+            print("🧪 [DEBUG] validate_sudoku_move result =", result)  # debug log
             row, col = divmod(index, 9)
 
-            if result['is_correct']:
+
+            if result is None:
+                print("🧪 [DEBUG] result is None!!")
+                return
+
+            if result.get('type') == 'ignored':
+                await self.send(text_data=json.dumps({
+                    'type': 'ignored'
+                }))
+                return
+
+            if result.get('is_correct'):
                 # Broadcast move
                 await self.channel_layer.group_send(
                     self.group_name,
                     {
-                        'type': 'broadcast.move',
+                        'type': 'broadcast_move',  
                         'cell': index,
                         'value': value,
                         'color': self.color,
@@ -108,17 +120,16 @@ class SudokuConsumer(AsyncWebsocketConsumer):
                 )
 
                 # If the game is now complete, broadcast that too
-                if result['is_complete']:
+                if result.get('is_complete'):
                     await self.channel_layer.group_send(
                         self.group_name,
                         {
-                            'type': 'game.complete',
+                            'type': 'game_complete',
                             # 'completed_by': self.user.username,
                             'scores': result['scores'],
                         }
                     )
 
-                    
             # only broadcast incorrect move to myself
             else:
                 await self.send(text_data=json.dumps({
@@ -126,9 +137,8 @@ class SudokuConsumer(AsyncWebsocketConsumer):
                     'cell': index,
                     'value': value,
                     'color': self.color,
-                    'valid': result['is_correct'],
-            }))
-                
+                    'valid': result.get('is_correct', False),
+                }))
 
     # Handlers for broadcasting
     async def broadcast_move(self, event):
@@ -154,7 +164,6 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             'player': event['player'],
             'color': event['color'],
         }))
-
 
     async def game_complete(self, event):
         await self.send(text_data=json.dumps({
@@ -194,7 +203,6 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         except ObjectDoesNotExist:
             return 'black'
 
-
     @sync_to_async
     def get_existing_players(self):
         players = (
@@ -205,4 +213,3 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         )
 
         return [{'username': p.player.username, 'color': p.color} for p in players if p.color]
-
