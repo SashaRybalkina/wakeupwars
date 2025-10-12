@@ -8,6 +8,7 @@ import {
   View,
   TextInput,
   Image,
+  ToastAndroid
 } from 'react-native';
 // import { createSudokuGame, validateSudokuMove } from './SudokuHelper';
 import { NavigationProp, useRoute } from '@react-navigation/native';
@@ -55,11 +56,16 @@ export interface MakeMoveMessage {
   value: number;
 }
 
+export interface IgnoredMessage {
+  type: 'ignored';
+}
+
 // Server to client
 export type ServerToClientMessage =
   | BroadcastMoveMessage
   | PlayerJoinedMessage
-  | GameCompleteMessage;
+  | GameCompleteMessage
+  | IgnoredMessage;
 
 // Client to server
 export type ClientToServerMessage = MakeMoveMessage;
@@ -208,6 +214,12 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
         ws.onmessage = (event) => {
           const data = JSON.parse(event.data) as ServerToClientMessage;
           console.log("[WebSocket] Message received:", data);
+
+          // 🧪 new: check for ignored
+          if (data.type === 'ignored') {
+            ToastAndroid.show("⚠️ This cell has already been completed", ToastAndroid.SHORT);
+            return;
+          }
 
           switch (data.type) {
 
