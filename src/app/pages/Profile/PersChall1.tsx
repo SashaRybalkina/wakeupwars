@@ -1,11 +1,11 @@
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity,
   View, StatusBar, Alert, ActivityIndicator
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import type { NavigationProp } from "@react-navigation/native"
+import { useFocusEffect, type NavigationProp } from "@react-navigation/native"
 import { useUser } from "../../context/UserContext"
 import axios from "axios"
 import { endpoints } from "../../api"
@@ -98,12 +98,14 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
     }
   }
 
-  // load on mount
-  useEffect(() => {
-    if (user) {
-      fetchChallenges()
-    }
-  }, [user])
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        fetchChallenges()
+      }
+    }, [user])
+  )
 
   // --- accept challenge ---
   const handleAccept = async (challId: number) => {

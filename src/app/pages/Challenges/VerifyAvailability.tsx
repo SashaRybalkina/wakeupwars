@@ -187,6 +187,12 @@ const convertTo24Hour = (time12: string) => {
       style={styles.background}
       resizeMode="cover"
     >
+
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={28} color="#FFF" />
+        </TouchableOpacity>
+
           <ScrollView
             contentContainerStyle={{ paddingBottom: 100 }}
             showsVerticalScrollIndicator={false}
@@ -238,6 +244,7 @@ const convertTo24Hour = (time12: string) => {
           </TouchableOpacity>
 
       </ScrollView>
+      </View>
     </ImageBackground>
   )
 }
@@ -250,8 +257,17 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingTop: 50,
+    paddingTop: 50, 
     paddingHorizontal: 20,
+  },
+    backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 15,
   },
   pageTitle: {
     fontSize: 28,

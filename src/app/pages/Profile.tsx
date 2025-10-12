@@ -6,6 +6,7 @@ import {
   Alert,
   ImageBackground,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -135,6 +136,9 @@ const handleLogout = async () => {
       style={styles.background}
       resizeMode="cover"
     >
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <View style={styles.container}>
+
       {/* ScrollView wraps all content except the bottom navigation */}
       <ScrollView
         style={styles.scrollView}
@@ -315,6 +319,7 @@ const handleLogout = async () => {
           <Text style={styles.activeNavText}>Profile</Text>
         </TouchableOpacity>
       </View>
+      </View>
     </ImageBackground>
   );
 };
@@ -322,6 +327,11 @@ const handleLogout = async () => {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
+  },
+  container: {
+    flex: 1,
+    paddingTop: 50, 
+    paddingHorizontal: 20,
   },
   scrollView: {
     flex: 1,

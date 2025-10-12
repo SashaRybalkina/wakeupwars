@@ -246,7 +246,7 @@ function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number
             }
 
             Alert.alert('Success', 'Schedule saved successfully', [
-                { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId: group_id, groupMembers: members, refresh: Date.now() }) },
+                { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId: group_id }) },
             ]);
 
         }

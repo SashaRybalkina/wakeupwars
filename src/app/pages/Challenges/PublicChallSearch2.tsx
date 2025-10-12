@@ -1,6 +1,7 @@
-import { StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { StyleSheet, ScrollView, TouchableOpacity, ImageBackground, View } from "react-native";
 import { NavigationProp, useLinkBuilder, useRoute } from '@react-navigation/native';
 import PendingPublicChallengeCard from "./PendingPublicChallengeCard"
+import { Ionicons } from "@expo/vector-icons";
 
 type Props = { navigation: NavigationProp<any> } 
 
@@ -31,39 +32,48 @@ const PublicChallSearch2: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <ScrollView style={{ padding: 10 }}>
-      {matches.map((m, idx) => (
-        <TouchableOpacity
-            key={idx}
-            onPress={() =>
-            navigation.navigate("ChallSchedule", {
-                challId: m.summary.id,
-                challName: m.summary.name,
-                fromSearch: true,
-                userAverageSkillLevel: m.userAverageSkillLevel,
-            })
-            }
-            style={styles.challengeContainer}
-            >
-                
-            <PendingPublicChallengeCard
-                title={m.summary.name}
-                icon={require("../../images/school.png")} // placeholder icon
-                numEnrolledMembers={m.summary.numParticipants}
-                totalDays={m.summary.totalDays}
-                daysOfWeek={m.summary.daysOfWeek}
-                categories={m.summary.categories}
-                averageSkillLevel={m.summary.averageSkillLevel}
-            />
+    <ImageBackground source={require("../../images/tertiary.png")} style={styles.background} resizeMode="cover">
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={28} color="#FFF" />
         </TouchableOpacity>
-      ))}
-    </ScrollView>
+
+        <ScrollView style={{ padding: 10 }}>
+          {matches.map((m, idx) => (
+            <TouchableOpacity
+                key={idx}
+                onPress={() =>
+                navigation.navigate("ChallSchedule", {
+                    challId: m.summary.id,
+                    challName: m.summary.name,
+                    fromSearch: true,
+                    userAverageSkillLevel: m.userAverageSkillLevel,
+                })
+                }
+                style={styles.challengeContainer}
+                >
+                    
+                <PendingPublicChallengeCard
+                    title={m.summary.name}
+                    icon={require("../../images/school.png")} // placeholder icon
+                    numEnrolledMembers={m.summary.numParticipants}
+                    totalDays={m.summary.totalDays}
+                    daysOfWeek={m.summary.daysOfWeek}
+                    categories={m.summary.categories}
+                    averageSkillLevel={m.summary.averageSkillLevel}
+                />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 50, 
   },
   background: {
     flex: 1,

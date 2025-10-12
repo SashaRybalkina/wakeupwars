@@ -25,6 +25,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { useUser } from "../../context/UserContext"
 import { getAccessToken } from "../../auth"
 import { scheduleAlarmsForUser } from "../../alarmService"
+import { FA6Style } from "@expo/vector-icons/build/FontAwesome6"
 // import { DayOfWeek, DayOfWeekLabels } from "./DayOfWeek";
 
 type Alarm = { userName: string; alarmTime: string }
@@ -60,6 +61,7 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const [groupId, setGroupId] = useState<Number>() // is personal if groupId null and isPublic false
   const [isPublic, setIsPublic] = useState<boolean>()
   const [isMember, setIsMember] = useState<boolean>()
+  const [isLoading, setIsLoading] = useState<boolean>(true)
 
   const { user } = useUser()
 
@@ -144,6 +146,7 @@ useEffect(() => {
       }
 
       setHasSetAlarms(alarmsRes.data.hasSetAlarms);
+      setIsLoading(false)
     } catch (err) {
       console.error(err)
     }
@@ -617,7 +620,7 @@ const getInitials = (name: string): string => {
   </TouchableOpacity>
 )} */}
 
-{!isPending && !hasSetAlarms && (
+{!isLoading && !isPending && !hasSetAlarms && (
   <Button
     title="Set My Alarms"
     onPress={async () => {
