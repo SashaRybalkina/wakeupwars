@@ -411,6 +411,7 @@ function App() {
           component={CreateChallengeForFriend}
           options={{ headerShown: false }}
         />
+        
       </Stack.Navigator>
     </NavigationContainer>
       );

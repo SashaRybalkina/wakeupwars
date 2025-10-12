@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   ImageBackground,
@@ -12,26 +12,39 @@ import { NavigationProp, useRoute } from '@react-navigation/native';
 
 import { BASE_URL, endpoints } from '../../api';
 import { useUser } from '../../context/UserContext';
-import { evaluateGuess, GuessResult, isWinningGuess } from './WordleHelper';
 import { getAccessToken } from "../../auth";
 // import { NativeModules } from "react-native";
 // const { AlarmModule } = NativeModules;
 
 const GRID_SIZE = 5;
 const MAX_ATTEMPTS = 5;
-const CELL_SIZE = 50;
+const CELL_SIZE = 40;
 
 type Props = {
   navigation: NavigationProp<any>;
 };
 
+export type GuessResult = {
+  letter: string;
+  result: 'correct' | 'present' | 'absent';
+};
+
 type ServerToClientMessage =
+  | {
+      type: 'player_list';
+      players: string[];
+    }
   | {
       type: 'broadcast_move';
       player: string;
       row: number;
       guess: string;
       evaluation: GuessResult[];
+      attempt: number;
+    }
+  | {
+      type: 'player_left';
+      player: string;
     }
   | {
       type: 'player_joined';
@@ -68,15 +81,18 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
   const [results, setResults] = useState<GuessResult[][]>([]);
   const [selectedRow, setSelectedRow] = useState(0);
   const [selectedCol, setSelectedCol] = useState(0);
-  const [answer, setAnswer] = useState('');
   const [timeLeft, setTimeLeft] = useState(300);
   const [gameOver, setGameOver] = useState(false);
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [first, setFirst] = useState(true);
   const [gameStateId, setGameStateId] = useState<number | null>(null);
   const [opponentRows, setOpponentRows] = useState<{
-    [player: string]: GuessResult[];
+    [player: string]: { evaluation: GuessResult[]; attempt: number };
   }>({});
+  const [submittedRows, setSubmittedRows] = useState<Set<number>>(new Set());
+  const [players, setPlayers] = useState<string[]>([]);
+  const hasShownResultRef = useRef(false);
+  const [isMultiplayer, setIsMultiplayer] = useState(false);
 
   // 🔄 Reset game
   const resetGame = () => {
@@ -89,21 +105,17 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
     setTimeLeft(300);
     setGameOver(false);
     setOpponentRows({});
-    setAnswer('');
+    hasShownResultRef.current = false;
     initGame();
   };
 
   // Initialize game
   const initGame = async () => {
     try {
-      if (!user) {
-        console.warn('[Wordle] User context not loaded');
-        return;
-      }
-      if (typeof challengeId !== 'number' || isNaN(challengeId)) {
-        console.warn('[Wordle] Invalid challengeId:', challengeId);
-        return;
-      }
+      if (!user) return;
+
+      console.log(`[Wordle] initGame for challengeId=${challengeId}, user=${user.username}`);
+
 
 
       const accessToken = await getAccessToken();
@@ -129,84 +141,110 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
         }
       }
 
+      console.log("[Wordle] createWordleGame response status:", res.status);
+
       if (!res.ok) {
-        const errorText = await res.text();
-        console.error('[Wordle] Backend error:', res.status, errorText);
+        console.error('[Wordle] Backend error:', res.status);
         return;
       }
 
       const data = await res.json();
-      setAnswer(data.answer);
+      console.log("[Wordle] Game created:", data);
 
       const { game_state_id, is_multiplayer } = data;
       setGameStateId(game_state_id);
-      console.log('[Wordle] Correct answer is:', data.answer);
-      console.log('route.params: ', route.params);
+      setIsMultiplayer(is_multiplayer);
 
-      // if (is_multiplayer) {
-      //   console.log('multiplayer');
-      //   const ws = new WebSocket(
-      //     `${BASE_URL.replace(/^http/, 'ws')}/ws/wordle/${game_state_id}/`,
-      //   );
-      //   ws.onopen = () => console.log('[WebSocket] connected');
+      //console.log(`[Wordle] Challenge=${challengeId}, game_state_id=${game_state_id}, answer=${answer}`);
 
-      //   ws.onmessage = (event) => {
-      //     const msg: ServerToClientMessage = JSON.parse(event.data);
+      if (is_multiplayer) {
+        // ✅ Added: include token in WebSocket connection URL
+        const wsUrl = `${BASE_URL.replace(/^http/, 'ws')}/ws/wordle/${game_state_id}/?token=${accessToken}`;
+        console.log("[WebSocket] Connecting to:", wsUrl); // ✅ Added: debug log
+        const ws = new WebSocket(wsUrl);
+        
+        ws.onopen = () => console.log('[WebSocket] connected');
+        ws.onclose = () => console.log('[WebSocket] 🔌 disconnected');
+        ws.onerror = (e) => console.error('[WebSocket] ❌ error:', e);
 
-      //     switch (msg.type) {
-      //       case 'player_joined':
-      //         console.log(
-      //           `[WebSocket] Player joined: ${msg.player} with color ${msg.color}`,
-      //         );
-      //         break;
-      //       case 'broadcast_move':
-      //         setOpponentRows((prev) => ({
-      //           ...prev,
-      //           [msg.player]: msg.evaluation,
-      //         }));
-      //         break;
-      //       case 'game_complete':
-      //         const leaderboard = msg.scores
-      //           .sort((a, b) => b.score - a.score)
-      //           .map(
-      //             (s) =>
-      //               `${s.username}: ${s.score} (✅ ${s.accuracy} / ❌ ${s.inaccuracy})`,
-      //           )
-      //           .join('\n');
+        ws.onmessage = (event) => {
+          const msg: ServerToClientMessage = JSON.parse(event.data);
 
-      //         Alert.alert('🎉 Game Complete!', leaderboard, [
-      //           {
-      //             text: 'OK',
-      //             onPress: () =>
-      //               navigation.navigate('ChallSchedule', {
-      //                 challId: challengeId,
-      //                 challName,
-      //                 whichChall,
-      //               }),
-      //           },
-      //         ]);
-      //         break;
-      //       default:
-      //         console.warn('Unhandled WebSocket message:', msg);
-      //     }
-      //   };
+          if (msg.type === 'player_list') {
+            console.log('[WebSocket] Current players:', msg.players);
+            setPlayers(msg.players);
+          }
 
-      //   ws.onerror = (e) => console.error('[WebSocket] error:', e);
-      //   ws.onclose = () => console.log('[WebSocket] closed');
+          if (msg.type === 'broadcast_move') {
+            console.log(`[WebSocket] Opponent move from ${msg.player}:`, msg);
+            // only update the newest
+            setOpponentRows((prev) => ({
+              ...prev,
+              [msg.player]: { evaluation: msg.evaluation, attempt: msg.attempt },
+            }));
+          }
 
-      //   setSocket(ws);
-      // }
+          if (msg.type === 'player_joined') {
+            console.log(`[WebSocket] Player joined: ${msg.player}`);
+          }
+
+          if (msg.type === 'player_left') {
+            console.log(`[WebSocket] Player left: ${msg.player}`);
+          }
+
+          if (msg.type === 'game_complete') {
+            if (hasShownResultRef.current) return; // prevent multiple alerts
+            
+            const myScore = msg.scores.find(s => s.username === user?.username);
+            const topScore = Math.max(...msg.scores.map(s => s.score));
+            const isWinner = myScore?.score === topScore;
+            console.log("[DEBUG] Winner check", {
+              user: user?.username,
+              myScore,
+              topScore,
+              isWinner
+            });
+            console.log('[WebSocket] Game complete:', msg.scores);
+            Alert.alert(
+              isWinner ? '🏆 You Win!' : '❌ Game Over',
+              msg.scores.map(s => `${s.username}: ${s.score}`).join('\n'),
+              [
+                {
+                  text: 'OK',                 
+                  onPress: () => navigation.goBack(), 
+                },
+              ],
+            );
+            hasShownResultRef.current = true;
+          }
+        };
+
+        ws.onclose = () => console.log('[WebSocket] disconnected');
+        setSocket(ws);
+      }
     } catch (err) {
       console.error('[initGame] Failed:', err);
     }
   };
 
+  // 🧽 Cleanup socket on unmount
   useEffect(() => {
     console.log("why am i in worlde")
     if (first) {
       initGame();
       setFirst(false);
     }
+
+    return () => {
+      if (socket) {
+        console.log('[WebSocket] closing on unmount...');
+        socket.close();
+      }
+    };
+  }, [socket]);
+  
+  // ⏳ Timer
+  useEffect(() => {
     if (gameOver) return;
 
     const timer = setInterval(() => {
@@ -214,7 +252,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
         if (prev <= 1) {
           clearInterval(timer);
           setGameOver(true);
-          Alert.alert('⏰ Time’s up!', `The word was ${answer}`, [
+          Alert.alert('⏰ Time’s up!', ``, [
             { text: 'Play Again', onPress: resetGame },
             { text: 'Exit', 
               onPress: () => 
@@ -228,46 +266,92 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [gameOver, answer]);
+  }, [gameOver]);
 
-  const submitGuess = () => {
-    if (gameOver || !answer) return;
+  //  validate API
+  const submitGuess = async () => {
+    if (gameOver || !gameStateId) return;
+    if (submittedRows.has(selectedRow)) {
+    console.log(`[Wordle] Row ${selectedRow} already submitted, skipping`);
+    return;
+  }
     const guess = grid[selectedRow].join('');
-    const evaluation = evaluateGuess(guess, answer);
-    setResults((prev) => [...prev, evaluation]);
+    setSubmittedRows(prev => new Set(prev).add(selectedRow));
+    console.log(`[Wordle] Submitting guess row=${selectedRow}, guess="${guess}"`);
 
-    if (socket) {
-      socket.send(
-        JSON.stringify({
-          type: 'make_move',
-          player: user.username,
+    try {
+      const accessToken = await getAccessToken(); // ✅ get token before request
+      if (!accessToken) {
+        console.error("[Wordle] No access token found");
+        return;
+      }
+
+      const res = await fetch(endpoints.validateWordleMove, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`, // ✅ changed here
+        },
+        body: JSON.stringify({
+          game_state_id: gameStateId,
           row: selectedRow,
           guess,
-          evaluation,
         }),
-      );
-    }
+      });
 
-    if (isWinningGuess(guess, answer)) {
-      setGameOver(true);
-      Alert.alert('🎉 You Win!', `The word was ${answer}`, [
-        { text: 'Play Again', onPress: resetGame },
-        { text: 'Exit', onPress: () => navigation.goBack() },
-      ]);
-    } else if (selectedRow === MAX_ATTEMPTS - 1) {
-      setGameOver(true);
-      Alert.alert('❌ Game Over', `The word was ${answer}`, [
-        { text: 'Play Again', onPress: resetGame },
-        { text: 'Exit', onPress: () => navigation.goBack() },
-      ]);
-    } else {
-      setSelectedRow((r) => r + 1);
-      setSelectedCol(0);
+      console.log("[Wordle] validateWordleMove response status:", res.status);
+
+      if (!res.ok) {
+        console.error('[submitGuess] backend error:', res.status);
+        return;
+      }
+
+      const data = await res.json();
+      setResults((prev) => [...prev, data.feedback]);
+
+      if (socket) {
+        console.log("[WebSocket] Sending my move:", guess);
+        socket.send(
+          JSON.stringify({
+            type: 'make_move',
+            player: user?.username,
+            row: selectedRow,
+            guess,
+            evaluation: data.feedback,
+          }),
+        );
+      }
+
+      if (data.is_correct || data.is_complete) {
+        setGameOver(true);
+        
+
+        if (!hasShownResultRef.current) {
+          const leaderboard = data.scores
+            ?.map((p: { username: string; score: number }) => `${p.username}: ${p.score}`)
+            .join('\n') || 'No scores yet';
+
+          Alert.alert(
+            data.is_correct ? '🎉 You Win!' : '❌ Game Over',
+            `Leaderboard:\n${leaderboard}`,
+            [
+              { text: 'Play Again', onPress: resetGame },
+              { text: 'Exit', onPress: () => navigation.goBack() },
+            ],
+          );
+          hasShownResultRef.current = true;
+        }
+      } else {
+        setSelectedRow((r) => r + 1);
+        setSelectedCol(0);
+      }
+    } catch (err) {
+      console.error('[submitGuess] Failed:', err);
     }
   };
 
   const handleInput = (letter: string) => {
-    if (gameOver || !answer) return;
+    if (gameOver || !gameStateId) return;
     const newGrid = [...grid];
     newGrid[selectedRow][selectedCol] = letter.toUpperCase();
     setGrid(newGrid);
@@ -318,29 +402,56 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={styles.description}>
           Time left: {formatTime(timeLeft)}
         </Text>
+        
+        {/* Player List */}
+        {players.length > 0 && (
+          <View style={{ marginVertical: 10, width: '100%' }}>
+            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18, marginBottom: 5 }}>
+              👥 Players ({players.length})
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {players.map((p, idx) => (
+                <View key={idx} style={{ backgroundColor: '#ffffff33', padding: 6, borderRadius: 8, marginRight: 6, marginBottom: 6 }}>
+                  <Text style={{ color: 'white', fontWeight: 'bold' }}>{p}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
 
         {/* Opponent progress */}
         {Object.keys(opponentRows).length > 0 && (
           <View style={{ marginVertical: 10, width: '100%' }}>
-            {Object.entries(opponentRows).map(([player, row], idx) => (
-              <View key={idx} style={{ flexDirection: 'row', marginBottom: 4 }}>
-                <Text style={{ width: 70, color: 'white', fontWeight: 'bold' }}>
-                  {player}
+            {Object.entries(opponentRows).map(([player, info], idx) => (
+              <View
+                key={idx}
+                style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}
+              >
+                <Text
+                  style={{
+                    width: 120,
+                    color: 'white',
+                    fontWeight: 'bold',
+                  }}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {player} (#{info.attempt})
                 </Text>
-                {row.map((cell, cIndex) => (
+
+                {info.evaluation.map((cell, cIndex) => (
                   <View
                     key={cIndex}
                     style={[
-                      styles.cell,
-                      cell.status === 'correct'
+                      styles.opponentCell,
+                      cell.result === 'correct'
                         ? styles.correctCell
-                        : cell.status === 'present'
-                          ? styles.presentCell
-                          : styles.absentCell,
+                        : cell.result === 'present'
+                        ? styles.presentCell
+                        : styles.absentCell,
                     ]}
-                  >
-                    <Text style={styles.cellText}>{cell.letter}</Text>
-                  </View>
+                  />
                 ))}
               </View>
             ))}
@@ -352,7 +463,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
           {grid.map((row, rIndex) => (
             <View key={rIndex} style={styles.row}>
               {row.map((cell, cIndex) => {
-                const status = results[rIndex]?.[cIndex]?.status;
+                const status = results[rIndex]?.[cIndex]?.result;
                 return (
                   <View
                     key={cIndex}
@@ -361,10 +472,10 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
                       status === 'correct'
                         ? styles.correctCell
                         : status === 'present'
-                          ? styles.presentCell
-                          : status === 'absent'
-                            ? styles.absentCell
-                            : {},
+                        ? styles.presentCell
+                        : status === 'absent'
+                        ? styles.absentCell
+                        : {},
                       selectedRow === rIndex &&
                       selectedCol === cIndex &&
                       !gameOver
@@ -454,6 +565,13 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   keyText: { fontWeight: 'bold', fontSize: 16 },
+  opponentCell: {
+    width: CELL_SIZE / 2.2,
+    height: CELL_SIZE / 2.2,
+    borderRadius: 4,
+    marginHorizontal: 1,
+    backgroundColor: 'white',  
+  }
 });
 
 export default WordleScreen;

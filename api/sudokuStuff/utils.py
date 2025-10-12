@@ -76,6 +76,11 @@ def validate_sudoku_move(game_state_id, user, index, value):
         return {'error': 'Game not found', 'is_correct': False, 'is_complete': False}
 
     row, col = divmod(index, 9)
+    # if the cell is already correctly filled, reject the move
+    if game_state.puzzle[row][col] == game_state.solution[row][col]:
+        return {
+            'type': 'ignored'
+        }
     correct_value = game_state.solution[row][col]
     is_correct = (correct_value == value)
 

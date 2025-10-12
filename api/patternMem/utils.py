@@ -102,7 +102,7 @@ def get_or_create_pattern_game(challenge_id: int, user, allow_join: bool = True)
         "is_multiplayer": is_multiplayer,
     }
 
-    # Debug 確認 payload
+    
     import logging
     logger = logging.getLogger(__name__)
     logger.warning(f"[PatternCreate] returning {result}")

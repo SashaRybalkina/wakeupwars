@@ -241,10 +241,16 @@ const handleLogout = async () => {
         <TouchableOpacity
           style={styles.logoutButton}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('Wordle')}
+          onPress={() =>
+            navigation.navigate('Wordle', {
+              challengeId: 189, 
+              challName: 'Test Challenge',
+              whichChall: 'wordle',
+            })
+          }
         >
           <Ionicons
-            name="log-out-outline"
+            name="game-controller"
             size={22}
             color="#FFF"
             style={styles.logoutIcon}
@@ -252,6 +258,26 @@ const handleLogout = async () => {
           <Text style={styles.logoutText}>Wordle</Text>
         </TouchableOpacity>
 
+
+        <TouchableOpacity
+          style={styles.logoutButton}
+          activeOpacity={0.8}
+          onPress={() =>
+            navigation.navigate('Wordle', {
+              challengeId: 211,   // multiplayer Challenge
+              challName: 'Multiplayer Wordle Test',
+              whichChall: 'wordle',
+            })
+          }
+        >
+          <Ionicons
+            name="people"   
+            size={22}
+            color="#FFF"
+            style={styles.logoutIcon}
+          />
+          <Text style={styles.logoutText}>Multiplayer Wordle</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.logoutButton}

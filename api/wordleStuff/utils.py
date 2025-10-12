@@ -1,71 +1,99 @@
 from api.models import GameCategory, WordleGameState, Challenge, WordleGamePlayer, User, Game, WordleMove
-from sudoku import Sudoku
-import time
 import random
 from django.db import transaction
 from asgiref.sync import sync_to_async
 from api.words_array import words
 
+MAX_ATTEMPTS = 5  # frontend also defines 5 rows
 
+def compute_multiplayer_score(rank: int, total_players: int) -> int:
+    """
+    Compute score based on rank (1st, 2nd, ...) in multiplayer Wordle.
+    - First place = 100
+    - Last place > 0 (unless did not finish)
+    - Formula: score = 100 * (total_players - (rank - 1)) / total_players
+    """
+    if rank < 1 or rank > total_players:
+        return 0
+    return int(100 * (total_players - (rank - 1)) / total_players)
+
+
+@transaction.atomic
 def get_or_create_game_wordle(challenge_id, user):
-    # make sure the challenge exists
+    """
+    Create or reuse a WordleGameState for a given challenge.
+    Ensure the user is recorded as a player.
+    """
     challenge = Challenge.objects.get(id=challenge_id)
     is_multiplayer = challenge.groupID is not None
 
-    # ensure the base Game + Category exist
+    # Ensure the game category exists
     category, _ = GameCategory.objects.get_or_create(
         categoryName="Word Games",
-        defaults={"skilllevel": 1}  # or whatever default makes sense for your model
+        defaults={"skilllevel": 1}
     )
 
+    # Ensure the base Wordle Game exists (fixed id=30)
     game, _ = Game.objects.update_or_create(
-        id=30,  # fixed id for Wordle
+        id=30,
         defaults={
             "name": "Wordle",
             "category": category,
-            "solution": "white",
             "isMultiplayer": is_multiplayer,
         }
     )
 
-    # see if a WordleGameState already exists for this challenge
+    # Check if a WordleGameState already exists
     game_state = WordleGameState.objects.filter(challenge=challenge).first()
 
     if not game_state:
         target_word = random.choice(words).upper()
-        print(f"Creating new Wordle game state for challenge {challenge.id} with word {target_word}")
+        puzzle = ["_"] * len(target_word)     # initial empty puzzle
+        solution = list(target_word)          # solution stored as list of chars
 
         game_state = WordleGameState.objects.create(
             game=game,
             challenge=challenge,
-            puzzle=target_word,
-            solution=target_word,
+            puzzle=puzzle,
+            solution=solution,
+            answer=target_word,               # keep string version for debugging
+            #joins_closed=False,
         )
+        print(f"[WORDLE][create] chall={challenge.id} gs={game_state.id} answer={target_word}", flush=True)
 
-    # link the user as a player in this game state
+    # Ensure user is recorded as a player
     WordleGamePlayer.objects.get_or_create(
         gameState=game_state,
         player=user,
-        defaults={'accuracyCount': 0, 'inaccuracyCount': 0}
+        defaults={'accuracyCount': 0, 'inaccuracyCount': 0, 'color': None}
     )
 
-    # return info for frontend
     return {
         "game_state_id": game_state.id,
-        "puzzle": "_" * len(game_state.puzzle),
+        "puzzle": game_state.puzzle,
         "is_multiplayer": is_multiplayer,
+        "answer": game_state.answer,  # ⚠️ for debugging only
     }
-    
 
+
+@transaction.atomic
 def validate_wordle_move(game_state_id, user, guess, row):
+    """
+    Validate a Wordle guess and return feedback, correctness, completion, and scores.
+    """
     game_state = WordleGameState.objects.get(id=game_state_id)
-    solution = game_state.solution.upper()
+    is_multiplayer = game_state.challenge.groupID is not None
+
+    solution = game_state.solution
+    if isinstance(solution, str):
+        solution = list(solution)
+
     guess = guess.upper()
 
     feedback = []
-    solution_chars = list(solution)
+    solution_chars = solution.copy()
 
-    # Mark exact matches first
+    # Step 1: mark exact matches
     for i, char in enumerate(guess):
         if i < len(solution) and char == solution[i]:
             feedback.append({"letter": char, "result": "correct"})
@@ -73,13 +101,13 @@ def validate_wordle_move(game_state_id, user, guess, row):
         else:
             feedback.append({"letter": char, "result": "absent"})
 
-    # Mark misplaced (yellow)
+    # Step 2: mark misplaced letters (present but wrong position)
     for i, f in enumerate(feedback):
         if f["result"] == "absent" and f["letter"] in solution_chars:
             feedback[i]["result"] = "present"
             solution_chars[solution_chars.index(f["letter"])] = None
 
-    # Save move
+    # Save the move
     WordleMove.objects.update_or_create(
         gameState=game_state,
         player=user,
@@ -87,35 +115,102 @@ def validate_wordle_move(game_state_id, user, guess, row):
         defaults={"guess": guess}
     )
 
-    # Update accuracy stats
+    # Update player stats
     player_record, _ = WordleGamePlayer.objects.get_or_create(
         gameState=game_state,
         player=user,
         defaults={'accuracyCount': 0, 'inaccuracyCount': 0}
     )
 
-    if guess == solution:
+    is_correct = guess == "".join(solution)
+
+    if is_correct:
         player_record.accuracyCount += 1
     else:
         player_record.inaccuracyCount += 1
     player_record.save()
 
-    # Check completion
-    is_complete = guess == solution
+    # Check if game is complete
+    is_complete = is_correct or (row >= MAX_ATTEMPTS - 1)
 
-    # Build scores leaderboard
-    scores = [
-        {
-            "username": p.player.username,
-            "accuracy": p.accuracyCount,
-            "inaccuracy": p.inaccuracyCount,
-        }
-        for p in WordleGamePlayer.objects.filter(gameState=game_state)
-    ]
+    # ---- Scoring ----
+    score_awarded = 0
+    if not is_multiplayer:
+        # Single-player: scoring based on the row (earlier guesses score higher)
+        if is_correct:
+            base_score = 100 // MAX_ATTEMPTS
+            score_awarded = 100 - (row * base_score)
+    else:
+        # Multiplayer: competitive mode, scores are calculated in leaderboard
+        # No immediate score_awarded (score is finalized after ranking)
+        score_awarded = 0
+
+    # Debug log
+    print(
+        f"[WORDLE][validate] gs={game_state_id} user={user.username} row={row} "
+        f"guess={guess} solution={''.join(solution)} correct={is_correct} complete={is_complete} "
+        f"score_awarded={score_awarded} is_multiplayer={is_multiplayer}",
+        flush=True
+    )
+
+    # ---- Leaderboard ----
+    scores = []
+    players = WordleGamePlayer.objects.filter(gameState=game_state)
+
+    if not is_multiplayer:
+        # Single-player leaderboard (original logic)
+        for p in players:
+            last_move = WordleMove.objects.filter(gameState=game_state, player=p.player).order_by("-row").first()
+            if p.accuracyCount > 0 and last_move:
+                base_score = 100 // MAX_ATTEMPTS
+                score = 100 - last_move.row * base_score
+            else:
+                score = 0
+            scores.append({
+                "username": p.player.username,
+                "score": score,
+            })
+    else:
+        # Multiplayer leaderboard: rank players by completion order → assign scores
+        finishers = []
+        for p in players:
+            # Check if player has a correct guess
+            last_correct = WordleMove.objects.filter(
+                gameState=game_state,
+                player=p.player,
+                guess="".join(solution)
+            ).order_by("row").first()
+            if last_correct:
+                finishers.append((p.player.username, last_correct.row))
+
+        # Sort by row (earlier correct guesses rank higher)
+        finishers = sorted(finishers, key=lambda x: x[1])
+        total_players = players.count()
+
+        for rank, (username, _) in enumerate(finishers, start=1):
+            scores.append({
+                "username": username,
+                "score": compute_multiplayer_score(rank, total_players),
+            })
+
+        # Unfinished players = 0 points
+        unfinished = set(p.player.username for p in players) - set(u for u, _ in finishers)
+        for username in unfinished:
+            scores.append({"username": username, "score": 0})
+
+    # Sort leaderboard by score descending
+    scores = sorted(scores, key=lambda x: x["score"], reverse=True)
 
     return {
         "feedback": feedback,
-        "is_correct": guess == solution,
+        "is_correct": is_correct,
         "is_complete": is_complete,
+        "score_awarded": score_awarded,
         "scores": scores,
     }
+
+
+# Async wrappers for WebSocket usage
+get_or_create_game_wordle_async = sync_to_async(get_or_create_game_wordle, thread_sensitive=True)
+validate_wordle_move_async = sync_to_async(validate_wordle_move, thread_sensitive=True)
+

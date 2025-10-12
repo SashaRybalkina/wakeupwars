@@ -35,8 +35,8 @@ export const GAME_ID_TO_KEY: Record<number, GameKey> = {
   10: 'sudoku',  // Group Sudoku
   11: 'pattern', // Personal Pattern
   12: 'pattern', // Group Pattern
-  13: 'wordle', // Personal Wordle
-  14: 'wordle' // Group Wordle
+  30: 'wordle', // Personal Wordle
+  32: 'wordle' // Group Wordle
 };
 
 /**
