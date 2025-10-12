@@ -1,6 +1,5 @@
 import * as React from 'react';
-import { useState } from 'react';
-import { Alert, NativeEventEmitter, NativeModules } from 'react-native';
+import { NativeEventEmitter, NativeModules } from 'react-native';
 import {
   createNavigationContainerRef,
   NavigationContainer,
@@ -8,6 +7,7 @@ import {
 import type { ParamListBase } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as Notifications from 'expo-notifications';
+import NotificationService from './Notification';
 
 import { useUser } from './context/UserContext';
 
@@ -62,10 +62,10 @@ import StartScreen from './pages/StartScreen';
 import SudokuScreen from './pages/SudokuScreen';
 import EditChallengeSharingFriends from './pages/Challenges/EditChallengeSharingFriends';
 import CreateChallengeForFriend from './pages/Challenges/CreateChallengeForFriend';
+import { BASE_URL } from './api';
 
-
-const { AlarmModule } = NativeModules;
-const { IntentModule } = NativeModules;
+const { IntentModule, NotificationModule, AlarmModule } = NativeModules;
+const alarmEmitter = new NativeEventEmitter(AlarmModule);
 
 const Stack = createStackNavigator<ParamListBase>();
 export const navigationRef = createNavigationContainerRef<ParamListBase>();
@@ -91,14 +91,64 @@ function flushPendingNavigation() {
 
 function App() {
   const { user } = useUser();
+  const wsRef = React.useRef<WebSocket | null>(null);
+
+  React.useEffect(() => {
+    const subscription = alarmEmitter.addListener('AlarmTriggered', (event) => {
+      NotificationService.sendNotification(
+        user?.Id,
+        "Alarm",
+        "Wake up! Time to start your challenge!",
+        event.screen,
+        {
+          challengeId: event.challengeId,
+          challName: event.challName,
+          whichChall: event.whichChall,
+        }
+      );
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   React.useEffect(() => {
     let subscription: any;
     let notificationListener: any;
 
-    // 1) cold-start intent (guarded for safety if module missing)
-    IntentModule?.getInitialIntent?.()
-      ?.then((data: any) => {
+    // WebSocket notification listener
+    if (user && user.id) {
+      // Replace ws:// with wss:// if using HTTPS
+      const wsUrl = `${BASE_URL.replace(/^http/, "ws")}/ws/notifications/${user.id}/`;
+      wsRef.current = new WebSocket(wsUrl);
+      wsRef.current.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'notification_event') {
+            // Show notification using native module
+            console.log(data.screen);
+            console.log(data);
+            NotificationModule.showNotification(
+              data.title,
+              data.body,
+              data.screen,
+              {}
+            );
+          }
+        } catch (e) {
+          console.error('WebSocket notification parse error:', e);
+        }
+      };
+      wsRef.current.onerror = (err) => {
+        console.error('WebSocket error:', err);
+      };
+      wsRef.current.onclose = () => {
+        console.log('WebSocket closed');
+      };
+    }
+
+    // 1) cold-start intent
+    IntentModule.getInitialIntent()
+      .then((data: any) => {
         console.log('getInitialIntent =>', data);
         if (data?.screen) {
           if (!user) {
@@ -111,7 +161,7 @@ function App() {
           }
         }
       })
-      ?.catch((e: any) => {
+      .catch((e: any) => {
         console.warn('getInitialIntent error', e);
       });
 
@@ -150,6 +200,7 @@ function App() {
       if (subscription && subscription.remove) subscription.remove();
       else if (subscription) subscription.remove(); // defensive
       if (notificationListener) notificationListener.remove();
+      if (wsRef.current) wsRef.current.close();
     };
   }, [user]);
 

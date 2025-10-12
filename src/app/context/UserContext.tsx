@@ -15,6 +15,10 @@ type UserCtx = {
   setCsrfToken: (t: string | null) => void;
   skillLevels: SkillLevel[];
   setSkillLevels: (l: SkillLevel[]) => void;
+  activeConversationId: string | number | null;
+  setActiveConversationId: (id: string | number | null) => void;
+  activeGroupId: string | number | null;
+  setActiveGroupId: (id: string | number | null) => void;
 };
 
 const UserContext = createContext<UserCtx | undefined>(undefined);
@@ -23,6 +27,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User>(null);
   const [csrfToken, setCsrfToken] = useState<string | null>(null);
   const [skillLevels, setSkillLevels] = useState<SkillLevel[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | number | null>(null);
+  const [activeGroupId, setActiveGroupId] = useState<string | number | null>(null);
 
   return (
     <UserContext.Provider
@@ -33,6 +39,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCsrfToken,
         skillLevels,
         setSkillLevels,
+        activeConversationId,
+        setActiveConversationId,
+        activeGroupId,
+        setActiveGroupId,
       }}
     >
       {children}

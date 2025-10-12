@@ -1,6 +1,7 @@
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { BASE_URL, endpoints } from "../api"
+import { NativeModules } from 'react-native';
 import { useUser } from "../context/UserContext"
 import {
   ImageBackground,
@@ -12,12 +13,16 @@ import {
   View,
   Animated,
   Dimensions,
+  Alert,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import type { NavigationProp } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import axios from "axios"
 import { getAccessToken } from "../auth"
+import * as Notifications from 'expo-notifications'
+import {formatDistanceToNow} from 'date-fns'
+const { NotificationModule } = NativeModules;
 
 type Props = {
   navigation: NavigationProp<any>
@@ -27,7 +32,7 @@ const { width } = Dimensions.get("window")
 
 const Messages: React.FC<Props> = ({ navigation }) => {
   const [selected, setSelected] = useState("Friends")
-  const { user } = useUser()
+  const { user, activeConversationId, activeGroupId } = useUser()
   const [friendMessages, setFriendMessages] = useState<any[]>([])
   const [groupConversations, setGroupConversations] = useState<any[]>([])
   const [notifications, setNotifications] = useState<any[]>([])
@@ -37,44 +42,107 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   const [composeRecipientId, setComposeRecipientId] = useState("")
   const [composeGroupId, setComposeGroupId] = useState("")
   const [sending, setSending] = useState(false)
+  const wsNotification = useRef<WebSocket | null>(null)
+  const wsPrivate = useRef<WebSocket | null>(null)
+  const wsGroups = useRef<WebSocket | null>(null)
 
 
+  const fetchMessages = async () => {
+    if (!user?.id) return
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+      const response = await fetch(endpoints.messages(Number(user.id)), {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+      const data = await response.json()
+      const friends = data.filter((msg: any) => msg.recipient !== null)
+      setFriendMessages(friends)
+    } catch (error) {
+      console.error("Failed to fetch messages:", error)
+    }
+  }
+
+  const fetchGroupConversations = async () => {
+    if (!user?.id) return
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+      const response = await fetch(`${BASE_URL}/api/user/${user.id}/group-conversations/`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+      const data = await response.json()
+      setGroupConversations(data)
+    } catch (error) {
+      console.error("Failed to fetch group conversations:", error)
+    }
+  }
 
   useEffect(() => {
-    const fetchMessages = async () => {
-      if (!user?.id) return
-      try {
-              const accessToken = await getAccessToken();
-              if (!accessToken) {
-                throw new Error("Not authenticated");
-              }
-        const response = await fetch(endpoints.messages(Number(user.id)), {
-                headers: {
-                  Authorization: `Bearer ${accessToken}`
-                }
-              });
-        const data = await response.json()
-        const friends = data.filter((msg: any) => msg.recipient !== null)
-        setFriendMessages(friends)
-      } catch (error) {
-        console.error("Failed to fetch messages:", error)
-      }
-    }
     fetchMessages()
+    fetchGroupConversations()
   }, [user])
 
   useEffect(() => {
-    const fetchGroupConversations = async () => {
+    const fetchNotifications = async () => {
       if (!user?.id) return
       try {
-        const response = await fetch(`${BASE_URL}/api/user/${user.id}/group-conversations/`)
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+        const response = await fetch(endpoints.notifications(Number(user.id)), {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
         const data = await response.json()
-        setGroupConversations(data)
+        setNotifications(data)
       } catch (error) {
-        console.error("Failed to fetch group conversations:", error)
+        console.error('Failed to fetch notifications:', error)
       }
     }
-    fetchGroupConversations()
+    fetchNotifications()
+  }, [user])
+
+  useEffect(() => {
+    const registerForPushNotifications = async () => {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync()
+      let finalStatus = existingStatus
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync()
+        finalStatus = status
+      }
+      if (finalStatus !== 'granted') {
+        alert('Failed to get push token for push notification!')
+        return
+      }
+      const tokenData = await Notifications.getExpoPushTokenAsync()
+      const pushToken = tokenData.data
+      // Send pushToken to your backend for this user
+      if (user?.id && pushToken) {
+        try {
+          await fetch(`${BASE_URL}/api/save-push-token/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user_id: user.id, push_token: pushToken }),
+          })
+        } catch (err) {
+          console.error('Failed to save push token:', err)
+        }
+      }
+    }
+    registerForPushNotifications()
   }, [user])
 
   useEffect(() => {
@@ -85,6 +153,88 @@ const Messages: React.FC<Props> = ({ navigation }) => {
       tension: 50,
     }).start()
   }, [selected])
+
+  useEffect(() => {
+    if (!user?.id) return;
+    // Notifications WebSocket
+    const wsUrlNotif = `${BASE_URL.replace(/^http/, "ws")}/ws/notifications/${user.id}/`;
+    wsNotification.current = new WebSocket(wsUrlNotif);
+    wsNotification.current.onmessage = (event: any) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "notification_event") {
+          setNotifications((prev) => [data, ...prev]);
+        }
+      } catch (e) {
+        console.error("WebSocket notification parse error:", e);
+      }
+    };
+    wsNotification.current.onerror = (err: any) => {
+      console.error("WebSocket notification error:", err);
+    };
+    wsNotification.current.onclose = () => {};
+
+    // Private messages WebSocket (aggregate all 1-1 chats for this user)
+    const wsUrlPrivate = `${BASE_URL.replace(/^http/, "ws")}/ws/chat/users/${user.id}/`;
+    wsPrivate.current = new WebSocket(wsUrlPrivate);
+    wsPrivate.current.onmessage = (event: any) => {
+      try {
+        const data = JSON.parse(event.data);
+        fetchMessages();
+        setFriendMessages((prev) => [...prev, data]);
+
+        if (activeConversationId !== (data.sender.id === user.id ? data.recipient_id : data.sender.id)) {
+          NotificationModule.showNotification(data.sender.name, data.message, 'Messages', {
+            screen: 'Messages',
+            params: {
+              challengeId: null,
+              challName: null,
+              whichChall: null,
+            }
+          });
+        }
+
+      } catch (e) {
+        console.error("WebSocket private message parse error:", e);
+      }
+    };
+    wsPrivate.current.onerror = (err: any) => {
+      console.error("WebSocket private message error:", err);
+    };
+    wsPrivate.current.onclose = () => {};
+
+    // Group messages WebSocket (aggregate all groups for this user)
+    // You may want to open a socket for each group, but here is a single example for groupId=0 (broadcast)
+    const wsUrlGroups = `${BASE_URL.replace(/^http/, "ws")}/ws/chat/groups/${user.id}/`;
+    wsGroups.current = new WebSocket(wsUrlGroups);
+    wsGroups.current.onmessage = (event: any) => {
+      try {
+        const data = JSON.parse(event.data);
+        fetchGroupConversations();
+        setGroupConversations((prev) => [...prev, data]);
+
+        if (activeGroupId !== data.group_id) {
+          NotificationModule.showNotification(data.sender.name + ", " + data.group_name, data.message, 'Messages', {
+            screen: 'Messages',
+            params: {}
+          });
+        }
+
+      } catch (e) {
+        console.error("WebSocket group message parse error:", e);
+      }
+    };
+    wsGroups.current.onerror = (err: any) => {
+      console.error("WebSocket group message error:", err);
+    };
+    wsGroups.current.onclose = () => {};
+
+    return () => {
+      wsNotification.current?.close();
+      wsPrivate.current?.close();
+      wsGroups.current?.close();
+    };
+  }, [user, activeConversationId, activeGroupId]);
 
   const getConversations = (messages: any[]) => {
     const conversations: Record<string, any> = {}
@@ -103,19 +253,32 @@ const Messages: React.FC<Props> = ({ navigation }) => {
       }
     })
     return Object.values(conversations).sort(
-      (a: any, b: any) =>
-        new Date(b.lastMessage.timestamp).getTime() -
-        new Date(a.lastMessage.timestamp).getTime()
-    )
+      (a: any, b: any) => b.lastMessage.id - a.lastMessage.id
+    );
   }
 
-  const openConversation = (message: any) => {
-    const otherUserId = message.sender.id === user?.id ? message.recipient.id : message.sender.id
-    navigation.navigate("Conversation", { otherUserId })
+  const openConversation = (otherUserId: number, otherUserName: string) => {
+    navigation.navigate("Conversation", { otherUserId, groupId: null, groupName: null, otherUserName })
   }
 
   const openGroupConversation = (groupId: number, groupName: string) => {
-    navigation.navigate("Conversation", { groupId, recipientName: groupName })
+    navigation.navigate("Conversation", { otherUserId: null, groupId, groupName, otherUserName: null })
+  }
+
+  const handleNotificationPress = (notification: any) => {
+    console.log(notification.screen);
+    if (notification.type === 'friend_request' || notification.type === 'group_add') {
+      navigation.navigate(notification.screen as string);
+    } else {
+        navigation.navigate({
+          name: notification.screen as string,
+          params: { 
+            challengeId: notification.challengeId, 
+            challName: notification.challName, 
+            whichChall: notification.whichChall 
+          }
+        });
+    }
   }
 
   const goToMessages = () => navigation.navigate("Messages")
@@ -123,12 +286,18 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   const goToChallenges = () => navigation.navigate("Challenges")
   const goToProfile = () => navigation.navigate("Profile")
 
+  const tabWidth = width / 3
+  const reducedTabWidth = tabWidth * 0.9
+  
   const translateX = indicatorPosition.interpolate({
     inputRange: [0, 1, 2],
-    outputRange: [0, width * 0.425, width * 0.85],
-  })
+    outputRange: [0, reducedTabWidth, reducedTabWidth * 2],
+  })  
 
-  const getTimeAgo = (timestamp: string) => "2m ago"
+  const getTimeAgo = (timestamp: string) => {
+    if (!timestamp) return ""
+    return formatDistanceToNow(new Date(timestamp), { addSuffix: true })
+  }
 
   const sendMessage = async () => {
     if (!user?.id || !composeText) return
@@ -175,6 +344,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
           );
         // Optionally, you may want to refresh groupConversations here
       }
+      await fetchMessages()
       setComposeText("")
       setComposeRecipientId("")
       setComposeGroupId("")
@@ -186,11 +356,11 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     }
   }
 
-  const MessageItem: React.FC<{ name: string; text: string; index: number; timestamp?: string; onPress?: () => void }> = ({
+  const MessageItem: React.FC<{ name: string; text: string; index: number; timestamp: string; onPress?: () => void }> = ({
     name,
     text,
     index,
-    timestamp = "now",
+    timestamp,
     onPress,
   }) => (
     <TouchableOpacity
@@ -200,13 +370,14 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     >
       <View style={styles.messageAvatarContainer}>
         <View style={styles.messageAvatar}>
-          <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
+          <Text style={styles.avatarText}>{name ? name.charAt(0).toUpperCase() : "?"}</Text>
         </View>
       </View>
       <View style={styles.messageContent}>
         <View style={styles.messageHeader}>
           <Text style={styles.messageName}>{name}</Text>
           <Text style={styles.messageTime}>{getTimeAgo(timestamp)}</Text>
+          {/* <Text style={styles.messageTime}>N/A</Text> */}
         </View>
         <Text style={styles.messageText} numberOfLines={1}>
           {text}
@@ -215,24 +386,73 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     </TouchableOpacity>
   )
 
-  const NotificationItem: React.FC<{ notification: any; index: number }> = ({ notification, index }) => (
-    <TouchableOpacity style={[styles.messageCard, { marginTop: index === 0 ? 0 : 12 }]} activeOpacity={0.7}>
-      <View style={styles.messageAvatarContainer}>
-        <View style={styles.messageAvatar}>
-          <Ionicons name="notifications" size={24} color="#FFD700" />
+  const NotificationItem: React.FC<{ notification: any; index: number }> = ({ 
+    notification, 
+    index, 
+  }) => {
+  
+    const confirmDelete = (id: number) => {
+      Alert.alert(
+        "Delete Notification",
+        "Are you sure you want to delete this notification?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Delete", style: "destructive", onPress: () => deleteNotification(id) }
+        ]
+      )
+    }
+  
+    const deleteNotification = async (id: number) => {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+      try {
+        const response = await fetch(`${BASE_URL}/api/notifications/${id}/delete/`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          },
+          credentials: "include",
+        })
+    
+        if (!response.ok) {
+          throw new Error(`Failed with status ${response.status}`)
+        }
+    
+        setNotifications(prev => prev.filter(n => n.id !== id))
+      } catch (err) {
+        console.error("Failed to delete notification:", err)
+        Alert.alert("Error", "Could not delete notification. Please try again.")
+      }
+    }    
+  
+    return (
+      <TouchableOpacity
+        style={[styles.messageCard, { marginTop: index === 0 ? 0 : 12 }]}
+        activeOpacity={0.7}
+        onPress={() => handleNotificationPress(notification)}
+      >
+        <View style={styles.messageAvatarContainer}>
+          <View style={styles.messageAvatar}>
+            <Ionicons name="notifications" size={24} color="#FFD700" />
+          </View>
         </View>
-      </View>
-      <View style={styles.messageContent}>
-        <View style={styles.messageHeader}>
-          <Text style={styles.messageName}>Notification</Text>
-          <Text style={styles.messageTime}>{getTimeAgo(notification.timestamp)}</Text>
+        <View style={styles.messageContent}>
+          <View style={styles.messageHeader}>
+            <Text style={styles.messageName}>{notification.title}</Text>
+            <Text style={styles.messageTime}>{getTimeAgo(notification.timestamp)}</Text>
+            <TouchableOpacity onPress={() => confirmDelete(notification.id)}>
+              <Ionicons name="close" size={20} color="#FFD700" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.messageText} numberOfLines={2}>
+            {notification.body}
+          </Text>
         </View>
-        <Text style={styles.messageText} numberOfLines={2}>
-          {notification.message?.message || notification.message || ""}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  )
+      </TouchableOpacity>
+    )
+  }  
 
   const EmptyState = () => (
     <View style={styles.emptyStateContainer}>
@@ -291,7 +511,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
                     text={`${isMine ? "You" : otherUser.name}: ${lastMessage.message}`}
                     index={index}
                     timestamp={lastMessage.timestamp}
-                    onPress={() => openConversation(lastMessage)}
+                    onPress={() => openConversation(otherUser.id, otherUser.name)}
                   />
                 )
               })
@@ -300,17 +520,24 @@ const Messages: React.FC<Props> = ({ navigation }) => {
             )
           ) : selected === "Groups" ? (
             groupConversations.length > 0 ? (
-              groupConversations.map((group: any, index: number) => {
+              groupConversations
+              .map(group => ({
+                ...group,
+                lastMessageId: group.last_message?.id || 0
+              }))
+              .sort((a, b) => b.lastMessageId - a.lastMessageId)
+              .map((group: any, index: number) => {
                 const groupName = group.group_name || `Group ${group.group_id}`
                 const lastMessage = group.last_message
-                const isMine = lastMessage.sender.id === user?.id
                 let text = "No messages yet"
                 let timestamp = ""
                 let senderName = ""
+                let isMine = false
                 if (lastMessage) {
                   senderName = lastMessage.sender?.name || lastMessage.sender?.username || "Someone"
                   text = `${isMine ? "You" : senderName}: ${lastMessage.message}`
                   timestamp = lastMessage.timestamp
+                  isMine = lastMessage.sender.id === user?.id
                 }
                 return (
                   <MessageItem

@@ -1,3 +1,4 @@
+import pytz
 from rest_framework.permissions import AllowAny
 from django.conf import settings
 from datetime import timezone, datetime, date, timedelta
@@ -27,14 +28,16 @@ from datetime import time
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate, get_user_model
+
+from api.chat_consumer import ACTIVE_CHAT_USERS
 from .serializers import (UserSerializer, RegisterSerializer, GroupSerializer, UserProfileSerializer, MessageSerializer, ChallengeSummarySerializer,
                           CatSerializer, GameSerializer, FriendSerializer, FriendRequestSerializer, CreateGroupSerializer, SkillLevelSerializer,
                           RewardSettingSerializer, ExternalHandleSerializer,ObligationSerializer, CashPaymentCreateSerializer,
                           ExternalPaymentCreateSerializer, PaymentSerializer, PendingPublicChallengeSummarySerializer, PublicChallengeSummarySerializer)
-from .models import (Group, Notification, PersonalChallengeInvite, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule,
+from .models import (Group, UserNotification, PersonalChallengeInvite, PushToken, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule,
                      AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship, GroupMembership, FriendRequest,
                      SkillLevel, PendingGroupChallengeAvailability, GroupChallengeInvite, WordleMove, PublicChallengeConfiguration,
-                     PublicChallengeCategoryAssociation, UserAvailability)
+                     UserAvailability, PublicChallengeCategoryAssociation)
 from django.http import JsonResponse
 from typing     import Dict, List
 from rest_framework.exceptions import ValidationError
@@ -50,8 +53,6 @@ from .serializers import ChallengeSummarySerializer
 from sudoku import Sudoku
 import time
 from django.contrib.auth import login
-from django.views.decorators.csrf import ensure_csrf_cookie
-from django.middleware.csrf import get_token
 from asgiref.sync import async_to_sync
 import traceback
 from api.services.skill import recompute_skill_for_user
@@ -60,25 +61,16 @@ from api.tasks import open_join_window
 ### Pattern Memorization###
 from api.patternMem.utils import get_or_create_pattern_game, validate_pattern_move
 from api.models import PatternMemorizationGameState
-import json
+
 from .words_array import words
 
 import logging
 logger = logging.getLogger(__name__)
 
+import requests
+
 User = get_user_model()
 WORD_LIST = words
-
-
-# class GetUserInfoView(APIView):
-    # def get(self, request):
-    #     return Response(UserSerializer(request.user).data)
-
-
-# @ensure_csrf_cookie
-# def get_csrf_token(request):
-#     token = get_token(request)
-#     return JsonResponse({'csrfToken': token})
 
 
 class SetChallAvailabilityView(APIView):
@@ -658,6 +650,8 @@ class AddGroupMemberView(APIView):
     @transaction.atomic
     def post(self, request, group_id):
         data = request.data
+        sender_id = request.data.get("sender_id")
+        recipient_id = request.data.get("recipient_id")
         try:
             friend_id = data.get("friend_id")
             if not friend_id:
@@ -673,6 +667,27 @@ class AddGroupMemberView(APIView):
 
             # Create the new membership
             GroupMembership.objects.create(groupID=group, uID=user)
+            
+            UserNotification.objects.create(
+                user=user,
+                title="Added to Group",
+                body=f"You have been added to the group '{group.name}'.",
+                type="group_add",
+                screen="Groups",
+            )
+            
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"notifications_{friend_id}",
+                {
+                    "type": "notification_event",
+                    "title": "Group Invite",
+                    "body": f"You have been invited to group {group.name}!",
+                    "sender_id": sender_id,
+                    "screen": "Groups",
+                    "notification_type": "group_invite"
+                }
+            )
 
             return Response({"message": "User added to group successfully."}, status=status.HTTP_201_CREATED)
 
@@ -1840,8 +1855,51 @@ class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
             )
      
 
-    
-    
+class SendNotificationView(APIView):
+    def post(self, request):
+        user_id = request.data.get("user_id")
+        title = request.data.get("title", "New Notification")
+        body = request.data.get("body", "")
+        ttype = request.data.get("type", "")
+        screen = request.data.get("screen", "Messages")
+        challengeId = request.data.get("challengeId")
+        challName = request.data.get("challName")
+        whichChall = request.data.get("whichChall")
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Save to DB
+        notification = UserNotification.objects.create(
+            user=user,
+            title=title,
+            body=body,
+            type=ttype,
+            screen=screen,
+            challengeId=challengeId,
+            challName=challName,
+            whichChall=whichChall,
+        )
+
+        # Send push notification
+        send_expo_push_notification(
+            user,
+            title=title,
+            body=body,
+            data={"notification_id": notification.id}
+        )
+
+        return Response(
+            {"success": True, "notification_id": notification.id},
+            status=status.HTTP_201_CREATED
+        )
+        
+
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
 class SendFriendRequestView(APIView):
     def post(self, request):
         sender_id = request.data.get("sender_id")
@@ -1854,6 +1912,32 @@ class SendFriendRequestView(APIView):
             return Response({'error': 'Friend request already sent'}, status=status.HTTP_400_BAD_REQUEST)
 
         FriendRequest.objects.create(sender_id=sender_id, recipient_id=recipient_id)
+        sender = User.objects.get(id=sender_id)
+        recipient = User.objects.get(id=recipient_id)
+
+        # Save notification to DB
+        UserNotification.objects.create(
+            user=recipient,
+            title="Friend Request",
+            body=f"{sender.name or sender.username} sent you a friend request.",
+            type="friend_request",
+            screen="FriendsRequests",
+        )
+
+        # Send notification via WebSocket
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"notifications_{recipient_id}",
+            {
+                "type": "notification_event",
+                "title": "Friend Request",
+                "body": f"{sender.name or sender.username} sent you a friend request!",
+                "sender_id": sender_id,
+                "screen": "FriendsRequests",
+                "notification_type": "friend_request"
+            }
+        )
+
         return Response({'message': 'Friend request sent successfully'}, status=status.HTTP_201_CREATED)
 
 
@@ -2962,13 +3046,58 @@ class SendMessageView(APIView):
     def post(self, request, user_id):
         sender = request.user
         recipient = get_object_or_404(User, id=user_id)
-        message_text = request.data.get("message")
+        message_text = request.data.get("message", "").strip()
+
+        if not message_text:
+            return Response({"success": False, "error": "Message cannot be empty"}, status=400)
 
         message = Message.objects.create(
             sender=sender,
             recipient=recipient,
             message=message_text,
+            timestamp=timezone.now()
         )
+
+        # Broadcast message + notification
+        channel_layer = get_channel_layer()
+        ids = sorted([sender.id, recipient.id])
+        room_name = f"chat_user_{ids[0]}_{ids[1]}"
+
+        # Send message event to chat room
+        async_to_sync(channel_layer.group_send)(
+            room_name,
+            {
+                "type": "chat_message",
+                "message": message.message,
+                "sender": {
+                    "id": sender.id,
+                    "name": sender.name,
+                    "username": sender.username,
+                },
+                "recipient_id": recipient.id,
+                "group_id": None,
+                "timestamp": message.timestamp.isoformat(),
+            },
+        )
+        
+        recipient_active = (
+            room_name in ACTIVE_CHAT_USERS
+            and recipient.id in ACTIVE_CHAT_USERS[room_name]
+        )
+
+        if not recipient_active:
+            async_to_sync(channel_layer.group_send)(
+                f"notifications_{recipient.id}",
+                {
+                    "type": "notify",
+                    "event": "new_message",
+                    "sender": sender.username,
+                    "sender_id": sender.id,
+                    "message": message.message,
+                    "timestamp": message.timestamp.isoformat(),
+                },
+            )
+
         return Response({"success": True, "id": message.id})
     
 class ConversationView(APIView):
@@ -2983,7 +3112,7 @@ class SendMessageGroupView(APIView):
     def post(self, request, group_id):
         sender = request.user
         group = get_object_or_404(Group, id=group_id)
-        message_text = request.data.get("message")
+        message_text = request.data.get("message", "").strip()
 
         if not message_text:
             return Response({"success": False, "error": "Message cannot be empty"}, status=400)
@@ -2992,7 +3121,47 @@ class SendMessageGroupView(APIView):
             sender=sender,
             groupID=group,
             message=message_text,
+            timestamp=timezone.now()
         )
+
+        channel_layer = get_channel_layer()
+        room_name = f"chat_group_{group.id}"
+
+        # Broadcast group message
+        async_to_sync(channel_layer.group_send)(
+            room_name,
+            {
+                "type": "chat_message",
+                "message": message.message,
+                "sender": {
+                    "id": sender.id,
+                    "name": sender.name,
+                    "username": sender.username,
+                },
+                "recipient_id": None,
+                "group_id": group.id,
+                "timestamp": message.timestamp.isoformat(),
+            },
+        )
+
+        # Notify other group members
+        member_ids = GroupMembership.objects.filter(groupID=group).values_list("uID_id", flat=True)
+        for uid in member_ids:
+            if uid == sender.id:
+                continue
+            async_to_sync(channel_layer.group_send)(
+                f"notifications_{uid}",
+                {
+                    "type": "notify",
+                    "event": "new_group_message",
+                    "group_id": group.id,
+                    "group_name": group.name,
+                    "sender": sender.username,
+                    "sender_id": sender.id,
+                    "message": message.message,
+                    "timestamp": message.timestamp.isoformat(),
+                },
+            )
 
         return Response({"success": True, "id": message.id})
 
@@ -3021,3 +3190,130 @@ class UserGroupConversationsView(APIView):
                 'last_message': MessageSerializer(last_message).data if last_message else None,
             })
         return Response(data)
+
+def send_expo_push_notification(user, title, body, data=None):
+    try:
+        token_obj = PushToken.objects.filter(user=user).first()
+        if not token_obj:
+            return False
+        expo_token = token_obj.token
+        payload = {
+            "to": expo_token,
+            "title": title,
+            "body": body,
+            "data": data or {},
+        }
+        response = requests.post("https://exp.host/--/api/v2/push/send", json=payload)
+        return response.status_code == 200
+    except Exception as e:
+        print(f"Expo push notification error: {e}")
+        return False
+
+
+class SendNotificationView(APIView):
+    def post(self, request):
+        """
+        Send a notification to a specific user:
+        - Saves it to DB
+        - Sends Expo push notification
+        """
+        timezone.activate(pytz.timezone("America/Denver"))
+        user_id = request.data.get("user_id")
+        title = request.data.get("title", "New Notification")
+        body = request.data.get("body", "")
+        ttype = request.data.get("type", "")
+        screen = request.data.get("screen", "")
+        challengeId = request.data.get("challengeId", "")
+        challName = request.data.get("challName", "")
+        whichChall = request.data.get("whichChall", "")
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Save to DB
+        notification = UserNotification.objects.create(
+            user=user,
+            title=title,
+            body=body,
+            type=ttype,
+            screen=screen,
+            challengeId=challengeId,
+            challName=challName,
+            whichChall=whichChall,
+        )
+
+        return Response(
+            {"success": True, "notification_id": notification.id},
+            status=status.HTTP_201_CREATED
+        )
+
+    def get(self, request):
+        """
+        Get all notifications for a given user.
+        Expects ?user_id=<id> in query params.
+        """
+        user_id = request.query_params.get("user_id")
+        if not user_id:
+            return Response({"error": "Missing user_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        notifications = user.notifications.order_by("-created_at").values(
+            "id", "title", "body", "created_at", "read"
+        )
+
+        return Response({"notifications": list(notifications)}, status=status.HTTP_200_OK)
+
+class SavePushTokenView(APIView):
+    def post(self, request):
+        user_id = request.data.get("user_id")
+        token = request.data.get("token")
+
+        if not user_id or not token:
+            return Response({"error": "Missing user_id or token"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        push_token, created = PushToken.objects.update_or_create(
+            user=user, defaults={"token": token}
+        )
+
+        return Response({"success": True, "token": push_token.token})
+
+
+class UserNotificationsView(APIView):
+    def get(self, request, user_id):
+        notifications = UserNotification.objects.filter(user_id=user_id).order_by('-timestamp')
+        data = [
+            {
+                "id": n.id,
+                "type": n.type,
+                "title": n.title,
+                "timestamp": n.timestamp,
+                "body": n.body,
+                "screen": n.screen,
+                "challengeId": n.challengeId,
+                "challName": n.challName,
+                "whichChall": n.whichChall,
+            }
+            for n in notifications
+        ]
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class DeleteNotificationView(APIView):
+    def delete(self, request, notification_id):
+        try:
+            notification = UserNotification.objects.get(id=notification_id)
+            notification.delete()
+            return Response({"success": True})
+        except UserNotification.DoesNotExist:
+            return Response({"error": "Not found"}, status=404)

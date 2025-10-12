@@ -1,3 +1,28 @@
+from django.urls import path
+
+from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalChallenge, 
+                    ExternalHandleViewSet, FinalizeChallengeView, FinalizePublicChallengeView, 
+                    GetMatchingChallengesView, GetPendingPublicChallengesView, GetPersonalChallengeInvites, 
+                    GetPublicChallengesView, GetUserAvailabilityView, GroupConversationView, 
+                    JoinPublicChallengeView, LoginView, ObligationViewSet, PaymentViewSet, RegisterView, 
+                    GroupListView, HelloWorldView, SendMessageGroupView, SendMessageView, SendNotificationView, SetChallAvailabilityView, 
+                    SetUserAvailabilityView, ShareChallengeView, SingOrMultGameListView, SomeCatsListView, 
+                    UserGroupConversationsView, UserProfileView, GetChallengeScheduleView, AddGameToScheduleView,
+                    UserMessagesView, GroupDetailsView, CatListView, GameListView,
+                    ChallengeListView, GetChallengeInitiatorView,
+                    ChallengeDetailView, ChallengeGameScheduleView, CreateManualGroupChallengeView,
+                    CreatePendingCollaborativeGroupChallengeView, FriendListView,
+                    AddGroupMemberView, SendFriendRequestView, FriendRequestListView,
+                    RespondToFriendRequestView, FinalizeCollaborativeGroupChallengeScheduleView,
+                    SentFriendRequestListView, AllUsersView, CancelFriendRequestView,
+                    CreateGroupView, CreatePersonalChallengeView, GetChallengeInvitesView,
+                    GetAvailabilitiesView, DeclineChallengeInviteView,
+                    ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
+                    SkillLevelsView, CreatePublicChallengeView, RewardSettingView, 
+                    CreateSudokuGameView, ValidateSudokuMoveView, CreatePatternGameView, 
+                    ValidatePatternMoveView, CreateWordleGameView, ValidateWordleMoveView, 
+                    SavePushTokenView, UserNotificationsView, DeleteNotificationView)
+
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.routers import DefaultRouter
@@ -139,6 +164,9 @@ urlpatterns = [
     path('decline-challenge-invite/<int:user_id>/<int:chall_id>/', DeclineChallengeInviteView.as_view(), name='decline-challenge-invite'),
     path('messages/send/<int:user_id>/', SendMessageView.as_view(), name='send-message'),
     path('messages/send/group/<int:group_id>/', SendMessageGroupView.as_view()),
+    path("notifications/send/", SendNotificationView.as_view(), name="send_notification"),
+    path("notifications/", SendNotificationView.as_view(), name="notification"),
+    path("push-tokens/", SavePushTokenView.as_view(), name="save_push_token"),
     path('conversation/<int:user_id>/<int:recipient_id>/', ConversationView.as_view(), name='conversation'),
     path('conversation/group/<int:group_id>/', GroupConversationView.as_view(), name='conversation-group'),
     path('profile/all/', AllUsersView.as_view(), name='all-users'),
@@ -148,7 +176,6 @@ urlpatterns = [
     path('sudoku/validate/', ValidateSudokuMoveView.as_view(), name='validate-sudoku'),
     path('wordle/create/', CreateWordleGameView.as_view(), name='create-wordle'),
     path('wordle/validate/', ValidateWordleMoveView.as_view(), name='validate-wordle'),
-    # path('csrf-token/', get_csrf_token, name='get-csrf-token'),
     path("create-personal-challenge/", CreatePersonalChallengeView.as_view(), name="create_personal_challenge"),
     path('pattern/create/',   CreatePatternGameView.as_view(),   name='pattern-create'),
     path('pattern/validate/', ValidatePatternMoveView.as_view(), name='pattern-validate'),
@@ -165,4 +192,7 @@ urlpatterns = [
     path('get-personal-challenge-invites/<int:user_id>/', GetPersonalChallengeInvites.as_view()),
     path('accept-personal-challenge/<int:user_id>/<int:chall_id>/', AcceptPersonalChallenge.as_view()),
     path('decline-personal-challenge/<int:user_id>/<int:chall_id>/', DeclinePersonalChallenge.as_view()),
+    path('save-push-token/', SavePushTokenView.as_view(), name='save-push-token'),
+    path('notifications/<int:user_id>/', UserNotificationsView.as_view(), name='user-notifications'),
+    path("notifications/<int:notification_id>/delete/", DeleteNotificationView.as_view(), name="delete-notification"),
 ]

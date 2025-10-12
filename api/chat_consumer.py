@@ -1,33 +1,49 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from api.models import Message, User, Group
+from api.models import Message, User, Group, GroupMembership, Friendship
+
+ACTIVE_CHAT_USERS = {}
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user_id = self.scope['url_route']['kwargs'].get('user_id')
         self.other_user_id = self.scope['url_route']['kwargs'].get('other_user_id')
         self.group_id = self.scope['url_route']['kwargs'].get('group_id')
-        if self.group_id:
-            self.room_group_name = f'chat_group_{self.group_id}'
+        self.room_group_names = []
+        path = self.scope.get('path', '')
+
+        if path.startswith('/ws/chat/groups/') and self.user_id:
+            group_ids = await self.get_user_group_ids(self.user_id)
+            self.room_group_names = [f'chat_group_{gid}' for gid in group_ids]
+        elif path.startswith('/ws/chat/users/') and self.user_id:
+            # Join all 1-1 chat rooms for this user
+            friend_ids = await self.get_user_friend_ids(self.user_id)
+            self.room_group_names = [f'chat_user_{min(int(self.user_id), fid)}_{max(int(self.user_id), fid)}' for fid in friend_ids]
+        elif self.group_id:
+            self.room_group_names = [f'chat_group_{self.group_id}']
         elif self.user_id and self.other_user_id:
-            # Ensure both users join the same room
             ids = sorted([int(self.user_id), int(self.other_user_id)])
-            self.room_group_name = f'chat_user_{ids[0]}_{ids[1]}'
+            self.room_group_names = [f'chat_user_{ids[0]}_{ids[1]}']
         else:
             await self.close()
             return
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
+        
+        for room in self.room_group_names:
+            await self.channel_layer.group_add(room, self.channel_name)
+            if room not in ACTIVE_CHAT_USERS:
+                ACTIVE_CHAT_USERS[room] = set()
+            ACTIVE_CHAT_USERS[room].add(self.user_id)
+        
         await self.accept()
 
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
+        for room in self.room_group_names:
+            await self.channel_layer.group_discard(room, self.channel_name)
+            if room in ACTIVE_CHAT_USERS:
+                ACTIVE_CHAT_USERS[room].discard(self.user_id)
+                if not ACTIVE_CHAT_USERS[room]:
+                    del ACTIVE_CHAT_USERS[room]
 
     async def receive(self, text_data):
         data = json.loads(text_data)
@@ -36,23 +52,59 @@ class ChatConsumer(AsyncWebsocketConsumer):
         recipient_id = data.get('recipient_id')
         group_id = data.get('group_id')
         timestamp = data.get('timestamp')
+
         # Save message to DB
         await self.save_message(message, sender_id, recipient_id, group_id, timestamp)
-        # Broadcast to group
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'chat_message',
-                'message': message,
-                'sender_id': sender_id,
-                'recipient_id': recipient_id,
-                'group_id': group_id,
-                'timestamp': timestamp,
-            }
-        )
+
+        # Fetch sender object
+        sender = await database_sync_to_async(User.objects.get)(id=sender_id)
+        group_name = None
+
+        # Determine which room to broadcast to
+        if group_id:
+            room_group_name = f'chat_group_{group_id}'
+            group = await database_sync_to_async(Group.objects.get)(id=group_id)
+            group_name = group.name
+        elif sender_id and recipient_id:
+            ids = sorted([int(sender_id), int(recipient_id)])
+            room_group_name = f'chat_user_{ids[0]}_{ids[1]}'
+        else:
+            room_group_name = None
+
+        if room_group_name:
+            await self.channel_layer.group_send(
+                room_group_name,
+                {
+                    'type': 'chat_message',
+                    'message': message,
+                    'sender': {
+                        'id': sender.id,
+                        'name': sender.name,
+                        'username': sender.username
+                    },
+                    'recipient_id': recipient_id,
+                    'group_id': group_id,
+                    'group_name': group_name,
+                    'timestamp': timestamp,
+                }
+            )
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps(event))
+        
+    async def notify(self, event):
+        await self.send(text_data=json.dumps(event))
+
+    @database_sync_to_async
+    def get_user_group_ids(self, user_id):
+        return list(GroupMembership.objects.filter(uID_id=user_id).values_list('groupID_id', flat=True))
+
+    @database_sync_to_async
+    def get_user_friend_ids(self, user_id):
+        u1_friends = Friendship.objects.filter(uID1_id=user_id).values_list('uID2_id', flat=True)
+        u2_friends = Friendship.objects.filter(uID2_id=user_id).values_list('uID1_id', flat=True)
+        # Convert to Python sets to safely merge
+        return list(set(u1_friends) | set(u2_friends))
 
     @database_sync_to_async
     def save_message(self, message, sender_id, recipient_id, group_id, timestamp):

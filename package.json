@@ -29,6 +29,7 @@
     "@tamagui/font-inter": "1.98.3",
     "@tamagui/lucide-icons": "^1.98.3",
     "axios": "^1.8.4",
+    "date-fns": "^4.1.0",
     "expo": "^52.0.40",
     "expo-constants": "~17.0.8",
     "expo-font": "~13.0.4",

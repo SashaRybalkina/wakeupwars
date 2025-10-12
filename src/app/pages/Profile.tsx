@@ -15,14 +15,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
+import { NativeModules } from 'react-native';
+const { NotificationModule } = NativeModules;
 
 import { scheduleAlarms } from '../Alarm';
 import { endpoints } from '../api';
 import { useUser } from '../context/UserContext';
 import UserProfileCard from './Components/UserProfileCard';
-import { NativeModules } from "react-native";
 const { AlarmModule } = NativeModules;
 import { scheduleAlarmsForUser } from '../alarmService';
+import NotificationService from '../Notification';
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -242,11 +244,13 @@ const handleLogout = async () => {
           style={styles.logoutButton}
           activeOpacity={0.8}
           onPress={() =>
-            navigation.navigate('Wordle', {
-              challengeId: 189, 
-              challName: 'Test Challenge',
-              whichChall: 'wordle',
-            })
+            NotificationService.sendNotification(
+              user.id,
+              "Wassupppp",
+              "This is a real push notification!",
+              "FriendsRequests",
+              {}
+            )
           }
         >
           <Ionicons
@@ -255,7 +259,7 @@ const handleLogout = async () => {
             color="#FFF"
             style={styles.logoutIcon}
           />
-          <Text style={styles.logoutText}>Wordle</Text>
+          <Text style={styles.logoutText}>Notification</Text>
         </TouchableOpacity>
 
 

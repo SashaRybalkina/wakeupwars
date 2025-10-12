@@ -3,6 +3,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db.models import Sum
 from django.utils import timezone
 from django.conf import settings
+from rest_framework.views import APIView
+from rest_framework.response import Response
 
 # by default, every model's table gets an auto increment integer id as the primary key. Specify a composite key with unique_together
 
@@ -73,6 +75,8 @@ class Message(models.Model):
     sender = models.ForeignKey(User, related_name='sent_messages', on_delete=models.CASCADE)
     recipient = models.ForeignKey(User, related_name='received_messages', null=True, blank=True, on_delete=models.CASCADE) # null if group message
     groupID = models.ForeignKey(Group, related_name='group_messages', null=True, blank=True, on_delete=models.CASCADE) # null if private message
+    created_at = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'Messages'
@@ -83,16 +87,21 @@ class Message(models.Model):
 
 # Notifications: every time a user sends a message, insert a notification into the table for each recipient. 
 # When a recipient opens the screen the message can be read from, remove their row from the table
-class Notification(models.Model):
-    uID = models.ForeignKey(User, on_delete=models.CASCADE)
-    message = models.ForeignKey(Message, on_delete=models.CASCADE)
-
-    class Meta:
-        db_table = 'Notifications'
+class UserNotification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications", null=True, blank=True)
+    title = models.CharField(max_length=255, default="No title")
+    body = models.TextField(default="")
+    type = models.CharField(max_length=32, default="generic")
+    timestamp = models.DateTimeField(auto_now_add=True)
+    read = models.BooleanField(default=False)
+    screen = models.CharField(max_length=64, default="Messages", blank=True, null=False)  # default is 'Messages'
+    challengeId = models.IntegerField(null=True, blank=True)
+    challName = models.CharField(max_length=255, null=True, blank=True)
+    whichChall = models.CharField(max_length=64, null=True, blank=True)
 
     def __str__(self):
-        return f"Notification for {self.uID.username} regarding message {self.message.id}"
-
+        return f"Notification for {self.user.username if self.user else 'Unknown'}: {self.title}"
+    
 
 # Game Categories: Different categories of games
 class GameCategory(models.Model):
@@ -135,6 +144,14 @@ class Challenge(models.Model):
     name        = models.CharField(max_length=255, default='Challenge')
     isCompleted = models.BooleanField(default=False)
     daysCompleted = models.IntegerField(default=0)
+    
+    def save(self, *args, **kwargs):
+        if self.startDate and self.endDate:
+            self.totalDays = (self.endDate - self.startDate).days
+        else:
+            self.totalDays = 0
+        super().save(*args, **kwargs)
+
 
     # ──────── NEW convenience helpers ────────────────────────────────────────
     members = models.ManyToManyField(
@@ -652,3 +669,10 @@ class PersonalChallengeInvite(models.Model):
         unique_together = ('chall', 'recipient')
 
 
+class PushToken(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='expo_push_token')
+    token = models.CharField(max_length=256)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"ExpoPushToken for {self.user.username}: {self.token}"

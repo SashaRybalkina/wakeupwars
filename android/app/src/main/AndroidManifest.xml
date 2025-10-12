@@ -42,5 +42,20 @@
         <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
       </intent-filter>
     </receiver>
+    <receiver android:name=".NotificationReceiver" android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED"/>
+        <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
+      </intent-filter>
+    </receiver>
+    <activity android:name=".AlarmActivity" android:showOnLockScreen="true" android:excludeFromRecents="true"
+      android:turnScreenOn="true"
+      android:launchMode="singleTop"
+      android:taskAffinity=""
+      android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"/>
+    <service
+      android:name=".AlarmSoundService"
+      android:exported="false"
+      android:foregroundServiceType="mediaPlayback"/>
   </application>
 </manifest>

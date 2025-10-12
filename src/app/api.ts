@@ -5,7 +5,6 @@ export const endpoints = {
   login: `${BASE_URL}/api/login/`,
   token: `${BASE_URL}/api/token/`,
   tokenRefresh: `${BASE_URL}/api/token/refresh/`,
-  // getUserInfo: `${BASE_URL}/api/get-user-info/`,
   register: `${BASE_URL}/api/register/`,
   groups: (userId: number) => `${BASE_URL}/api/user-groups/${userId}/`,
   getMatchingChallenges: (userId: number, categoryIds: number[], singOrMult: string) =>
@@ -82,6 +81,9 @@ export const endpoints = {
   validateSudokuMove: `${BASE_URL}/api/sudoku/validate/`,
   createWordleGame: `${BASE_URL}/api/wordle/create/`,
   validateWordleMove: `${BASE_URL}/api/wordle/validate/`,
+
+  notifications: (userId: number) => `${BASE_URL}/api/notifications/${userId}/`,
+  sendNotification: `${BASE_URL}/api/notifications/send/`,
 
   createPersonalChallenge: `${BASE_URL}/api/create-personal-challenge/`,
   leaderboard: (id: number) => `${BASE_URL}/api/challenge-leaderboard/${id}/`,
