@@ -29,7 +29,7 @@ const SomeCategories: React.FC<Props> = ({ navigation }) => {
     challName: number;
   };
 
-  console.log("Route params:", route.params);
+  console.log("SomeCategories route params:", route.params);
 
   const [cats, setCats] = useState<{ id: number; categoryName: string }[]>([]);
   

@@ -94,6 +94,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
     challName: string;
     whichChall: string;
   };
+  console.log("SudokuScreen route params:", route.params);
 
   const { user, setSkillLevels } = useUser();
   const [socket, setSocket] = useState<WebSocket | null>(null);

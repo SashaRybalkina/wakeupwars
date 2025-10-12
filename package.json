@@ -11,6 +11,7 @@
     "format:check": "prettier --check .",
     "test": "npm run typecheck && npm run lint && npm run format:check",
     "test:unit": "jest --watchAll",
+    "test:unit:ci": "jest --ci --coverage",
     "android": "expo run:android",
     "ios": "expo run:ios"
   },

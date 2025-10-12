@@ -137,6 +137,26 @@ const PersChall3: React.FC<Props> = ({ navigation }) => {
     setShowEndPicker(false);
   };
 
+
+function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number[]): number {
+  // Normalize: ensure startDate <= endDate
+  if (startDate > endDate) [startDate, endDate] = [endDate, startDate];
+
+  let count = 0;
+  const current = new Date(startDate);
+
+  // Loop day-by-day
+  while (current <= endDate) {
+    const weekday = current.getDay() === 0 ? 7 : current.getDay(); // Sunday=7, Monday=1,...
+    if (alarmDays.includes(weekday)) count++;
+    current.setDate(current.getDate() + 1);
+  }
+
+  return count;
+}
+
+
+
   const handleCreateChallenge = async () => {
     if (!startDate || !endDate) {
       Alert.alert("Error", "Please select both start and end dates.");
@@ -145,8 +165,9 @@ const PersChall3: React.FC<Props> = ({ navigation }) => {
 
     const start_date = toLocalYMD(startDate);
     const end_date = toLocalYMD(endDate);
-    const diffMs = endDate.getTime() - startDate.getTime();
-    const total_days = Math.ceil(diffMs / 86_400_000) + 1;
+    // const diffMs = endDate.getTime() - startDate.getTime();
+    // const total_days = Math.ceil(diffMs / 86_400_000) + 1;
+    const total_days = countAlarmDaysBetween(startDate, endDate, alarmDays);
 
     try {
         const accessToken = await getAccessToken();
@@ -225,7 +246,7 @@ const PersChall3: React.FC<Props> = ({ navigation }) => {
             }
 
             Alert.alert('Success', 'Schedule saved successfully', [
-                { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId: group_id, groupMembers: members, refresh: Date.now() }) },
+                { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId: group_id }) },
             ]);
 
         }
@@ -243,26 +264,26 @@ const PersChall3: React.FC<Props> = ({ navigation }) => {
             }
             console.log(payload)
 
-            const res = await fetch(endpoints.createPublicChallenge, {
-                method: 'POST',
-                headers: {
-                'Content-Type': 'application/json',
-                "Authorization": `Bearer ${accessToken}`,
-                },
-                body: JSON.stringify(payload),
-            });
+            // const res = await fetch(endpoints.createPublicChallenge, {
+            //     method: 'POST',
+            //     headers: {
+            //     'Content-Type': 'application/json',
+            //     "Authorization": `Bearer ${accessToken}`,
+            //     },
+            //     body: JSON.stringify(payload),
+            // });
         
-            if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.message || 'Failed to create challenge');
-            }
+            // if (!res.ok) {
+            //     const error = await res.json();
+            //     throw new Error(error.message || 'Failed to create challenge');
+            // }
         
-            const data = await res.json();
-            console.log('Challenge created:', data);
+            // const data = await res.json();
+            // console.log('Challenge created:', data);
 
-            Alert.alert('Success', 'Challenge created successfully', [
-                { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
-            ]);
+            // Alert.alert('Success', 'Challenge created successfully', [
+            //     { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
+            // ]);
         }
 
     } catch (err: any) {

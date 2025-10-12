@@ -2,7 +2,7 @@
   "expo": {
     "name": "WakeUpWars",
     "slug": "wakeupwars",
-    "owner": "wakeupwars",
+    "owner": "wakeupwars-org",
     "scheme": "wakeupwars",
     "version": "0.0.1",
     "orientation": "portrait",
@@ -28,8 +28,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "usesCleartextTraffic": true,
       "permissions": [
-        "android.permission.RECORD_AUDIO",
         "android.permission.RECORD_AUDIO"
       ],
       "package": "com.emilysashavickynatali.tastebuds"
@@ -44,7 +44,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "df551302-2994-4ad9-b95f-ae699f52a799"
+        "projectId": "f88b822a-a95e-4417-8284-e44f827ce0ec"
       }
     }
   }

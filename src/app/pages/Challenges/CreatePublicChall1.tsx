@@ -19,7 +19,7 @@ type Props = {
 };
 
 const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
-  const [singOrMult, setSingOrMult] = useState<"singleplayer" | "multiplayer" | null>(null);
+  const [singOrMult, setSingOrMult] = useState<"Singleplayer" | "Multiplayer" | null>(null);
   const [categories, setCategories] = useState<{ id: number; categoryName: string }[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<{ id: number; name: string }[]>([]);
   // const [miscSelected, setMiscSelected] = useState(false);
@@ -88,7 +88,7 @@ const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
           <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>Game Type</Text>
             <View style={styles.choiceRow}>
-              {["singleplayer", "multiplayer"].map((type) => (
+              {["Singleplayer", "Multiplayer"].map((type) => (
                 <TouchableOpacity
                   key={type}
                   style={[
@@ -105,7 +105,7 @@ const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
                       singOrMult === type && styles.choiceTextSelected,
                     ]}
                   >
-                    {type === "singleplayer" ? "Singleplayer" : "Multiplayer"}
+                    {type === "Singleplayer" ? "Singleplayer" : "Multiplayer"}
                   </Text>
                 </TouchableOpacity>
               ))}

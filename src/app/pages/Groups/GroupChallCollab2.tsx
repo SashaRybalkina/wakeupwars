@@ -221,6 +221,12 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
       style={styles.background}
       resizeMode="cover"
     >
+
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={28} color="#FFF" />
+        </TouchableOpacity>
+
           <ScrollView
             contentContainerStyle={{ paddingBottom: 100 }}
             showsVerticalScrollIndicator={false}
@@ -259,6 +265,75 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
 
 
 
+{selectedDays.length === 1 && (
+  <View style={styles.formSection}>
+    <Text style={styles.sectionTitle}>Games for {selectedDays[0]}</Text>
+
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: 4, alignItems: 'flex-start' }}
+    >
+      {(selectedDays[0] && gamesByDay[selectedDays[0]] || []).map((game, index) => {
+        const { image } = getMetaFromTuple(game);
+
+        return (
+          <TouchableOpacity
+            key={index}
+            style={[styles.gameCard, { width: 160, marginRight: 8 }]} // fixed width + spacing
+            onPress={() => selectedDays[0] && handleGameRemove(selectedDays[0], index)}
+          >
+            <View style={styles.gameContent}>
+              <Text style={styles.gameTitle}>{game[1]}</Text>
+              <Ionicons
+                name="close-circle"
+                size={20}
+                color="rgba(255,255,255,0.7)"
+                style={styles.removeIcon}
+              />
+            </View>
+
+            <ImageBackground
+              source={image}
+              style={styles.gameImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        );
+      })}
+
+      {/* Add Game Button */}
+      <TouchableOpacity
+        style={[styles.addGameButton, { width: 120, marginLeft: 8 }]} // same width as cards
+        onPress={() => {
+          navigation.navigate("Categories", {
+            catType: "Group",
+            singOrMult: "Neither",
+            onGameSelected: (game: { id: number; name: string }) => {
+              handleGameAdd(game)
+            },
+            groupId,
+            challName: name,
+            groupMembers: members,
+            alarmSchedule
+          })
+        }}
+      >
+        <LinearGradient
+          colors={["rgba(255, 255, 255, 0.2)", "rgba(255, 255, 255, 0.1)"]}
+          style={styles.addGameGradient}
+        >
+          <Ionicons name="add-circle-outline" size={24} color="#FFF" />
+          <Text style={styles.addGameText}>Add Game</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </ScrollView>
+  </View>
+)}
+
+
+
+{/* 
           {selectedDays.length === 1 && (
             <View style={styles.formSection}>
               <Text style={styles.sectionTitle}>Games for {selectedDays[0]}</Text>
@@ -317,7 +392,7 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
             </View>
-          )}
+          )} */}
 
 
 
@@ -334,6 +409,7 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
 
 
       </ScrollView>
+      </View>
     </ImageBackground>
   )
 }
@@ -347,7 +423,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingTop: 50,
-    paddingHorizontal: 20,
+    paddingHorizontal: 20
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 20,
+    marginBottom: 10,
   },
   pageTitle: {
     fontSize: 28,

@@ -17,6 +17,7 @@ import { useUser } from '../../context/UserContext';
 import { BASE_URL, endpoints } from '../../api';
 import { getAccessToken } from '../../auth';
 import { scheduleAlarmsForUser } from '../../alarmService';
+import { Ionicons } from '@expo/vector-icons';
 
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"];
 const DayOfWeekLabels: Record<number, string> = { 1: "M", 2: "T", 3: "W", 4: "TH", 5: "F", 6: "S", 7: "SU" }
@@ -410,7 +411,9 @@ const handleSubmit = async () => {
 
       if (!res.ok) throw new Error('Failed to decline invite.');
 
-      Alert.alert('Success', 'Invite declined.');
+            Alert.alert('Success', 'Invite declined', [
+                { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId }) },
+            ]);
     } catch (err: any) {
       Alert.alert('Error', err.message);
     }
@@ -499,6 +502,12 @@ return (
     style={styles.background}
     resizeMode="cover"
   >
+
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={28} color="#FFF" />
+        </TouchableOpacity>
+
       {loading ? (
         <ActivityIndicator size="large" color="#FFD700" />
       ) : (
@@ -707,13 +716,18 @@ return (
 
       )}
 
-
+  </View>
   </ImageBackground>
 );
 
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: 50, 
+    paddingHorizontal: 20,
+  },
   background: {
     flex: 1,
   },
@@ -755,6 +769,15 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 12,
     textAlign: 'center',
+  },
+    backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 15,
   },
   interactiveCell: {
     backgroundColor: "rgba(255, 255, 255, 0)",

@@ -20,6 +20,7 @@ import { useUser } from "../../context/UserContext"
 import { Picker } from "@react-native-picker/picker"
 import { getAccessToken } from "../../auth"
 import { getNextAlarmDate } from "../../../utils/dateUtils"
+import { getMetaFromTuple } from "../Games/NewGamesManagement"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -337,7 +338,7 @@ const onTimeChange = (event: any, time?: Date) => {
                     alarm_schedule: alarmSchedule,
                     game_schedule: gameSchedules,
                     chall_type: 'Public',
-                    sing_or_mult: singOrMult === "singleplayer" ? "Singleplayer" : "Multiplayer",
+                    sing_or_mult: singOrMult,
                     category_ids: categories.map(c => c.id),
                 })
   
@@ -436,6 +437,76 @@ const onTimeChange = (event: any, time?: Date) => {
             )}
           </View>
 
+
+
+{selectedDays.length === 1 && (
+  <View style={styles.formSection}>
+    <Text style={styles.sectionTitle}>Games for {selectedDays[0]}</Text>
+
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: 4, alignItems: 'flex-start' }}
+    >
+      {(selectedDays[0] && gamesByDay[selectedDays[0]] || []).map((game, index) => {
+        const { image } = getMetaFromTuple(game);
+
+        return (
+          <TouchableOpacity
+            key={index}
+            style={[styles.gameCard, { width: 160, marginRight: 8 }]} // fixed width + spacing
+            onPress={() => selectedDays[0] && handleGameRemove(selectedDays[0], index)}
+          >
+            <View style={styles.gameContent}>
+              <Text style={styles.gameTitle}>{game[1]}</Text>
+              <Ionicons
+                name="close-circle"
+                size={20}
+                color="rgba(255,255,255,0.7)"
+                style={styles.removeIcon}
+              />
+            </View>
+
+            <ImageBackground
+              source={image}
+              style={styles.gameImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        );
+      })}
+
+      {/* Add Game Button */}
+      <TouchableOpacity
+        style={[styles.addGameButton, { width: 120, marginLeft: 8 }]}
+        onPress={() => {
+          navigation.navigate("SomeCategories", {
+            catType: "Public",
+            categories: categories,
+            singOrMult: singOrMult,
+            onGameSelected: (game: { id: number; name: string }) => {
+              handleGameAdd(game)
+            },
+          })
+        }}
+      >
+        <LinearGradient
+          colors={["rgba(255, 255, 255, 0.2)", "rgba(255, 255, 255, 0.1)"]}
+          style={styles.addGameGradient}
+        >
+          <Ionicons name="add-circle-outline" size={24} color="#FFF" />
+          <Text style={styles.addGameText}>Add Game</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </ScrollView>
+  </View>
+)}
+
+
+
+
+{/* 
+
           {selectedDays.length === 1 && (
             <View style={styles.formSection}>
               <Text style={styles.sectionTitle}>Games for {selectedDays[0]}</Text>
@@ -511,7 +582,7 @@ const onTimeChange = (event: any, time?: Date) => {
                 </TouchableOpacity>
               </View>
             </View>
-          )}
+          )} */}
 
           {/* <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>Reward</Text>
@@ -856,17 +927,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
   },
-  choiceRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 },
-  choiceButton: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)', marginRight: 10, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
-  choiceButtonSelected: { backgroundColor: 'rgba(255,215,0,0.3)', borderColor: '#FFD700' },
-  choiceText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
-  choiceTextSelected: { color: '#FFD700' },
-
   navText: {
     color: "#999",
     fontSize: 12,
     marginTop: 4,
   },
+  choiceRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 },
+  choiceButton: { marginTop:-20, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)', marginRight: 10, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  choiceButtonSelected: { backgroundColor: 'rgba(255,215,0,0.3)', borderColor: '#FFD700' },
+  choiceText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  choiceTextSelected: { color: '#FFD700' },
+  rewardHeader:{flexDirection:'row',alignItems:'center',marginBottom:12},
+
   activeNavText: {
     color: "#FFD700",
     fontSize: 12,
