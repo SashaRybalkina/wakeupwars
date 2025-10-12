@@ -1,13 +1,21 @@
 from django.utils import timezone
+import logging
 from django.contrib.auth import get_user_model
 from celery import shared_task, uuid
 from django.db.models import F
 from api.sudokuStuff.utils import get_or_create_game as sudoku_init
 from api.wordleStuff.utils import get_or_create_game_wordle as wordle_init
 from api.patternMem.utils import get_or_create_pattern_game as pattern_init
-from .models import (Obligation, Payment, PaymentStatus, ObligationStatus, ChallengeMembership, 
-SudokuGameState, WordleGameState, PatternMemorizationGameState, Challenge, 
-ChallengeMembership, GamePerformance, Game)
+from .models import (
+    ChallengeMembership,
+    SudokuGameState,
+    WordleGameState,
+    PatternMemorizationGameState,
+    Challenge,
+    ChallengeMembership,
+    GamePerformance,
+    Game,
+)
 
 # ---------- helper ----------
 def _game_state_model(game_code):
@@ -17,15 +25,35 @@ def _game_state_model(game_code):
         "pattern": PatternMemorizationGameState,
     }[game_code]
 
-User = get_user_model()   
+User = get_user_model()
+logger = logging.getLogger(__name__)
 
 # A. fire at alarm-time
 @shared_task
-def open_join_window(challenge_id, game_id, game_code):
+def open_join_window(challenge_id, game_id, game_code, user_id=None):
     Model = _game_state_model(game_code)
 
     ch   = Challenge.objects.get(pk=challenge_id)
     game = Game.objects.get(pk=game_id)
+
+    # choose a user (some helpers require a user)
+    user = None
+    if user_id is not None:
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            user = None
+    if user is None:
+        user = getattr(ch, "initiator", None)
+    if user is None:
+        first_uid = (
+            ChallengeMembership.objects
+            .filter(challengeID=ch)
+            .values_list("uID_id", flat=True)
+            .first()
+        )
+        if first_uid:
+            user = User.objects.filter(pk=first_uid).first()
 
     # try to reuse an existing state
     try:
@@ -33,8 +61,10 @@ def open_join_window(challenge_id, game_id, game_code):
     except Model.DoesNotExist:
         # otherwise create one
         if game_code == "sudoku":
-            system_user = User.objects.get(username="gshin")
-            gs_dict = sudoku_init(ch.id, system_user, allow_join=False)   # ← use ch.id
+            # sudoku init requires a user; fall back to any available user
+            if user is None:
+                user = User.objects.order_by("id").first()
+            gs_dict = sudoku_init(ch.id, user, allow_join=False)
             gs = SudokuGameState.objects.get(pk=gs_dict["game_state_id"])
 
         elif game_code == "wordle":
@@ -94,27 +124,3 @@ def close_join_window(model_name, gs_id):
         )
     gs.joins_closed = True
     gs.save(update_fields=["joins_closed"])
-
-@shared_task
-def apply_overdue_penalties():
-    today = timezone.now().date()
-    qs = Obligation.objects.filter(status__in=[ObligationStatus.UNPAID, ObligationStatus.PENDING], due_at__lt=timezone.now())
-    for ob in qs:
-        if ob.last_penalty_at and ob.last_penalty_at.date() >= today:
-            continue
-        penalised = ChallengeMembership.objects.filter(
-            challengeID=ob.challenge,
-            uID=ob.payer
-        ).update(points=F('points') - ob.points_penalty_per_day)
-
-        ob.last_penalty_at = timezone.now()
-        ob.save(update_fields=['last_penalty_at'])
-
-        # TODO: push notification
-
-@shared_task
-def auto_confirm_old_payments(hours=48):
-    threshold = timezone.now() - timezone.timedelta(hours=hours)
-    for p in Payment.objects.filter(status=PaymentStatus.PENDING,
-                                    payer_marked_at__lt=threshold):
-        p.confirm()

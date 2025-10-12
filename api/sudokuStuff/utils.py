@@ -11,14 +11,14 @@ from datetime import timedelta
 def get_or_create_game(challenge_id, user, allow_join: bool = True):
     challenge = Challenge.objects.get(id=challenge_id)
     #print("Challenge is using game:", challenge.game.id, challenge.game.name)
-    is_multiplayer = challenge.groupID is not None # TODO: will need to eventually check if this game is multiplayer, not enough to just check
-                                                    # if part of a group challenge
-    # difficulty = 0.5 if is_multiplayer else 0.3  # medium for groups, easy for solo
-    difficulty = 0.1 if is_multiplayer else 0.1
 
     # Try to get existing game for this challenge
     game_state = SudokuGameState.objects.filter(challenge=challenge).first()
 
+    is_multiplayer = game_state.game.isMultiplayer
+    # difficulty = 0.5 if is_multiplayer else 0.3  # medium for groups, easy for solo
+    difficulty = 0.1 if is_multiplayer else 0.1
+    
     if not game_state:
         # Generate a new puzzle and solution
         sudoku = Sudoku(3, 3, seed=int(time.time() * 1000)).difficulty(difficulty)

@@ -167,6 +167,8 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
 
       if (res.status === 403) {
         const data = await res.json();
+        console.log("Response data:", data.code); // Check the response from the server
+
         if (data.code === 'JOINS_CLOSED' || data.code === 'GAME_ENDED') {
             Alert.alert('Join closed', 'This game can no longer be joined.');
             navigation.goBack();

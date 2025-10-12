@@ -38,6 +38,7 @@ from django.http import JsonResponse
 from typing     import Dict, List
 from rest_framework.exceptions import ValidationError
 from django.db.models import Min, Max
+from datetime import datetime, time
 
 #### Sudoku Game Imports ####
 from .models import (SudokuGameState, WordleGameState, Challenge, SudokuGamePlayer, WordleGamePlayer, User, Game, GamePerformance, RewardSetting,
@@ -267,7 +268,6 @@ class RegisterView(APIView):
 class HelloWorldView(APIView):
     def get(self, request):
         return Response({'message': 'Hello from Django REST Framework!'})
-    
 
 class UserProfileView(APIView):
     def get(self, request, user_id):
@@ -493,9 +493,80 @@ class JoinPublicChallengeView(APIView):
             print(new_avg)
             cfg.averageSkillLevel = new_avg
             cfg.save()
+            
+                    # Build (time, game_id) pairs from schedule
+            slot_tasks = set()
+            for cas in ChallengeAlarmSchedule.objects.filter(challenge=challenge)\
+                                                    .select_related("alarm_schedule"):
+                day = cas.alarm_schedule.dayOfWeek
+                t_obj = cas.alarm_schedule.alarmTime
+                logger.info("Day: %s, Time: %s", day, t_obj)
+                game_ids = (
+                    GameScheduleGameAssociation.objects
+                    .filter(game_schedule__challenge=challenge,
+                            game_schedule__dayOfWeek=day)
+                    .values_list("game_id", flat=True)
+                )
+                logger.info("Game IDs: %s", list(game_ids))
+                for gid in game_ids:
+                    slot_tasks.add((t_obj, gid))
+
+            logger.info("Total slot_tasks=%d", len(slot_tasks))
+            if not slot_tasks:
+                return Response(
+                    {"error": "No schedule found to queue tasks."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            def build_alarm_dt(ch_start, t_obj):
+                # ch_start may be date or datetime
+                from datetime import date as _date, datetime as _dt
+                if isinstance(ch_start, _dt):
+                    base_date = ch_start.date()
+                else:
+                    base_date = ch_start  # assume date
+                dt = _dt.combine(base_date, t_obj)
+                # Make aware if naive
+                if timezone.is_naive(dt):
+                    dt = timezone.make_aware(dt, timezone.get_current_timezone())
+                return dt
+
+            queued = 0
+            for t_obj, game_id in slot_tasks:
+                try:
+                    alarm_dt = build_alarm_dt(challenge.startDate, t_obj)
+                    logger.info("Computed alarm_dt=%s (tz=%s) for game_id=%s",
+                                alarm_dt, alarm_dt.tzinfo, game_id)
+
+                    g = Game.objects.get(id=game_id)
+                    g_name = (g.name or "").lower()
+                    if "sudoku" in g_name:
+                        code = "sudoku"
+                    elif "wordle" in g_name:
+                        code = "wordle"
+                    elif "pattern" in g_name:
+                        code = "pattern"
+                    else:
+                        logger.warning("Unknown game name=%r id=%s; skipping", g.name, g.id)
+                        continue
+
+                    initiator_id = (challenge.initiator_id or user.id)
+                    logger.info("Queueing open_join_window: chall=%s game_id=%s code=%s eta=%s initiator=%s",
+                                challenge.id, game_id, code, alarm_dt, initiator_id)
+
+                    open_join_window.apply_async(
+                        args=[challenge.id, game_id, code, initiator_id],
+                        eta=alarm_dt,
+                        # Optional: dedupe
+                        # taREDACTEDid=f"open-{challenge.id}-{game_id}-{t_obj.strftime('%H%M')}",
+                    )
+                    queued += 1
+                except Exception as e:
+                    logger.exception("Failed to queue slot (t=%s, game_id=%s): %s", t_obj, game_id, e)
+                    raise
 
             return Response({
-                "message": "User joined challenge successfully",
+                "message": "User joined challenge successfully and marked alarm set in backend and bg task queued",
                 "newAverageSkillLevel": float(new_avg)
             }, status=status.HTTP_200_OK)
 
@@ -632,51 +703,62 @@ class SetUserHasSetAlarmsView(APIView):
         membership.save()
         
         challenge = get_object_or_404(Challenge, id=chall_id)
+        initiator_id = (
+            challenge.initiator_id
+            or ChallengeMembership.objects.filter(challengeID=challenge)
+                .values_list("uID_id", flat=True).first()
+        )
+        logger.info("Initiator ID: %s", initiator_id)
+        # challenge diagnostics
+        logger.info("Challenge(%s) pending=%s startDate=%r type=%s",
+                    challenge.id, challenge.isPending, challenge.startDate, type(challenge.startDate).__name__)
 
-        # Otherwise try to build and enqueue background tasks
-        try:
-            initiator_id = (
-                challenge.initiator_id
-                or ChallengeMembership.objects.filter(challengeID=challenge)
-                    .values_list("uID_id", flat=True).first()
+        # Build (time, game_id) pairs from schedule
+        slot_tasks = set()
+        for cas in ChallengeAlarmSchedule.objects.filter(challenge=challenge)\
+                                                .select_related("alarm_schedule"):
+            day = cas.alarm_schedule.dayOfWeek
+            t_obj = cas.alarm_schedule.alarmTime
+            logger.info("Day: %s, Time: %s", day, t_obj)
+            game_ids = (
+                GameScheduleGameAssociation.objects
+                .filter(game_schedule__challenge=challenge,
+                        game_schedule__dayOfWeek=day)
+                .values_list("game_id", flat=True)
             )
-            logger.info("Initiator ID: %s", initiator_id)
-            if not initiator_id:
-                return Response(
-                    {"error": "No user available to initialize game states."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            logger.info("Game IDs: %s", list(game_ids))
+            for gid in game_ids:
+                slot_tasks.add((t_obj, gid))
 
-            # Build (time, game_id) pairs from schedule
-            slot_tasks = set()
-            for cas in ChallengeAlarmSchedule.objects.filter(challenge=challenge)\
-                                                    .select_related("alarm_schedule"):
-                day = cas.alarm_schedule.dayOfWeek
-                t_obj = cas.alarm_schedule.alarmTime
-                logger.info("Day: %s, Time: %s", day, t_obj)
-                game_ids = (
-                    GameScheduleGameAssociation.objects
-                    .filter(game_schedule__challenge=challenge,
-                            game_schedule__dayOfWeek=day)
-                    .values_list("game_id", flat=True)
-                )
-                logger.info("Game IDs: %s", game_ids)
-                for gid in game_ids:
-                    slot_tasks.add((t_obj, gid))
+        logger.info("Total slot_tasks=%d", len(slot_tasks))
+        if not slot_tasks:
+            return Response(
+                {"error": "No schedule found to queue tasks."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-            if not slot_tasks:
-                return Response(
-                    {"error": "No schedule found to queue tasks."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+        def build_alarm_dt(ch_start, t_obj):
+            # ch_start may be date or datetime
+            from datetime import date as _date, datetime as _dt
+            if isinstance(ch_start, _dt):
+                base_date = ch_start.date()
+            else:
+                base_date = ch_start  # assume date
+            dt = _dt.combine(base_date, t_obj)
+            # Make aware if naive
+            if timezone.is_naive(dt):
+                dt = timezone.make_aware(dt, timezone.get_current_timezone())
+            return dt
 
-            queued = 0
-            for t_obj, game_id in slot_tasks:
-                alarm_dt = timezone.make_aware(
-                    datetime.combine(challenge.startDate, t_obj),
-                    timezone.get_current_timezone(),
-                )
-                g_name = Game.objects.get(id=game_id).name.lower()
+        queued = 0
+        for t_obj, game_id in slot_tasks:
+            try:
+                alarm_dt = build_alarm_dt(challenge.startDate, t_obj)
+                logger.info("Computed alarm_dt=%s (tz=%s) for game_id=%s",
+                            alarm_dt, alarm_dt.tzinfo, game_id)
+
+                g = Game.objects.get(id=game_id)
+                g_name = (g.name or "").lower()
                 if "sudoku" in g_name:
                     code = "sudoku"
                 elif "wordle" in g_name:
@@ -684,24 +766,28 @@ class SetUserHasSetAlarmsView(APIView):
                 elif "pattern" in g_name:
                     code = "pattern"
                 else:
+                    logger.warning("Unknown game name=%r id=%s; skipping", g.name, g.id)
                     continue
+
+                logger.info("Queueing open_join_window: chall=%s game_id=%s code=%s eta=%s initiator=%s",
+                            challenge.id, game_id, code, alarm_dt, initiator_id)
 
                 open_join_window.apply_async(
                     args=[challenge.id, game_id, code, initiator_id],
                     eta=alarm_dt,
+                    # Optional: dedupe
+                    # taREDACTEDid=f"open-{challenge.id}-{game_id}-{t_obj.strftime('%H%M')}",
                 )
                 queued += 1
+            except Exception as e:
+                logger.exception("Failed to queue slot (t=%s, game_id=%s): %s", t_obj, game_id, e)
+                raise
 
-            return Response(
-                {"message": "Marked alarm set in backend & background tasks queued.", "queued": True, "count": queued},
-                status=status.HTTP_200_OK,
-            )
-
-        except Exception as e:
-            return Response(
-                {"error": f"Failed to queue tasks: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        return Response(
+            {"message": "Marked alarm set in backend & background tasks queued.",
+            "queued": True, "count": queued},
+            status=status.HTTP_200_OK,
+        )
 
 class GetPendingPublicChallengesView(APIView):
     def get(self, request, user_id):

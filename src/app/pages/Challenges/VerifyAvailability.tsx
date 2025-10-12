@@ -26,16 +26,19 @@ type Props = { navigation: NavigationProp<any> }
 // Config 
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
 // const TIMES = Array.from({ length: 12 }, (_, i) => `${i + 6}:00`); // 6am - 5pm 
-const TIMES = Array.from({ length: 44 }, (_, i) => {
-  const totalMinutes = 4 * 60 + i * 15; // start at 4:00
-  const hours24 = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
+const START_MIN = 24 * 60; // 10:00 PM
+const END_MIN = 25 * 60;   // 12:00 AM next day
+const STEP_MIN = 1;
 
-  const period = hours24 >= 12 ? "PM" : "AM";
-  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
-
-  return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
-});
+const TIMES = Array.from(
+  { length: Math.floor((END_MIN - START_MIN) / STEP_MIN) + 1 }, // 121 entries (includes 12:00 AM)
+  (_, i) => {
+    const totalMinutes = START_MIN + i * STEP_MIN;
+    const hours24 = Math.floor(totalMinutes / 60) % 24;
+    const minutes = totalMinutes % 60;
+    return `${String(hours24).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`; // "HH:MM"
+  }
+);
 
 
 type SelectedCell = { day: number; time: number }; // day: 0-6, time: 0-11 
@@ -73,29 +76,39 @@ const VerifyAvailability: React.FC<Props> = ({ navigation }) => {
       }
     });
   };
-
   const isCellSelected = (day: number, time: number) =>
     selectedCells.some(cell => cell.day === day && cell.time === time);
 
 
 
-const convertTo24Hour = (time12: string) => {
-  // "4:15 AM" => "04:15", "3:00 PM" => "15:00"
-  const [time, modifier] = time12.split(" ");
-  if (!time || !modifier) throw new Error(`Invalid time format: ${time12}`);
+const convertTo24Hour = (input: string) => {
+  // Accepts:
+  //  - "HH:MM" (24-hour)
+  //  - "h:MM AM/PM" (12-hour)
+  // Returns: "HH:MM" (24-hour)
 
-  const [hoursStr, minutesStr] = time.split(":");
-  if (!hoursStr || !minutesStr) throw new Error(`Invalid time format: ${time12}`);
+  // If already 24-hour format
+  if (/^\d{2}:\d{2}$/.test(input)) {
+    return input;
+  }
 
-  let hours = Number(hoursStr);
-  const minutes = Number(minutesStr);
+  // Try to parse 12-hour format
+  const m = /^(\d{1,2}):(\d{2})\s?(AM|PM)$/i.exec(input);
+  if (m) {
+    const hStr = m[1]!;
+    const minStr = m[2]!;
+    const ampm = m[3]!.toUpperCase();
+    let hours = parseInt(hStr, 10);
+    const minutes = parseInt(minStr, 10);
 
-  if (modifier === "AM" && hours === 12) hours = 0;
-  if (modifier === "PM" && hours !== 12) hours += 12;
+    if (ampm === "AM" && hours === 12) hours = 0;
+    if (ampm === "PM" && hours !== 12) hours += 12;
 
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  }
+
+  throw new Error(`Invalid time format: ${input}`);
 };
-
 
 
   useEffect(() => {
