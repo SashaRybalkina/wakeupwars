@@ -60,12 +60,32 @@ export interface IgnoredMessage {
   type: 'ignored';
 }
 
+export type CellLockedMessage = {
+  type: 'cell_locked';
+  cell: number;     // index of the cell
+  player: string;   // who locked the cell
+};
+
+export type CellUnlockedMessage = {
+  type: 'cell_unlocked';
+  cell: number;
+};
+
+export type LockFailedMessage = {
+  type: 'lock_failed';
+  cell: number;
+};
+
+
 // Server to client
 export type ServerToClientMessage =
   | BroadcastMoveMessage
   | PlayerJoinedMessage
   | GameCompleteMessage
-  | IgnoredMessage;
+  | IgnoredMessage
+  | CellLockedMessage
+  | CellUnlockedMessage
+  | LockFailedMessage;
 
 // Client to server
 export type ClientToServerMessage = MakeMoveMessage;
@@ -105,6 +125,8 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   // const [intervalId, setIntervalId] = useState<ReturnType<typeof setInterval> | null>(null);
   const [gameCompleted, setGameCompleted] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [cellLocks, setCellLocks] = useState<{ [key:number]: string }>({});
+
   // const [pendingInput, setPendingInput] = useState<string>('');
 
   // const formatTime = (sec: number) => `${Math.floor(sec / 60)}:${sec % 60 < 10 ? '0' + sec % 60 : sec % 60}`;
@@ -220,6 +242,21 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
             ToastAndroid.show("⚠️ This cell has already been completed", ToastAndroid.SHORT);
             return;
           }
+
+          if (data.type === 'cell_locked') {
+            setCellLocks(prev => ({ ...prev, [data.cell]: data.player }));
+            return;
+          }
+
+          if (data.type === 'cell_unlocked') {
+            setCellLocks(prev => {
+              const updated = { ...prev };
+              delete updated[data.cell];
+              return updated;
+            });
+            return;
+          }
+
 
           switch (data.type) {
 
@@ -584,7 +621,48 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                 return (
                   <TouchableOpacity
                     key={index}
-                    onPress={() => setSelectedIndex(index)}
+                    onPress={() => {
+                      if (initialCells[index]) return;
+
+                      // 🟡 If the player taps the same cell again → unselect it and show a toast
+                      if (selectedIndex === index) {
+                        ToastAndroid.show('⚠️ You have already selected this cell', ToastAndroid.SHORT);
+                        setSelectedIndex(null); // remove yellow highlight
+                        if (socket) {
+                          socket.send(JSON.stringify({
+                            type: 'unlock_cell',
+                            index: index
+                          }));
+                        }
+                        return;
+                      }
+
+                      // 🧭 Step 1: If another cell was previously locked → unlock it
+                      if (socket && selectedIndex !== null && selectedIndex !== index) {
+                        socket.send(JSON.stringify({
+                          type: 'unlock_cell',
+                          index: selectedIndex
+                        }));
+                      }
+
+                      // 🧭 Step 2: Check if this cell is locked by another player
+                      const lockedBy = cellLocks[index];
+                      if (lockedBy && lockedBy !== user?.username) {
+                        ToastAndroid.show(`⚠️ This cell is locked by ${lockedBy}`, ToastAndroid.SHORT);
+                        return;
+                      }
+
+                      // 🧭 Step 3: If not locked → lock this cell
+                      if (!lockedBy && socket) {
+                        socket.send(JSON.stringify({
+                          type: 'lock_cell',
+                          index: index
+                        }));
+                      }
+
+                      // 🧭 Step 4: Update current selection
+                      setSelectedIndex(index);
+                    }}
                     style={[
                       styles.cell,
                       { backgroundColor: cellColors[index] },
