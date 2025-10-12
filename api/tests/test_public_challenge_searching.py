@@ -183,63 +183,211 @@ class GetMatchingChallengesViewTests(APITestCase):
 
 
 
-        # response = self.client.post("/api/get-matching-challenges/", {
-        #     "categories": [self.cat1.id],
-        # }, format="json")
+    def test_excludes_based_on_categories(self):
+        # challenge 1 is Math and Word at 9:30 on monday with skill level 4
+        # challenge 2 is Word at 9:44 on tuesday with skill level 8.5
+        # the user searching for a challenge is willing to see Word challenges
+        # and their availability is monday at 9:30, tuesday at 9:30
 
-        # self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # challenge_ids = [c["id"] for c in response.data]
+        avail1 = UserAvailability.objects.create(
+            user=self.user,
+            dayOfWeek=1,
+            alarmTime="09:30:00"
+        )
+        avail2 = UserAvailability.objects.create(
+            user=self.user,
+            dayOfWeek=2,
+            alarmTime="09:30:00"
+        )
 
-        # self.assertIn(c1.id, challenge_ids)
-        # self.assertNotIn(c2.id, challenge_ids)
+
+        alarm1 = AlarmSchedule.objects.create(
+            uID = self.user2,
+            dayOfWeek = 1, # Integer field to store day of the week (1-7)
+            alarmTime = "09:30:00"
+        )
+        alarm2 = AlarmSchedule.objects.create(
+            uID = self.user3,
+            dayOfWeek = 2, # Integer field to store day of the week (1-7)
+            alarmTime = "09:44:00"
+        )
+
+
+        c1 = Challenge.objects.create(
+            groupID     = None,
+            initiator   = self.user2,
+            isPublic    = True,
+            isPending   = True,
+            startDate   = None,
+            endDate     = None,
+            totalDays   = 30,
+            name        = 'Chall 1',
+            isCompleted = False,
+            daysCompleted = 0
+        )
+        config1 = PublicChallengeConfiguration.objects.create(
+            challenge=c1,
+            averageSkillLevel=4.00,
+            isMultiplayer=True
+        )
+        ca1 = PublicChallengeCategoryAssociation.objects.create(
+            challenge=c1,
+            category=self.cat1
+        )
+        ca11 = PublicChallengeCategoryAssociation.objects.create(
+            challenge=c1,
+            category=self.cat2
+        )
+        cas1 = ChallengeAlarmSchedule.objects.create(
+            challenge=c1,
+            alarm_schedule=alarm1
+        )
 
 
 
 
+        c2 = Challenge.objects.create(
+            groupID     = None,
+            initiator   = self.user3,
+            isPublic    = True,
+            isPending   = True,
+            startDate   = None,
+            endDate     = None,
+            totalDays   = 30,
+            name        = 'Chall 2',
+            isCompleted = False,
+            daysCompleted = 0
+        )
+        config2 = PublicChallengeConfiguration.objects.create(
+            challenge=c2,
+            averageSkillLevel=8.50,
+            isMultiplayer=True
+        )
+        ca2 = PublicChallengeCategoryAssociation.objects.create(
+            challenge=c2,
+            category=self.cat1
+        )
+        cas2 = ChallengeAlarmSchedule.objects.create(
+            challenge=c2,
+            alarm_schedule=alarm2
+        )
 
-    # def test_skill_level_ordering(self):
-    #     c1 = Challenge.objects.create(skill_level=5, isPending=True)  # distance 0
-    #     c2 = Challenge.objects.create(skill_level=6, isPending=True)  # distance 1
-    #     c3 = Challenge.objects.create(skill_level=9, isPending=True)  # distance 4
 
-    #     for c in (c1, c2, c3):
-    #         c.categories.add(self.cat1)
 
-    #     response = self.client.post("/api/matching-challenges/", {
-    #         "categories": [self.cat1.id],
-    #     }, format="json")
 
-    #     challenge_ids = [c["id"] for c in response.data]
-    #     self.assertEqual(challenge_ids, [c1.id, c2.id, c3.id])  # ordered by distance
+        url = f"/api/get-matching-challenges/{self.user.id}/{self.cat1.id}/Multiplayer/"
+        response = self.client.get(url)
 
-    # def test_excludes_enrolled_challenges(self):
-    #     challenge = Challenge.objects.create(skill_level=5, isPending=True)
-    #     challenge.categories.add(self.cat1)
-    #     challenge.enrolled_users.add(self.user)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
 
-    #     response = self.client.post("/api/matching-challenges/", {
-    #         "categories": [self.cat1.id],
-    #     }, format="json")
+        self.assertIn("matches", data)
+        self.assertEqual(len(data["matches"]), 1) 
+        self.assertEqual(data["matches"][0]["summary"]["name"], "Chall 2")  # only c2 should appear
 
-    #     challenge_ids = [c["id"] for c in response.data]
-    #     self.assertNotIn(challenge.id, challenge_ids)
 
-    # def test_alarm_matching(self):
-    #     # Create challenge with alarms Mon/Wed/Fri at 9 AM
-    #     challenge = Challenge.objects.create(skill_level=5, isPending=True)
-    #     challenge.categories.add(self.cat1)
-    #     challenge.alarms.create(day_of_week="mon", time="09:00")
-    #     challenge.alarms.create(day_of_week="wed", time="09:00")
-    #     challenge.alarms.create(day_of_week="fri", time="09:00")
 
-    #     # Give user matching availability
-    #     self.user.availabilities.create(day_of_week="mon", time="09:00")
-    #     self.user.availabilities.create(day_of_week="wed", time="09:00")
-    #     self.user.availabilities.create(day_of_week="fri", time="09:00")
+    def test_excludes_based_on_availability(self):
+        # challenge 1 is Math and Word at 9:30 on monday with skill level 4
+        # challenge 2 is Word at 9:44 on tuesday with skill level 8.5
+        # the user searching for a challenge is willing to see Word challenges
+        # and their availability is monday at 9:30, tuesday at 9:45
 
-    #     response = self.client.post("/api/matching-challenges/", {
-    #         "categories": [self.cat1.id],
-    #     }, format="json")
+        avail1 = UserAvailability.objects.create(
+            user=self.user,
+            dayOfWeek=1,
+            alarmTime="09:30:00"
+        )
+        avail2 = UserAvailability.objects.create(
+            user=self.user,
+            dayOfWeek=2,
+            alarmTime="09:30:00"
+        )
 
-    #     challenge_ids = [c["id"] for c in response.data]
-    #     self.assertIn(challenge.id, challenge_ids)
+
+        alarm1 = AlarmSchedule.objects.create(
+            uID = self.user2,
+            dayOfWeek = 1, # Integer field to store day of the week (1-7)
+            alarmTime = "09:30:00"
+        )
+        alarm2 = AlarmSchedule.objects.create(
+            uID = self.user3,
+            dayOfWeek = 2, # Integer field to store day of the week (1-7)
+            alarmTime = "09:45:00"
+        )
+
+
+        c1 = Challenge.objects.create(
+            groupID     = None,
+            initiator   = self.user2,
+            isPublic    = True,
+            isPending   = True,
+            startDate   = None,
+            endDate     = None,
+            totalDays   = 30,
+            name        = 'Chall 1',
+            isCompleted = False,
+            daysCompleted = 0
+        )
+        config1 = PublicChallengeConfiguration.objects.create(
+            challenge=c1,
+            averageSkillLevel=4.00,
+            isMultiplayer=True
+        )
+        ca1 = PublicChallengeCategoryAssociation.objects.create(
+            challenge=c1,
+            category=self.cat1
+        )
+        ca11 = PublicChallengeCategoryAssociation.objects.create(
+            challenge=c1,
+            category=self.cat2
+        )
+        cas1 = ChallengeAlarmSchedule.objects.create(
+            challenge=c1,
+            alarm_schedule=alarm1
+        )
+
+
+
+
+        c2 = Challenge.objects.create(
+            groupID     = None,
+            initiator   = self.user3,
+            isPublic    = True,
+            isPending   = True,
+            startDate   = None,
+            endDate     = None,
+            totalDays   = 30,
+            name        = 'Chall 2',
+            isCompleted = False,
+            daysCompleted = 0
+        )
+        config2 = PublicChallengeConfiguration.objects.create(
+            challenge=c2,
+            averageSkillLevel=8.50,
+            isMultiplayer=True
+        )
+        ca2 = PublicChallengeCategoryAssociation.objects.create(
+            challenge=c2,
+            category=self.cat1
+        )
+        cas2 = ChallengeAlarmSchedule.objects.create(
+            challenge=c2,
+            alarm_schedule=alarm2
+        )
+
+
+
+
+        url = f"/api/get-matching-challenges/{self.user.id}/{self.cat1.id}/Multiplayer/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        self.assertIn("matches", data)
+        print(data["matches"])
+        self.assertEqual(len(data["matches"]), 0)
+
+
+
