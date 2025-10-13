@@ -1627,21 +1627,48 @@ class CreatePendingCollaborativeGroupChallengeView(APIView):
             # if No conflicts, continue to create challenge
 
             try:
+                # Normalize inputs: dates may arrive as strings, and total_days may be string/omitted
+                start_date_raw = data.get('start_date')
+                end_date_raw = data.get('end_date')
+                total_days_raw = data.get('total_days')
+
+                # Parse YYYY-MM-DD strings into date objects if needed
+                if isinstance(start_date_raw, str):
+                    start_date = datetime.strptime(start_date_raw, '%Y-%m-%d').date()
+                else:
+                    start_date = start_date_raw
+
+                if isinstance(end_date_raw, str):
+                    end_date = datetime.strptime(end_date_raw, '%Y-%m-%d').date()
+                else:
+                    end_date = end_date_raw
+
+                # Coerce/compute total_days
+                if total_days_raw in (None, ''):
+                    if start_date and end_date:
+                        total_days = (end_date - start_date).days + 1
+                    else:
+                        total_days = 1
+                else:
+                    try:
+                        total_days = int(total_days_raw)
+                    except (TypeError, ValueError):
+                        total_days = 1
+
+                # Create the challenge with normalized fields
                 challenge = Challenge.objects.create(
                     name=data['name'],
                     groupID_id=data['group_id'],
                     initiator_id=data['initiator_id'],
-                    startDate=data['start_date'],
-                    endDate=data['end_date'],
-                    totalDays=data['total_days'],
+                    startDate=start_date,
+                    endDate=end_date,
+                    totalDays=total_days,
                     isPublic=False,
                     isPending=True,
                 )
             except Exception as e:
                 print("Failed to create Challenge:", e)
                 raise
-
-
             # # ─── Reward config ──────────────────────────────
             # reward_data = data.get('reward')
             # if reward_data:

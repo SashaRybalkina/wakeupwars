@@ -116,7 +116,6 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
     // is currently hard coded to 4 (the only current group challenge)
     challengeId: number;
 
-    // having these to navigate back to the schedule page
     challName: string;
     whichChall: string;
   };
@@ -124,6 +123,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
 
   const { user, setSkillLevels } = useUser();
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
   // will only have a color if in a multiplayer game
   const [playerColor, setPlayerColor] = useState<string>('');
   const [playerColors, setPlayerColors] = useState<Record<string, string>>({});
@@ -154,7 +154,6 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const canStartNow = useMemo(() => {
-    // allow start if 2+ players present (best-effort)
     return readyCount >= 1;
   }, [readyCount]);
 
@@ -289,6 +288,8 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
           startLocalCountdown(join_deadline_at);
         }
         const ws = new WebSocket(`${BASE_URL.replace(/^http/, 'ws')}/ws/sudoku/${game_state_id}/?token=${accessToken}`);
+
+        socketRef.current = ws;
 
         ws.onopen = () => console.log("[WebSocket] connected");
 
@@ -454,9 +455,11 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
     // setIntervalId(id);
     return () => {
       // clearInterval(id);
-      if (socket) {
-        socket.close();
+      if (socketRef.current) {
+        socketRef.current.close();
       }
+      setSocket(null);
+      socketRef.current = null;
     };
   }, []);
 
@@ -465,15 +468,11 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   const confirmMove = async (index: number, value: number) => {
     try {
       if (index !== null) {
-        if (socket) {
-          // Multiplayer — send over socket
-          const message = {
-            type: 'make_move',
-            index,
-            value,
-          };
-          socket.send(JSON.stringify(message));
+        if (socketRef.current) {
+          const message = { type: 'make_move', index, value };
+          socketRef.current.send(JSON.stringify(message));
         } else {
+          // single-player API fallback
           // Single-player — validate via API
       const accessToken = await getAccessToken();
       if (!accessToken) {
@@ -624,14 +623,14 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.waitingText}>
             Time remaining: {Math.floor(remainingSec / 60)}:{(remainingSec % 60).toString().padStart(2, '0')}
           </Text>
-            {canStartNow && socket && (
+            {canStartNow && socketRef.current && (
               <TouchableOpacity
                 style={styles.startBtn}
                 onPress={() => {
                   console.log("[Sudoku] Starting game");
                   setWaitingActive(false);
-                  socket?.send(JSON.stringify({ type: 'start_game' }))}
-                }
+                  socketRef.current?.send(JSON.stringify({ type: 'start_game' }))
+                }}
               >
                 <Text style={styles.startBtnText}>Start Game</Text>
               </TouchableOpacity>
@@ -728,21 +727,15 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                       if (selectedIndex === index) {
                         ToastAndroid.show('⚠️ You have already selected this cell', ToastAndroid.SHORT);
                         setSelectedIndex(null); // remove yellow highlight
-                        if (socket) {
-                          socket.send(JSON.stringify({
-                            type: 'unlock_cell',
-                            index: index
-                          }));
+                        if (socketRef.current) {
+                          socketRef.current.send(JSON.stringify({ type: 'unlock_cell', index }));
                         }
                         return;
                       }
 
                       // 🧭 Step 1: If another cell was previously locked → unlock it
-                      if (socket && selectedIndex !== null && selectedIndex !== index) {
-                        socket.send(JSON.stringify({
-                          type: 'unlock_cell',
-                          index: selectedIndex
-                        }));
+                      if (socketRef.current && selectedIndex !== null && selectedIndex !== index) {
+                        socketRef.current.send(JSON.stringify({ type: 'unlock_cell', index: selectedIndex }));
                       }
 
                       // 🧭 Step 2: Check if this cell is locked by another player
@@ -753,11 +746,8 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                       }
 
                       // 🧭 Step 3: If not locked → lock this cell
-                      if (!lockedBy && socket) {
-                        socket.send(JSON.stringify({
-                          type: 'lock_cell',
-                          index: index
-                        }));
+                      if (!lockedBy && socketRef.current) {
+                        socketRef.current.send(JSON.stringify({ type: 'lock_cell', index }));
                       }
 
                       // 🧭 Step 4: Update current selection
