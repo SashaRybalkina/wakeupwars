@@ -55,8 +55,8 @@ const DayOfWeekLabels: Record<number, string> = { 1: "M", 2: "T", 3: "W", 4: "TH
 //   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 // });
 
-const START_MIN = 24 * 60; // 10:00 PM
-const END_MIN = 25 * 60;   // 12:00 AM next day
+const START_MIN = 25 * 60; // 10:00 PM
+const END_MIN = 26 * 60;   // 12:00 AM next day
 const STEP_MIN = 1;
 
 const TIMES = Array.from(

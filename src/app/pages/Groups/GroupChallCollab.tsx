@@ -38,8 +38,8 @@ const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
 
 //   return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
 // });
-const START_MIN = 24 * 60; // 10:00 PM
-const END_MIN = 25 * 60;   // 12:00 AM next day
+const START_MIN = 25 * 60; // 10:00 PM
+const END_MIN = 26 * 60;   // 12:00 AM next day
 const STEP_MIN = 1;
 
 const TIMES = Array.from(

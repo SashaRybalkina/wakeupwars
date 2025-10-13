@@ -152,6 +152,9 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   const [expectedCount, setExpectedCount] = useState<number>(1);
   const [remainingSec, setRemainingSec] = useState<number>(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // 3-2-1 countdown overlay
+  const [showCountdown, setShowCountdown] = useState(false);
+  const [countdownValue, setCountdownValue] = useState<number | null>(null);
 
   const canStartNow = useMemo(() => {
     return readyCount >= 1;
@@ -199,6 +202,34 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
         console.error("skill refresh failed", err);
       }
     };
+    useEffect(() => {
+      if (!waitingActive) {
+        if (showCountdown) {
+          setShowCountdown(false);
+          setCountdownValue(null);
+        }
+        return;
+      }
+      if (remainingSec <= 3 && remainingSec > 0) {
+        setShowCountdown(true);
+        setCountdownValue(remainingSec);
+      } else if (remainingSec <= 0) {
+        // countdown finished → auto-start
+        if (showCountdown) {
+          setShowCountdown(false);
+          setCountdownValue(null);
+        }
+        setWaitingActive(false);
+        // Ask server to close joins (safe even if close task fires too)
+        socketRef.current?.send(JSON.stringify({ type: 'start_game' }));
+      } else {
+        // more than 3 seconds left
+        if (showCountdown) {
+          setShowCountdown(false);
+          setCountdownValue(null);
+        }
+      }
+    }, [remainingSec, waitingActive]);
   // AI - Save scores
    const saveScores = async (payload: {
      challenge_id: number;
@@ -381,6 +412,8 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                 clearInterval(countdownRef.current);
                 countdownRef.current = null;
               }
+              setShowCountdown(false);
+              setCountdownValue(null);
               break;
             }
 
@@ -637,6 +670,11 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
             )}
         </View>
       )}
+        {showCountdown && (
+          <View style={styles.countdownOverlay}>
+            <Text style={styles.countdownText}>{countdownValue}</Text>
+          </View>
+        )}
         <View style={styles.header}>
           <TouchableOpacity style={styles.exitButton} onPress={() => {
             if (gameCompleted) navigation.navigate('ChallDetails', {
@@ -854,6 +892,25 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 12,
     color: 'white',
+  },
+  countdownOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  countdownText: {
+    fontSize: 96,
+    color: '#FFD700',
+    fontWeight: '900',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 8,
   },
   // waiting room styles
   waitingOverlay: {
