@@ -110,11 +110,14 @@ const GroupChallCollab: React.FC<Props> = ({ navigation }) => {
   };
 
   const toggleCell = (day: number, time: number) => {
+    console.log("toggling")
     setSelectedCells(prev => {
       const exists = prev.some(cell => cell.day === day && cell.time === time);
       if (exists) {
+        console.log("exists")
         return prev.filter(cell => !(cell.day === day && cell.time === time));
       } else {
+        console.log("doesn't exist")
         return [...prev, { day, time }];
       }
     });

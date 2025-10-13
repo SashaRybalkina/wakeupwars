@@ -202,11 +202,20 @@ class GetAvailabilitiesView(APIView):
         print(schedule)
         print(initiator_id)
 
+        declined_invites = GroupChallengeInvite.objects.filter(
+            chall_id=chall_id, 
+            accepted=0
+        ).select_related('uID')  # optional, avoids extra queries for users
+
+        # get the list of usernames (or any other field)
+        declined_list = [invite.uID.name for invite in declined_invites]
+
         return Response({
             "availabilities": availabilitiesData,
             "gameSchedule": schedule,
             "initiator_id": initiator_id,
-            "start_date": challenge.startDate
+            # "start_date": challenge.startDate
+            "declined_list": declined_list
         }, status=status.HTTP_200_OK)
 
         
@@ -1222,7 +1231,7 @@ class GetChallengeScheduleView(APIView):
             day = sched.dayOfWeek
             alarms_by_day.setdefault(day, []).append({
                 "userName": sched.uID.name,
-                "alarmTime": sched.alarmTime.strftime("%H:%M")
+                "alarmTime": sched.alarmTime.strftime("%I:%M %p")
             })
 
         # Merge games + alarms into result
@@ -1642,15 +1651,7 @@ class CreatePendingCollaborativeGroupChallengeView(APIView):
                 raise
 
 
-            # # ─── Reward config ──────────────────────────────
-            # reward_data = data.get('reward')
-            # if reward_data:
-            #     serializer_rs = RewardSettingSerializer(data=reward_data)
-            #     serializer_rs.is_valid(raise_exception=True)
-            #     RewardSetting.objects.create(
-            #         challenge=challenge,
-            #         **serializer_rs.validated_data,
-            #     )
+
 
 
             # Add inititor membership

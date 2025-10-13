@@ -118,11 +118,12 @@ const EditAvailability: React.FC<Props> = ({ navigation }) => {
 
   const [availability, setAvailability] = useState<AvailabilityEntry[]>([]);
   const [userAvailability, setUserAvailability] = useState<AvailabilityEntry[]>([]);
+  const [declinedList, setDeclinedList] = useState<string[]>([])
   const [loading, setLoading] = useState(true);
   const [isInitiator, setIsInitiator] = useState(false);
-  const [challengeStartDate, setChallengeStartDate] = useState<string | null>(
-    pendingChallengeStartDate ?? null
-  );
+  // const [challengeStartDate, setChallengeStartDate] = useState<string | null>(
+  //   pendingChallengeStartDate ?? null
+  // );
 
   const [schedule, setSchedule] = useState<
     {
@@ -184,7 +185,8 @@ const fetchAvailabilities = async () => {
     setUserAvailability(data.availabilities.filter((entry: AvailabilityEntry) => entry.uID === user.id));
     setPendingToggles([]); // clear pending toggles after full refresh
     setIsInitiator(data.initiator_id === user?.id);
-    setChallengeStartDate(data.start_date);
+    // setChallengeStartDate(data.start_date);
+    setDeclinedList(data.declined_list)
 
     const dedupedSchedule: DaySchedule[] = data.gameSchedule.map((day: DaySchedule) => ({
         ...day,
@@ -438,8 +440,8 @@ const handleSubmit = async () => {
 
     const handleFinalizeSchedule = async () => {
       console.log("challengeStartDate")
-      console.log(challengeStartDate)
-      if (!challengeStartDate) {
+      console.log(pendingChallengeStartDate)
+      if (!pendingChallengeStartDate) {
         console.warn("Start date not loaded yet");
         return;
       }
@@ -455,7 +457,7 @@ const handleSubmit = async () => {
       //   return;
       // }
       const today = new Date();
-      const start = new Date(challengeStartDate);
+      const start = new Date(pendingChallengeStartDate);
 
       console.log(today)
       console.log(start)
@@ -728,6 +730,19 @@ return (
           </View>
         );
       })()}
+
+
+      {declinedList.length > 0 && (
+        <View style={styles.legendContainer}>
+          <Text style={styles.legendText}>Declined:</Text>
+          {declinedList.map((memName, index) => (
+            <Text key={index} style={styles.memberName}>
+              {memName}
+            </Text>
+          ))}
+        </View>
+      )}
+
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSubmit}>
         <Text style={styles.saveButtonText}>Save My Availability</Text>
@@ -1011,6 +1026,15 @@ challengeEndDate: {
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 15,
+  },
+    memberName: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 0.5, height: 0.5 },
+    textShadowRadius: 1,
   },
 });
 

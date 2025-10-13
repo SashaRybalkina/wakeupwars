@@ -487,12 +487,12 @@ const getInitials = (name: string): string => {
       <View style={{ flexDirection: "row", marginTop: 4 }}>
         {dayData?.alarms.map((alarm, i) => (
           <View key={i} style={{
-            width: 40, height: 40, borderRadius: 20,
+            width: 42, height: 42, borderRadius: 20,
             backgroundColor: "#1E90FF", justifyContent: "center",
             alignItems: "center", marginHorizontal: 2
           }}>
             <Ionicons name="alarm" size={14} color="#FFD700" />
-            <Text style={{ fontSize: 10, color: "#FFF" }}>{alarm.alarmTime}</Text>
+            <Text style={{ fontSize: 10, color: "#FFF", textAlign: "center" }}>{alarm.alarmTime.replace(" ", "\n")}</Text>
           </View>
         ))}
       </View>
