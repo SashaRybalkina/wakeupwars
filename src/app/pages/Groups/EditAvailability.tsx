@@ -321,6 +321,20 @@ const toggleCell = (dayOfWeek: number, timeIdx: number) => {
 
 
 const handleSubmit = async () => {
+  const days = new Set(
+    availability
+      .filter(entry => entry.uID === user?.id)
+      .map(entry => entry.dayOfWeek)
+  );
+
+  if (days.size < activeDays.length) {
+    Alert.alert(
+      "Error",
+      "Please select at least one availability for each day."
+    );
+    return;
+  }
+
   try {
     // payload already in 24-hour HH:MM
     const payload = pendingToggles.map(({ dayOfWeek, alarmTime }) => ({
