@@ -154,7 +154,8 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
         setDaysOfWeek(parsedDaysOfWeek.map(String))
 
         setDaysComplete(data.daysCompleted)
-        setTotalDays(data.totalDays || 30)
+        setTotalDays(data.totalDays ?? 30)
+        console.log('total days??', data.totalDays)
         setMembers(data.members);
         setCanEditReward(!!data.initiator_id);
         setReward(data.reward_setting);

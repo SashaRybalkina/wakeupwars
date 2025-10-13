@@ -1120,14 +1120,16 @@ class ChallengeDetailView(APIView):
         ).values_list("dayOfWeek", flat=True).distinct()
 
         days_of_week = sorted([numeric_to_label[day] for day in alarm_schedules if day in numeric_to_label])
-        
+        if challenge.startDate and challenge.endDate:
+            totalDays = (challenge.endDate - challenge.startDate).days + 1
+        else:
+            totalDays = 0
         initiator_id = challenge.initiator_id
-
         return Response({
             **serializer.data,
             'members': members,
             # 'totalDays': (challenge.endDate - challenge.startDate).days + 1,
-            'totalDays': challenge.totalDays,
+            'totalDays': totalDays,
             'daysOfWeek': days_of_week,
             'initiator_id': initiator_id,
             'reward_setting': RewardSettingSerializer(getattr(challenge,'reward_setting',None)).data if hasattr(challenge,'reward_setting') else None
