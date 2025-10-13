@@ -114,7 +114,6 @@ export const endpoints = {
   challId
     ? `${BASE_URL}/api/share-challenge/${challId}/` 
     : `${BASE_URL}/api/share-challenge/`,          
-  notifications: (userId: number) => `${BASE_URL}/api/notifications/${userId}/`,
 };
 
 export const leaderboardHistory = (

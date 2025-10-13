@@ -1,5 +1,6 @@
 pluginManagement {
-    includeBuild(new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().toString())
+    // Use a static path to the React Native Gradle plugin to avoid Node exec issues on Windows
+    includeBuild(new File(rootDir, "../node_modules/@react-native/gradle-plugin").getAbsolutePath())
 }
 plugins { id("com.facebook.react.settings") }
 
@@ -35,4 +36,5 @@ apply from: new File(["node", "--print", "require.resolve('expo/package.json')"]
 useExpoModules()
 
 include ':app'
-includeBuild(new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile())
+// Ensure the included build is also referenced at the project level
+includeBuild(new File(rootDir, "../node_modules/@react-native/gradle-plugin").getAbsolutePath())
