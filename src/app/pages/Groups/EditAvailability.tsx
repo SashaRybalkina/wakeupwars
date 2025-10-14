@@ -48,26 +48,26 @@ const DayOfWeekLabels: Record<number, string> = { 1: "M", 2: "T", 3: "W", 4: "TH
 //   return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
 // });
 
-// const TIMES = Array.from({ length: 80 }, (_, i) => {
-//   const totalMinutes = 4 * 60 + i * 15; // start at 4:00
-//   const hours = Math.floor(totalMinutes / 60);
-//   const minutes = totalMinutes % 60;
-//   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-// });
+const TIMES = Array.from({ length: 80 }, (_, i) => {
+  const totalMinutes = 4 * 60 + i * 15; // start at 4:00
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+});
 
-const START_MIN = 14 * 60; // 10:00 PM
-const END_MIN = 16 * 60;   // 12:00 AM next day
-const STEP_MIN = 1;
+// const START_MIN = 14 * 60; // 10:00 PM
+// const END_MIN = 16 * 60;   // 12:00 AM next day
+// const STEP_MIN = 1;
 
-const TIMES = Array.from(
-  { length: Math.floor((END_MIN - START_MIN) / STEP_MIN) + 1 }, // 121 entries (includes 12:00 AM)
-  (_, i) => {
-    const totalMinutes = START_MIN + i * STEP_MIN;
-    const hours24 = Math.floor(totalMinutes / 60) % 24;
-    const minutes = totalMinutes % 60;
-    return `${String(hours24).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`; // "HH:MM"
-  }
-);
+// const TIMES = Array.from(
+//   { length: Math.floor((END_MIN - START_MIN) / STEP_MIN) + 1 }, // 121 entries (includes 12:00 AM)
+//   (_, i) => {
+//     const totalMinutes = START_MIN + i * STEP_MIN;
+//     const hours24 = Math.floor(totalMinutes / 60) % 24;
+//     const minutes = totalMinutes % 60;
+//     return `${String(hours24).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`; // "HH:MM"
+//   }
+// );
 
 type Props = {
   // use any to include .replace; or define proper stack prop if available

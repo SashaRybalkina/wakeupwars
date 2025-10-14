@@ -2,6 +2,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.utils.timezone import now, timedelta
 from rest_framework.test import APIClient
+from django.utils import timezone
 from api.models import Challenge, GameCategory, User, UserAvailability, SkillLevel, PublicChallengeConfiguration, PublicChallengeCategoryAssociation, AlarmSchedule, ChallengeAlarmSchedule
 
 
@@ -70,12 +71,13 @@ class GetMatchingChallengesViewTests(APITestCase):
         )
 
 
+        today = timezone.now().date()
         c1 = Challenge.objects.create(
             groupID     = None,
             initiator   = self.user2,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 1',
@@ -108,7 +110,7 @@ class GetMatchingChallengesViewTests(APITestCase):
             initiator   = self.user3,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 2',
@@ -136,7 +138,7 @@ class GetMatchingChallengesViewTests(APITestCase):
             initiator   = self.user3,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 3',
@@ -213,12 +215,13 @@ class GetMatchingChallengesViewTests(APITestCase):
         )
 
 
+        today = timezone.now().date()
         c1 = Challenge.objects.create(
             groupID     = None,
             initiator   = self.user2,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 1',
@@ -251,7 +254,7 @@ class GetMatchingChallengesViewTests(APITestCase):
             initiator   = self.user3,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 2',
@@ -317,12 +320,13 @@ class GetMatchingChallengesViewTests(APITestCase):
         )
 
 
+        today = timezone.now().date()
         c1 = Challenge.objects.create(
             groupID     = None,
             initiator   = self.user2,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 1',
@@ -355,7 +359,7 @@ class GetMatchingChallengesViewTests(APITestCase):
             initiator   = self.user3,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 2',
