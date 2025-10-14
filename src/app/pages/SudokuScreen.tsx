@@ -79,6 +79,7 @@ export type CellLockedMessage = {
   type: 'cell_locked';
   cell: number;     // index of the cell
   player: string;   // who locked the cell
+  color: string;    // player's color
 };
 
 export type CellUnlockedMessage = {
@@ -144,6 +145,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   const [gameCompleted, setGameCompleted] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [cellLocks, setCellLocks] = useState<{ [key:number]: string }>({});
+  const [cellBorderColors, setCellBorderColors] = useState<string[]>(Array(81).fill('black'));
 
   // const [pendingInput, setPendingInput] = useState<string>('');
   // Multiplayer waiting room state
@@ -344,6 +346,13 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
 
           if (data.type === 'cell_locked') {
             setCellLocks(prev => ({ ...prev, [data.cell]: data.player }));
+
+            setCellBorderColors(prev => {
+              const updated = [...prev];
+              updated[data.cell] = data.color;
+              console.log('[DEBUG cell_locked] border color for cell', data.cell, 'set to', data.color);
+              return updated;
+            });
             return;
           }
 
@@ -351,6 +360,14 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
             setCellLocks(prev => {
               const updated = { ...prev };
               delete updated[data.cell];
+              return updated;
+            });
+
+            // reset border color to black if not locked by anyone else
+            setCellBorderColors(prev => {
+              const updated = [...prev];
+              updated[data.cell] = 'black';
+              console.log('[DEBUG cell_unlocked] border color reset for cell', data.cell);
               return updated;
             });
             return;
@@ -862,7 +879,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                     }}
                     style={[
                       styles.cell,
-                      { backgroundColor: cellColors[index] },
+                      { backgroundColor: cellColors[index], borderColor: cellBorderColors[index], borderWidth: cellLocks[index] ? 3 : BORDER_WIDTH_THIN,},
                       selected && styles.selectedCell,
                       rowIndex % 3 === 0 && rowIndex !== 0 ? styles.thickTopBorder : {},
                       colIndex % 3 === 0 && colIndex !== 0 ? styles.thickLeftBorder : {},

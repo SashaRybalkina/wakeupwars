@@ -51,9 +51,9 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             gs.join_deadline_at = (gs.created_at or now) + timezone.timedelta(minutes=2)
             await sync_to_async(gs.save)(update_fields=["join_deadline_at"])
 
-        if gs.joins_closed or now > gs.join_deadline_at:
-            await self.close(code=4001)
-            return
+        # if gs.joins_closed or now > gs.join_deadline_at:
+        #     await self.close(code=4001)
+        #     return
 
         ended = await sync_to_async(
             GamePerformance.objects.filter(
@@ -209,7 +209,8 @@ class SudokuConsumer(AsyncWebsocketConsumer):
                 {
                     'type': 'cell_locked',
                     'cell': index,
-                    'player': username
+                    'player': username,
+                    'color': self.color,
                 }
             )
 
@@ -450,7 +451,8 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'cell_locked',
             'cell': event['cell'],
-            'player': event['player']
+            'player': event['player'],
+            'color': event['color']
         }))
 
     async def cell_unlocked(self, event):
