@@ -185,36 +185,36 @@ function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number
             };
             console.log(JSON.stringify(payload))
 
-            // const res = await fetch(endpoints.createPersonalChallenge, {
-            //     method: "POST",
-            //     headers: {
-            //     "Content-Type": "application/json",
-            //     Authorization: `Bearer ${accessToken}`,
-            //     },
-            //     body: JSON.stringify(payload),
-            // });
+            const res = await fetch(endpoints.createPersonalChallenge, {
+                method: "POST",
+                headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify(payload),
+            });
 
-            // if (!res.ok) {
-            //     const error = await res.json();
-            //     throw new Error(error.message || "Failed to create challenge");
-            // }
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || "Failed to create challenge");
+            }
 
-            // const data = await res.json();
-            // console.log('Challenge created:', data);
+            const data = await res.json();
+            console.log('Challenge created:', data);
 
-            // // Schedule native alarms on this device for the newly created challenge
-            // try {
-            //     const newId = (data && (data.id ?? data.challenge_id)) as number | undefined;
-            //     if (newId) {
-            //     console.log(newId)
-            //     await scheduleAlarmsForUser(newId, name, Number(user?.id));
-            //     }
-            // } catch (e) {
-            //     console.warn('Failed to schedule alarms for new challenge', e);
-            // }
-            // Alert.alert('Success', 'Challenge created successfully', [
-            //     { text: 'OK', onPress: () => navigation.navigate('PersChall1') },
-            // ]);
+            // Schedule native alarms on this device for the newly created challenge
+            try {
+                const newId = (data && (data.id ?? data.challenge_id)) as number | undefined;
+                if (newId) {
+                console.log(newId)
+                await scheduleAlarmsForUser(newId, name, Number(user?.id));
+                }
+            } catch (e) {
+                console.warn('Failed to schedule alarms for new challenge', e);
+            }
+            Alert.alert('Success', 'Challenge created successfully', [
+                { text: 'OK', onPress: () => navigation.navigate('PersChall1') },
+            ]);
         }
 
         else if (chall_type == 'Group') {
@@ -264,26 +264,26 @@ function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number
             }
             console.log(payload)
 
-            // const res = await fetch(endpoints.createPublicChallenge, {
-            //     method: 'POST',
-            //     headers: {
-            //     'Content-Type': 'application/json',
-            //     "Authorization": `Bearer ${accessToken}`,
-            //     },
-            //     body: JSON.stringify(payload),
-            // });
+            const res = await fetch(endpoints.createPublicChallenge, {
+                method: 'POST',
+                headers: {
+                'Content-Type': 'application/json',
+                "Authorization": `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify(payload),
+            });
         
-            // if (!res.ok) {
-            //     const error = await res.json();
-            //     throw new Error(error.message || 'Failed to create challenge');
-            // }
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || 'Failed to create challenge');
+            }
         
-            // const data = await res.json();
-            // console.log('Challenge created:', data);
+            const data = await res.json();
+            console.log('Challenge created:', data);
 
-            // Alert.alert('Success', 'Challenge created successfully', [
-            //     { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
-            // ]);
+            Alert.alert('Success', 'Challenge created successfully', [
+                { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
+            ]);
         }
 
     } catch (err: any) {
