@@ -1,4 +1,4 @@
-from api.models import GameCategory, WordleGameState, Challenge, WordleGamePlayer, User, Game, WordleMove
+from api.models import GameCategory, WordleGameState, Challenge, WordleGamePlayer, User, Game, WordleMove, GameSchedule, GameScheduleGameAssociation
 import random
 from django.db import transaction
 from asgiref.sync import sync_to_async
@@ -25,34 +25,20 @@ def get_or_create_game_wordle(challenge_id, user):
     Ensure the user is recorded as a player.
     """
     challenge = Challenge.objects.get(id=challenge_id)
-    is_multiplayer = challenge.groupID is not None
-
-    # Ensure the game category exists
-    category, _ = GameCategory.objects.get_or_create(
-        categoryName="Word Games",
-        defaults={"skilllevel": 1}
-    )
-
-    # Ensure the base Wordle Game exists (fixed id=30)
-    game, _ = Game.objects.update_or_create(
-        id=30,
-        defaults={
-            "name": "Wordle",
-            "category": category,
-            "isMultiplayer": is_multiplayer,
-        }
-    )
-
-    # Check if a WordleGameState already exists
     game_state = WordleGameState.objects.filter(challenge=challenge).first()
-
+    sched_ids = list( GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
+    assoc = (GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids).select_related('game').order_by('game_order', 'id').first())
+    wordleGame = assoc.game if assoc else Game.objects.filter(name__icontains='wordle').order_by('id').first()
+    is_multiplayer = bool(getattr(wordleGame, 'isMultiplayer', False))
+    print("is multiplayer: ", is_multiplayer)
+    
     if not game_state:
         target_word = random.choice(words).upper()
         puzzle = ["_"] * len(target_word)     # initial empty puzzle
         solution = list(target_word)          # solution stored as list of chars
 
         game_state = WordleGameState.objects.create(
-            game=game,
+            game=wordleGame,
             challenge=challenge,
             puzzle=puzzle,
             solution=solution,
@@ -82,7 +68,8 @@ def validate_wordle_move(game_state_id, user, guess, row):
     Validate a Wordle guess and return feedback, correctness, completion, and scores.
     """
     game_state = WordleGameState.objects.get(id=game_state_id)
-    is_multiplayer = game_state.challenge.groupID is not None
+    is_multiplayer = bool(getattr(game_state.game, 'isMultiplayer', False))
+    print("is multiplayer: ", is_multiplayer)
 
     solution = game_state.solution
     if isinstance(solution, str):

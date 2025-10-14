@@ -12,6 +12,8 @@ from api.models import (
     PatternMemorizationGamePlayer,
     Challenge,
     Game,
+    GameSchedule,
+    GameScheduleGameAssociation
 )
 
 # Allowed elements for the pattern – keep it simple and frontend friendly
@@ -46,28 +48,22 @@ def get_or_create_pattern_game(challenge_id: int, user, allow_join: bool = True)
     and ensure the current user has a player row.
     """
     challenge = Challenge.objects.get(id=challenge_id)
-    is_multiplayer = challenge.groupID is not None # same like sudoku, checking is part of the group or not
-
-    # Try an existing game for this challenge
     game_state = PatternMemorizationGameState.objects.filter(challenge=challenge).first()
+    sched_ids = list( GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
+    assoc = (GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids).select_related('game').order_by('game_order', 'id').first())
+    patternMemGame = assoc.game if assoc else Game.objects.filter(name__icontains='pattern').order_by('id').first()
+    is_multiplayer = bool(getattr(patternMemGame, 'isMultiplayer', False))
+    print("is multiplayer: ", is_multiplayer)
+    # is_multiplayer = challenge.groupID is not None # same like sudoku, checking is part of the group or not
 
     if not game_state:
-        # Choose the Game row (similar to your Sudoku hardcoded id=1).
-        # Here we try to find a Game named "Pattern Memorization". Adjust as needed.
-        # If you prefer hardcoding, replace with: pm_game = Game.objects.get(id=<your_id>)
-        pm_game = Game.objects.filter(name__iexact="Pattern Memorization").first()
-        #pm_game = Game.objects.get(id=12)
-        if pm_game is None:
-            # Fallback: just pick the first game or raise a clear error
-            pm_game = Game.objects.first()
-
         # Build full pattern for all rounds (max_rounds is default=5 in model)
         max_rounds = 2
         pattern = _build_full_pattern(max_rounds=max_rounds, start_len=4)
 
         # Create the game state
         game_state = PatternMemorizationGameState.objects.create(
-            game=pm_game,
+            game=patternMemGame,
             challenge=challenge,
             max_rounds=max_rounds,
             current_round=1,

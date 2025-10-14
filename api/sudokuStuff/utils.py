@@ -10,13 +10,14 @@ from django.utils import timezone
 
 def get_or_create_game(challenge_id, user, allow_join: bool = True):
     challenge = Challenge.objects.get(id=challenge_id)
+    # TODO: Right now it only returns one game for the challenge, but it should return all games for the challenge.
+    # There could be more than one scheduled in one alarm, so beware of this and make changes
     # Try to get existing game for this challenge
     game_state = SudokuGameState.objects.filter(challenge=challenge).first()
-    sched_id = GameSchedule.objects.get(challenge_id=challenge_id).id
-    game_id = GameScheduleGameAssociation.objects.get(game_schedule_id=sched_id).game_id
-
-    sudokuGame = Game.objects.get(id=game_id)
-    is_multiplayer = sudokuGame.isMultiplayer
+    sched_ids = list( GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
+    assoc = (GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids).select_related('game').order_by('game_order', 'id').first())
+    sudokuGame = assoc.game if assoc else Game.objects.filter(name__icontains='sudoku').order_by('id').first()
+    is_multiplayer = bool(getattr(sudokuGame, 'isMultiplayer', False))
     print("is multiplayer: ", is_multiplayer)
 
     game_name = sudokuGame.name
@@ -42,7 +43,7 @@ def get_or_create_game(challenge_id, user, allow_join: bool = True):
     else:
         # Existing state, infer multiplayer from its game safely
         gs_game = getattr(game_state, 'game', None)
-        is_multiplayer = bool(getattr(gs_game, 'isMultiplayer', (challenge.groupID_id is not None)))
+        is_multiplayer = bool(getattr(gs_game, 'isMultiplayer', False))
 
     # Ensure user is recorded as a player (track accuracy stats)
     if allow_join:
