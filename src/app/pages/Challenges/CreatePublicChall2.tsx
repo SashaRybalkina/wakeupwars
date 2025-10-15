@@ -477,6 +477,7 @@ const onTimeChange = (event: any, time?: Date) => {
       })}
 
       {/* Add Game Button */}
+      {(selectedDays && selectedDays[0] && (!gamesByDay[selectedDays[0]]) || (selectedDays && selectedDays[0] && gamesByDay[selectedDays[0]].length === 0)) && (
       <TouchableOpacity
         style={[styles.addGameButton, { width: 120, marginLeft: 8 }]}
         onPress={() => {
@@ -498,6 +499,7 @@ const onTimeChange = (event: any, time?: Date) => {
           <Text style={styles.addGameText}>Add Game</Text>
         </LinearGradient>
       </TouchableOpacity>
+    )}
     </ScrollView>
   </View>
 )}

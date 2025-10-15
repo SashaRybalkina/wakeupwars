@@ -303,6 +303,7 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
       })}
 
       {/* Add Game Button */}
+      {(selectedDays && selectedDays[0] && (!gamesByDay[selectedDays[0]]) || (selectedDays && selectedDays[0] && gamesByDay[selectedDays[0]].length === 0)) && (
       <TouchableOpacity
         style={[styles.addGameButton, { width: 120, marginLeft: 8 }]} // same width as cards
         onPress={() => {
@@ -327,6 +328,7 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.addGameText}>Add Game</Text>
         </LinearGradient>
       </TouchableOpacity>
+      )}
     </ScrollView>
   </View>
 )}

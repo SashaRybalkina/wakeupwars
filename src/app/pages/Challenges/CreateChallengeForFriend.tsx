@@ -285,6 +285,7 @@ const CreateChallengeForFriend: React.FC<Props> = ({ navigation }) => {
                             </View>
                           ))}
           
+                         {(selectedDays && selectedDays[0] && (!gamesByDay[selectedDays[0]]) || (selectedDays && selectedDays[0] && gamesByDay[selectedDays[0]].length === 0)) && (
                           <TouchableOpacity
                             style={styles.addGameButton}
                             onPress={() => {
@@ -306,6 +307,7 @@ const CreateChallengeForFriend: React.FC<Props> = ({ navigation }) => {
                               <Text style={styles.addGameText}>Add Game</Text>
                             </LinearGradient>
                           </TouchableOpacity>
+                        )}
                         </View>
                       </View>
                     )}

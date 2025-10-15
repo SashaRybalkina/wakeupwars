@@ -424,27 +424,29 @@ const toAmPm = (time24: string) => {
         );
       })}
 
-      {/* Add Game Button */}
-      <TouchableOpacity
-        style={[styles.addGameButton, { width: 120, marginLeft: 8 }]} // same width as cards
-        onPress={() => {
-          navigation.navigate("Categories", {
-            catType: "Personal",
-            singOrMult: "Singleplayer",
-            onGameSelected: (game: { id: number; name: string }) => {
-              handleGameAdd(game)
-            },
-          })
-        }}
+      {/* Only show if no game yet */}
+      {(selectedDays && selectedDays[0] && (!gamesByDay[selectedDays[0]]) || (selectedDays && selectedDays[0] && gamesByDay[selectedDays[0]].length === 0)) && (
+        <TouchableOpacity
+          style={[styles.addGameButton, { width: 120, marginLeft: 8 }]}
+          onPress={() => {
+            navigation.navigate("Categories", {
+              catType: "Personal",
+              singOrMult: "Singleplayer",
+              onGameSelected: (game: { id: number; name: string }) => {
+                handleGameAdd(game)
+              },
+            })
+          }}
       >
-        <LinearGradient
-          colors={["rgba(255, 255, 255, 0.2)", "rgba(255, 255, 255, 0.1)"]}
-          style={styles.addGameGradient}
-        >
-          <Ionicons name="add-circle-outline" size={24} color="#FFF" />
-          <Text style={styles.addGameText}>Add Game</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+          <LinearGradient
+            colors={["rgba(255, 255, 255, 0.2)", "rgba(255, 255, 255, 0.1)"]}
+            style={styles.addGameGradient}
+          >
+            <Ionicons name="add-circle-outline" size={24} color="#FFF" />
+            <Text style={styles.addGameText}>Add Game</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   </View>
 )}
