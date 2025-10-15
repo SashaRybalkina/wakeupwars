@@ -202,11 +202,20 @@ class GetAvailabilitiesView(APIView):
         print(schedule)
         print(initiator_id)
 
+        declined_invites = GroupChallengeInvite.objects.filter(
+            chall_id=chall_id, 
+            accepted=0
+        ).select_related('uID')  # optional, avoids extra queries for users
+
+        # get the list of usernames (or any other field)
+        declined_list = [invite.uID.name for invite in declined_invites]
+
         return Response({
             "availabilities": availabilitiesData,
             "gameSchedule": schedule,
             "initiator_id": initiator_id,
-            "start_date": challenge.startDate
+            # "start_date": challenge.startDate
+            "declined_list": declined_list
         }, status=status.HTTP_200_OK)
 
         
@@ -876,11 +885,26 @@ class GetMatchingChallengesView(APIView):
         # --- query candidate public pending challenges that match category & isMultiplayer ---
         is_multiplayer_flag = True if sing_or_mult == "Multiplayer" else False
 
-        q = PublicChallengeConfiguration.objects.filter(
+        today = timezone.now().date()
+        print("Today's date:", today)
+
+        base_q = PublicChallengeConfiguration.objects.filter(
             isMultiplayer=is_multiplayer_flag,
-            challenge__isPublic=True,
-            challenge__isPending=True
-        ).select_related("challenge").annotate(
+            challenge__isPublic=True
+        ).select_related("challenge")
+
+        if not is_multiplayer_flag:
+            # Exclude singleplayer challenges that already started
+            q = base_q.filter(challenge__startDate__gte=today)
+
+        elif is_multiplayer_flag:
+            # Annotate with member count for filtering
+            q = base_q.annotate(member_count=Count('challenge__challengemembership', distinct=True)).filter(
+                challenge__startDate__gte=today,
+                member_count__lt=5  # fewer than 5 members enrolled
+            )
+        
+        q = q.annotate(
             num_total_categories=Count('challenge__publicchallengecategoryassociation', distinct=True),
             num_matching_categories=Count(
                 'challenge__publicchallengecategoryassociation',
@@ -888,7 +912,7 @@ class GetMatchingChallengesView(APIView):
                 distinct=True
             )
         ).filter(
-            num_total_categories=F('num_matching_categories')  # only include if all categories match
+            num_total_categories=F('num_matching_categories')
         )
 
         # Exclude challenges where the user is already a member
@@ -965,6 +989,7 @@ class GetMatchingChallengesView(APIView):
         results = []
         for cfg in candidates:
             challenge = cfg.challenge
+            print(challenge.startDate)
 
             # collect alarm times per day for this challenge from prefetched CAS (set by prefetch)
             # note: we used to_attr='prefetched_cas' on challenge
@@ -1233,7 +1258,7 @@ class GetChallengeScheduleView(APIView):
             day = sched.dayOfWeek
             alarms_by_day.setdefault(day, []).append({
                 "userName": sched.uID.name,
-                "alarmTime": sched.alarmTime.strftime("%H:%M")
+                "alarmTime": sched.alarmTime.strftime("%I:%M %p")
             })
 
         # Merge games + alarms into result
@@ -1680,15 +1705,7 @@ class CreatePendingCollaborativeGroupChallengeView(APIView):
             except Exception as e:
                 print("Failed to create Challenge:", e)
                 raise
-            # # ─── Reward config ──────────────────────────────
-            # reward_data = data.get('reward')
-            # if reward_data:
-            #     serializer_rs = RewardSettingSerializer(data=reward_data)
-            #     serializer_rs.is_valid(raise_exception=True)
-            #     RewardSetting.objects.create(
-            #         challenge=challenge,
-            #         **serializer_rs.validated_data,
-            #     )
+
 
 
             # Add inititor membership

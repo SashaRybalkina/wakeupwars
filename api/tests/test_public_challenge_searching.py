@@ -2,6 +2,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.utils.timezone import now, timedelta
 from rest_framework.test import APIClient
+from django.utils import timezone
 from api.models import Challenge, GameCategory, User, UserAvailability, SkillLevel, PublicChallengeConfiguration, PublicChallengeCategoryAssociation, AlarmSchedule, ChallengeAlarmSchedule
 
 
@@ -70,12 +71,13 @@ class GetMatchingChallengesViewTests(APITestCase):
         )
 
 
+        today = timezone.now().date()
         c1 = Challenge.objects.create(
             groupID     = None,
             initiator   = self.user2,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 1',
@@ -108,7 +110,7 @@ class GetMatchingChallengesViewTests(APITestCase):
             initiator   = self.user3,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 2',
@@ -136,7 +138,7 @@ class GetMatchingChallengesViewTests(APITestCase):
             initiator   = self.user3,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 3',
@@ -183,11 +185,11 @@ class GetMatchingChallengesViewTests(APITestCase):
 
 
 
-    def test_excludes_based_on_categories(self):
+    def test_excludes_based_on_start_date(self):
         # challenge 1 is Math and Word at 9:30 on monday with skill level 4
-        # challenge 2 is Word at 9:44 on tuesday with skill level 8.5
-        # the user searching for a challenge is willing to see Word challenges
-        # and their availability is monday at 9:30, tuesday at 9:30
+        # challenge 2 is Word at 9:30 on tuesday with skill level 8.5
+        # the user searching for a challenge is willing to see Math and Word challenges
+        # and their availability is monday at 9:30, tuesday at 9:30, and wednesday at 9:30
 
         avail1 = UserAvailability.objects.create(
             user=self.user,
@@ -199,26 +201,33 @@ class GetMatchingChallengesViewTests(APITestCase):
             dayOfWeek=2,
             alarmTime="09:30:00"
         )
+        avail3 = UserAvailability.objects.create(
+            user=self.user,
+            dayOfWeek=3,
+            alarmTime="09:30:00"
+        )
+
 
 
         alarm1 = AlarmSchedule.objects.create(
             uID = self.user2,
             dayOfWeek = 1, # Integer field to store day of the week (1-7)
-            alarmTime = "09:30:00"
+            alarmTime = "09:32:00"
         )
         alarm2 = AlarmSchedule.objects.create(
             uID = self.user3,
             dayOfWeek = 2, # Integer field to store day of the week (1-7)
-            alarmTime = "09:44:00"
+            alarmTime = "09:32:00"
         )
 
 
+        today = timezone.now().date()
         c1 = Challenge.objects.create(
             groupID     = None,
             initiator   = self.user2,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 1',
@@ -251,7 +260,113 @@ class GetMatchingChallengesViewTests(APITestCase):
             initiator   = self.user3,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = timezone.now().date() - timedelta(days=1),
+            endDate     = None,
+            totalDays   = 30,
+            name        = 'Chall 2',
+            isCompleted = False,
+            daysCompleted = 0
+        )
+        config2 = PublicChallengeConfiguration.objects.create(
+            challenge=c2,
+            averageSkillLevel=8.50,
+            isMultiplayer=True
+        )
+        ca2 = PublicChallengeCategoryAssociation.objects.create(
+            challenge=c2,
+            category=self.cat1
+        )
+        cas2 = ChallengeAlarmSchedule.objects.create(
+            challenge=c2,
+            alarm_schedule=alarm2
+        )
+
+
+
+
+
+        url = f"/api/get-matching-challenges/{self.user.id}/{self.cat1.id},{self.cat2.id}/Multiplayer/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        self.assertIn("matches", data)
+        self.assertEqual(len(data["matches"]), 1)  # only c1 should appear
+        self.assertEqual(data["matches"][0]["summary"]["name"], "Chall 1") 
+
+
+
+    def test_excludes_based_on_categories(self):
+        # challenge 1 is Math and Word at 9:30 on monday with skill level 4
+        # challenge 2 is Word at 9:44 on tuesday with skill level 8.5
+        # the user searching for a challenge is willing to see Word challenges
+        # and their availability is monday at 9:30, tuesday at 9:30
+
+        avail1 = UserAvailability.objects.create(
+            user=self.user,
+            dayOfWeek=1,
+            alarmTime="09:30:00"
+        )
+        avail2 = UserAvailability.objects.create(
+            user=self.user,
+            dayOfWeek=2,
+            alarmTime="09:30:00"
+        )
+
+
+        alarm1 = AlarmSchedule.objects.create(
+            uID = self.user2,
+            dayOfWeek = 1, # Integer field to store day of the week (1-7)
+            alarmTime = "09:30:00"
+        )
+        alarm2 = AlarmSchedule.objects.create(
+            uID = self.user3,
+            dayOfWeek = 2, # Integer field to store day of the week (1-7)
+            alarmTime = "09:44:00"
+        )
+
+
+        today = timezone.now().date()
+        c1 = Challenge.objects.create(
+            groupID     = None,
+            initiator   = self.user2,
+            isPublic    = True,
+            isPending   = True,
+            startDate   = today,
+            endDate     = None,
+            totalDays   = 30,
+            name        = 'Chall 1',
+            isCompleted = False,
+            daysCompleted = 0
+        )
+        config1 = PublicChallengeConfiguration.objects.create(
+            challenge=c1,
+            averageSkillLevel=4.00,
+            isMultiplayer=True
+        )
+        ca1 = PublicChallengeCategoryAssociation.objects.create(
+            challenge=c1,
+            category=self.cat1
+        )
+        ca11 = PublicChallengeCategoryAssociation.objects.create(
+            challenge=c1,
+            category=self.cat2
+        )
+        cas1 = ChallengeAlarmSchedule.objects.create(
+            challenge=c1,
+            alarm_schedule=alarm1
+        )
+
+
+
+
+        c2 = Challenge.objects.create(
+            groupID     = None,
+            initiator   = self.user3,
+            isPublic    = True,
+            isPending   = True,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 2',
@@ -317,12 +432,13 @@ class GetMatchingChallengesViewTests(APITestCase):
         )
 
 
+        today = timezone.now().date()
         c1 = Challenge.objects.create(
             groupID     = None,
             initiator   = self.user2,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 1',
@@ -355,7 +471,7 @@ class GetMatchingChallengesViewTests(APITestCase):
             initiator   = self.user3,
             isPublic    = True,
             isPending   = True,
-            startDate   = None,
+            startDate   = today,
             endDate     = None,
             totalDays   = 30,
             name        = 'Chall 2',

@@ -48,26 +48,26 @@ const DayOfWeekLabels: Record<number, string> = { 1: "M", 2: "T", 3: "W", 4: "TH
 //   return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
 // });
 
-// const TIMES = Array.from({ length: 80 }, (_, i) => {
-//   const totalMinutes = 4 * 60 + i * 15; // start at 4:00
-//   const hours = Math.floor(totalMinutes / 60);
-//   const minutes = totalMinutes % 60;
-//   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-// });
+const TIMES = Array.from({ length: 80 }, (_, i) => {
+  const totalMinutes = 4 * 60 + i * 15; // start at 4:00
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+});
 
-const START_MIN = 18 * 60; // 10:00 PM
-const END_MIN = 19 * 60;   // 12:00 AM next day
-const STEP_MIN = 1;
+// const START_MIN = 14 * 60; // 10:00 PM
+// const END_MIN = 16 * 60;   // 12:00 AM next day
+// const STEP_MIN = 1;
 
-const TIMES = Array.from(
-  { length: Math.floor((END_MIN - START_MIN) / STEP_MIN) + 1 }, // 121 entries (includes 12:00 AM)
-  (_, i) => {
-    const totalMinutes = START_MIN + i * STEP_MIN;
-    const hours24 = Math.floor(totalMinutes / 60) % 24;
-    const minutes = totalMinutes % 60;
-    return `${String(hours24).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`; // "HH:MM"
-  }
-);
+// const TIMES = Array.from(
+//   { length: Math.floor((END_MIN - START_MIN) / STEP_MIN) + 1 }, // 121 entries (includes 12:00 AM)
+//   (_, i) => {
+//     const totalMinutes = START_MIN + i * STEP_MIN;
+//     const hours24 = Math.floor(totalMinutes / 60) % 24;
+//     const minutes = totalMinutes % 60;
+//     return `${String(hours24).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`; // "HH:MM"
+//   }
+// );
 
 type Props = {
   // use any to include .replace; or define proper stack prop if available
@@ -112,15 +112,18 @@ const EditAvailability: React.FC<Props> = ({ navigation }) => {
     pendingChallengeEndDate: string,
     accepted: number };
 
+    console.log(pendingChallengeId)
+
   const { user } = useUser();
 
   const [availability, setAvailability] = useState<AvailabilityEntry[]>([]);
   const [userAvailability, setUserAvailability] = useState<AvailabilityEntry[]>([]);
+  const [declinedList, setDeclinedList] = useState<string[]>([])
   const [loading, setLoading] = useState(true);
   const [isInitiator, setIsInitiator] = useState(false);
-  const [challengeStartDate, setChallengeStartDate] = useState<string | null>(
-    pendingChallengeStartDate ?? null
-  );
+  // const [challengeStartDate, setChallengeStartDate] = useState<string | null>(
+  //   pendingChallengeStartDate ?? null
+  // );
 
   const [schedule, setSchedule] = useState<
     {
@@ -182,7 +185,8 @@ const fetchAvailabilities = async () => {
     setUserAvailability(data.availabilities.filter((entry: AvailabilityEntry) => entry.uID === user.id));
     setPendingToggles([]); // clear pending toggles after full refresh
     setIsInitiator(data.initiator_id === user?.id);
-    setChallengeStartDate(data.start_date);
+    // setChallengeStartDate(data.start_date);
+    setDeclinedList(data.declined_list)
 
     const dedupedSchedule: DaySchedule[] = data.gameSchedule.map((day: DaySchedule) => ({
         ...day,
@@ -319,6 +323,20 @@ const toggleCell = (dayOfWeek: number, timeIdx: number) => {
 
 
 const handleSubmit = async () => {
+  const days = new Set(
+    availability
+      .filter(entry => entry.uID === user?.id)
+      .map(entry => entry.dayOfWeek)
+  );
+
+  if (days.size < activeDays.length) {
+    Alert.alert(
+      "Error",
+      "Please select at least one availability for each day."
+    );
+    return;
+  }
+
   try {
     // payload already in 24-hour HH:MM
     const payload = pendingToggles.map(({ dayOfWeek, alarmTime }) => ({
@@ -422,8 +440,8 @@ const handleSubmit = async () => {
 
     const handleFinalizeSchedule = async () => {
       console.log("challengeStartDate")
-      console.log(challengeStartDate)
-      if (!challengeStartDate) {
+      console.log(pendingChallengeStartDate)
+      if (!pendingChallengeStartDate) {
         console.warn("Start date not loaded yet");
         return;
       }
@@ -438,62 +456,79 @@ const handleSubmit = async () => {
       //   alert("Start date already passed.");
       //   return;
       // }
+      const today = new Date();
+      const start = new Date(pendingChallengeStartDate);
 
-      try {
-      const accessToken = await getAccessToken();
-      if (!accessToken) {
-        throw new Error("Not authenticated");
+      console.log(today)
+      console.log(start)
+
+      // Convert both to YYYY-MM-DD strings (local)
+      const todayStr = today.toISOString().split("T")[0];
+      const startStr = start.toISOString().split("T")[0];
+
+      console.log(todayStr)
+      console.log(startStr)
+
+      if (todayStr > startStr) {
+        alert("Start date already passed.");
+        return;
       }
 
-        const res = await fetch(endpoints.finalizeCollaborativeGroupChallengeSchedule(pendingChallengeId), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            "Authorization": `Bearer ${accessToken}`,
-          },
-        });
-        if (!res.ok) throw new Error(`Failed to finalize schedule. (${res.status})`);
+      // try {
+      // const accessToken = await getAccessToken();
+      // if (!accessToken) {
+      //   throw new Error("Not authenticated");
+      // }
 
-        // let challenge_id: number | null = null;
-        // const text = await res.text();
-        // if (text) {
-        //   try {
-        //     const json = JSON.parse(text);
-        //     challenge_id = json?.challenge_id ?? null;
-        //   } catch {
-        //     // not JSON — ignore; we’ll fall back to pending id
-        //   }
-        // }
+      //   const res = await fetch(endpoints.finalizeCollaborativeGroupChallengeSchedule(pendingChallengeId), {
+      //     method: 'POST',
+      //     headers: {
+      //       'Content-Type': 'application/json',
+      //       "Authorization": `Bearer ${accessToken}`,
+      //     },
+      //   });
+      //   if (!res.ok) throw new Error(`Failed to finalize schedule. (${res.status})`);
 
-        // try {
-        //     console.log("setting user alarms for challenge:")
-        //     console.log(pendingChallengeId)
-        //     // await scheduleAlarmsForUser(pendingChallengeId, pendingChallengeName, Number(user?.id));
-        // } catch (e) {
-        //     console.warn('Failed to schedule alarms for new challenge', e);
-        // }
+      //   // let challenge_id: number | null = null;
+      //   // const text = await res.text();
+      //   // if (text) {
+      //   //   try {
+      //   //     const json = JSON.parse(text);
+      //   //     challenge_id = json?.challenge_id ?? null;
+      //   //   } catch {
+      //   //     // not JSON — ignore; we’ll fall back to pending id
+      //   //   }
+      //   // }
 
-        // const targetId = challenge_id ?? pendingChallengeId;
-        Alert.alert('Success', 'Schedule finalized.', [
-          {
-            text: 'OK',
-            // onPress: () =>
-            //   navigation.navigate('ChallDetails', {
-            //     challId: pendingChallengeId,
-            //     challName: pendingChallengeName,
-            //     whichChall: 'Group',
-            //   }),
-            onPress: () =>
-              navigation.navigate('ChallSchedule', {
-                challId: pendingChallengeId,
-                challName: pendingChallengeName,
-                fromSearch: false,
-              }),
-          },
-        ]);
-      } catch (err: any) {
-        Alert.alert('Error', err.message);
-      }
+      //   // try {
+      //   //     console.log("setting user alarms for challenge:")
+      //   //     console.log(pendingChallengeId)
+      //   //     // await scheduleAlarmsForUser(pendingChallengeId, pendingChallengeName, Number(user?.id));
+      //   // } catch (e) {
+      //   //     console.warn('Failed to schedule alarms for new challenge', e);
+      //   // }
+
+      //   // const targetId = challenge_id ?? pendingChallengeId;
+      //   Alert.alert('Success', 'Schedule finalized.', [
+      //     {
+      //       text: 'OK',
+      //       // onPress: () =>
+      //       //   navigation.navigate('ChallDetails', {
+      //       //     challId: pendingChallengeId,
+      //       //     challName: pendingChallengeName,
+      //       //     whichChall: 'Group',
+      //       //   }),
+      //       onPress: () =>
+      //         navigation.navigate('ChallSchedule', {
+      //           challId: pendingChallengeId,
+      //           challName: pendingChallengeName,
+      //           fromSearch: false,
+      //         }),
+      //     },
+      //   ]);
+      // } catch (err: any) {
+      //   Alert.alert('Error', err.message);
+      // }
     };
 
 return (
@@ -695,6 +730,19 @@ return (
           </View>
         );
       })()}
+
+
+      {declinedList.length > 0 && (
+        <View style={styles.legendContainer}>
+          <Text style={styles.legendText}>Declined:</Text>
+          {declinedList.map((memName, index) => (
+            <Text key={index} style={styles.memberName}>
+              {memName}
+            </Text>
+          ))}
+        </View>
+      )}
+
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSubmit}>
         <Text style={styles.saveButtonText}>Save My Availability</Text>
@@ -976,6 +1024,15 @@ challengeEndDate: {
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 15,
+  },
+    memberName: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 0.5, height: 0.5 },
+    textShadowRadius: 1,
   },
 });
 

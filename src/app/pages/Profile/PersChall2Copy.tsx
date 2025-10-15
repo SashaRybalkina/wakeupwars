@@ -139,6 +139,17 @@ const PersChall2Copy: React.FC<Props> = ({ navigation }) => {
     })
   }
 
+const toAmPm = (time24: string) => {
+  // Split into hours and minutes
+  const [hoursStr, minutes] = time24.split(":");
+  let hours = parseInt(hoursStr, 10);
+  const ampm = hours >= 12 ? "PM" : "AM";
+  
+  hours = hours % 12 || 12; // convert 0 -> 12 for midnight, 13 -> 1, etc.
+  
+  return `${hours}:${minutes} ${ampm}`;
+};
+
   const cleanTime = (time: string) => {
     return time.replace(/\u202f/g, "").trim()
   }
@@ -334,7 +345,7 @@ const PersChall2Copy: React.FC<Props> = ({ navigation }) => {
                     {day}
                   </Text>
                   {hasTime && (
-                    <Text style={styles.timeText}>{dayTimeMapping[day]}</Text>
+                    <Text style={styles.timeText}>{toAmPm(dayTimeMapping[day])}</Text>
                   )}
                 </TouchableOpacity>
               )

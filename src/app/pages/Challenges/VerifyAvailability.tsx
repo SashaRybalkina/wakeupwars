@@ -26,25 +26,33 @@ type Props = { navigation: NavigationProp<any> }
 // Config 
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
 // const TIMES = Array.from({ length: 12 }, (_, i) => `${i + 6}:00`); // 6am - 5pm 
-const START_MIN = 18 * 60; // 10:00 PM
-const END_MIN = 19 * 60;   // 12:00 AM next day
-const STEP_MIN = 1;
 
-const TIMES = Array.from(
-  { length: Math.floor((END_MIN - START_MIN) / STEP_MIN) + 1 }, // 121 entries (includes 12:00 AM)
-  (_, i) => {
-    const totalMinutes = START_MIN + i * STEP_MIN;
-    const hours24 = Math.floor(totalMinutes / 60) % 24;
-    const minutes = totalMinutes % 60;
-    return `${String(hours24).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`; // "HH:MM"
-  }
-);
+// const START_MIN = 24 * 60; // 10:00 PM
+// const END_MIN = 25 * 60;   // 12:00 AM next day
+// const STEP_MIN = 1;
 
+// const TIMES = Array.from(
+//   { length: Math.floor((END_MIN - START_MIN) / STEP_MIN) + 1 }, // 121 entries (includes 12:00 AM)
+//   (_, i) => {
+//     const totalMinutes = START_MIN + i * STEP_MIN;
+//     const hours24 = Math.floor(totalMinutes / 60) % 24;
+//     const minutes = totalMinutes % 60;
+//     return `${String(hours24).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`; // "HH:MM"
+//   }
+// );
+
+const TIMES = Array.from({ length: 80 }, (_, i) => {
+  const totalMinutes = 4 * 60 + i * 15; // start at 4:00
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+});
 
 type SelectedCell = { day: number; time: number }; // day: 0-6, time: 0-11 
 
 const VerifyAvailability: React.FC<Props> = ({ navigation }) => { 
   const { user } = useUser()
+  console.log("in verify")
 
   // const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
 
@@ -143,6 +151,18 @@ const convertTo24Hour = (input: string) => {
     fetchAvailability();
   }, [user?.id]);
 
+
+  const formatTo12Hour = (time24: string) => {
+    const [hStr, mStr] = time24.split(":");
+    if (!hStr) return;
+    if (!mStr) return;
+    let hours = parseInt(hStr, 10);
+    const minutes = parseInt(mStr, 10);
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+    return `${hours}:${mStr} ${ampm}`;
+};
+
   const handleSubmit = async () => {
     // Find cells that are different from initial
     const toggledCells = selectedCells.filter(
@@ -228,7 +248,7 @@ const convertTo24Hour = (input: string) => {
                 {TIMES.map((time, timeIdx) => (
                   <View key={timeIdx} style={styles.row}>
                     <View style={styles.cell}>
-                      <Text style={styles.cellText}>{time}</Text>
+                      <Text style={styles.cellText}>{formatTo12Hour(time)}</Text>
                     </View>
                     {DAYS.map((_, dayIdx) => (
                       <TouchableOpacity

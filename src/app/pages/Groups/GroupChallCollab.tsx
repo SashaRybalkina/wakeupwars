@@ -28,33 +28,35 @@ type Props = { navigation: NavigationProp<any> }
 const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
 // const TIMES = Array.from({ length: 12 }, (_, i) => `${i + 6}:00`); // 6am - 5pm 
 
-// const TIMES = Array.from({ length: 80 }, (_, i) => {
-//   const totalMinutes = 4 * 60 + i * 15; // start at 4:00
-//   const hours24 = Math.floor(totalMinutes / 60);
-//   const minutes = totalMinutes % 60;
+const TIMES = Array.from({ length: 80 }, (_, i) => {
+  const totalMinutes = 4 * 60 + i * 15; // start at 4:00
+  const hours24 = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
 
-//   const period = hours24 >= 12 ? "PM" : "AM";
-//   const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+  const period = hours24 >= 12 ? "PM" : "AM";
+  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
 
-//   return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
-// });
-const START_MIN = 18 * 60; // 10:00 PM
-const END_MIN = 19 * 60;   // 12:00 AM next day
-const STEP_MIN = 1;
+  return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
+});
 
-const TIMES = Array.from(
-  { length: Math.floor((END_MIN - START_MIN) / STEP_MIN) + 1 }, // 121 entries
-  (_, i) => {
-    const totalMinutes = START_MIN + i * STEP_MIN;
-    const hours24 = Math.floor(totalMinutes / 60) % 24; // wrap past midnight
-    const minutes = totalMinutes % 60;
 
-    const period = hours24 >= 12 ? "PM" : "AM";
-    const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+// const START_MIN = 14 * 60; // 10:00 PM
+// const END_MIN = 16 * 60;   // 12:00 AM next day
+// const STEP_MIN = 1;
 
-    return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
-  }
-);
+// const TIMES = Array.from(
+//   { length: Math.floor((END_MIN - START_MIN) / STEP_MIN) + 1 }, // 121 entries
+//   (_, i) => {
+//     const totalMinutes = START_MIN + i * STEP_MIN;
+//     const hours24 = Math.floor(totalMinutes / 60) % 24; // wrap past midnight
+//     const minutes = totalMinutes % 60;
+
+//     const period = hours24 >= 12 ? "PM" : "AM";
+//     const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+
+//     return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
+//   }
+// );
 
 // const TIMES = Array.from({ length: 44 }, (_, i) => {
 //   const totalMinutes = 4 * 60 + i * 15; // start at 4:00
@@ -110,11 +112,14 @@ const GroupChallCollab: React.FC<Props> = ({ navigation }) => {
   };
 
   const toggleCell = (day: number, time: number) => {
+    console.log("toggling")
     setSelectedCells(prev => {
       const exists = prev.some(cell => cell.day === day && cell.time === time);
       if (exists) {
+        console.log("exists")
         return prev.filter(cell => !(cell.day === day && cell.time === time));
       } else {
+        console.log("doesn't exist")
         return [...prev, { day, time }];
       }
     });
