@@ -940,7 +940,6 @@ const styles = StyleSheet.create({
     margin: 3,
     borderRadius: 5,
     borderWidth: 1,
-    elevation: 2, // for Android
   },
   numText: { fontSize: 14, fontWeight: 'bold' },
   actionRow: {

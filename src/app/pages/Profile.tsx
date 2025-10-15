@@ -155,7 +155,7 @@ const handleLogout = async () => {
             onPress={() => navigation.navigate('Friends1')}
           >
             <View style={styles.iconShadowContainer}>
-              <Ionicons name="people" size={40} color={'#fff'} />
+              <Ionicons name="people" size={40} color={'#fff'} style={styles.iconWithShadow} />
             </View>
             <Text style={styles.profileButtonText}>Friends</Text>
           </TouchableOpacity>
@@ -164,7 +164,7 @@ const handleLogout = async () => {
             onPress={() => navigation.navigate('PersChall1')}
           >
             <View style={styles.iconShadowContainer}>
-              <Ionicons name="trophy" size={40} color={'#FFD700'} />
+              <Ionicons name="trophy" size={40} color={'#FFD700'} style={styles.iconWithShadow} />
             </View>
             <Text style={[styles.profileButtonText, { color: '#FF0' }]}>
               Challenges
@@ -427,6 +427,9 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '700',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   menu: {
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -508,14 +511,13 @@ const styles = StyleSheet.create({
   iconShadowContainer: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 0,
-    elevation: 5,
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
   },
   iconWithShadow: {
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowColor: 'rgba(0, 0, 0, 0.55)',
     textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 0,
+    textShadowRadius: 1.5,
   },
 });
 

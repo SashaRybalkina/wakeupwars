@@ -235,7 +235,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
-    elevation: 8,
   },
   addButton: {
     borderRadius: 30,
@@ -306,7 +305,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
-    elevation: 5,
   },
   createButtonGradient: {
     paddingVertical: 15,

@@ -268,7 +268,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
                           })
                         }
                       >
-                        <Ionicons name="share" size={20} color="#FFF" />
+                        <Ionicons name="share-outline" size={20} color="#FFF" />
                       </TouchableOpacity>
                     </View>
                   ))}
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   challengeCardsContainer: { width: "100%" },
   challengeCardWrapper: {
     marginBottom: 15, borderRadius: 16, overflow: "hidden",
-    elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2, shadowRadius: 4, flex: 1,
   },
   emptyStateContainer: {
@@ -390,9 +390,11 @@ const styles = StyleSheet.create({
   activeNavText: { color: "#FFD700", fontSize: 12, marginTop: 4, fontWeight: "600" },
   challengeRow: { position: "relative", marginBottom: 15 },
   shareButton: {
-    position: "absolute", width: 36, height: 36, top: 10, right: 10,
-    borderRadius: 18, backgroundColor: "rgba(0,0,0,0.5)",
+    position: "absolute", width: 36, height: 36, top: 10, right: 15,
+    borderRadius: 18, backgroundColor: "rgba(88, 86, 214, 0.6)",
     justifyContent: "center", alignItems: "center", zIndex: 2,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8, shadowRadius: 4,
   },
 })
 

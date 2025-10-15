@@ -226,10 +226,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: 1,
   },
   groupIconContainer: {
     width: 60,
@@ -282,7 +280,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   arrowContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "transparent",
     borderRadius: 20,
     width: 36,
     height: 36,
@@ -303,7 +301,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
-    elevation: 6,
   },
   navBar: {
     backgroundColor: "#211F26",

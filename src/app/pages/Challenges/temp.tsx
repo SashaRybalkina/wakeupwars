@@ -423,7 +423,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 3,
-    elevation: 3,
   },
   activeDayCircle: {
     backgroundColor: "#FFA500",
@@ -431,7 +430,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 5,
-    elevation: 5,
   },
   dayText: {
     fontWeight: "700",
