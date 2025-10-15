@@ -252,9 +252,12 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
                           <ChallengeCard
                             title={c.name}
                             icon={require("../../images/school.png")}
-                            daysComplete={c.daysCompleted}
-                            totalDays={c.totalDays === null ? "?" : c.totalDays}
-                            daysOfWeek={c.daysOfWeek}
+                            startDate={c.startDate}
+                            endDate={c.endDate || null}
+                            daysCompleted={c.daysCompleted || 0}
+                            totalDays={c.totalDays ?? 30}
+                            daysOfWeek={c.daysOfWeek ?? []}
+                            isCompleted={!!c.isCompleted}
                           />
                         </View>
                       </TouchableOpacity>
@@ -307,9 +310,12 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
                       <ChallengeCard
                         title={c.name}
                         icon={require("../../images/school.png")}
-                        daysComplete={c.daysCompleted}
-                        totalDays={c.totalDays === null ? "?" : c.totalDays}
+                        startDate={c.startDate}
+                        endDate={c.endDate || ""}
+                        daysCompleted={c.daysCompleted}
+                        totalDays={c.totalDays ?? 30}
                         daysOfWeek={c.daysOfWeek}
+                        isCompleted={!!c.isCompleted}
                       />
                     </TouchableOpacity>
                   ))}
