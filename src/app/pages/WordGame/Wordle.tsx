@@ -110,6 +110,13 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
   const [players, setPlayers] = useState<string[]>([]);
   const hasShownResultRef = useRef(false);
   const [isMultiplayer, setIsMultiplayer] = useState(false);
+  const [playerColors, setPlayerColors] = useState<{ [key: string]: string }>({});
+
+  const COLOR_POOL = [
+  'hotpink', 'coral', 'orange', 'lawngreen', 'aqua',
+  'deepskyblue', 'mediumorchid', 'mediumvioletred',
+  'magenta', 'thistle', 'powderblue', 'plum', 'peachpuff', 'palegreen'
+];
 
   // Waiting room state (mirroring Sudoku)
   const [waitingActive, setWaitingActive] = useState<boolean>(false);
@@ -168,6 +175,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
     initGame();
   };
 
+  
   // Initialize game
   const initGame = async () => {
     try {
@@ -328,6 +336,30 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
       console.error('[initGame] Failed:', err);
     }
   };
+
+  useEffect(() => {
+    setPlayerColors(prev => {
+      const updated = { ...prev };
+
+      players.forEach(p => {
+        if (!updated[p]) {
+          
+          const usedColors = Object.values(updated);
+          
+          const availableColors = COLOR_POOL.filter(c => !usedColors.includes(c));
+          
+          const newColor =
+            availableColors.length > 0
+              ? availableColors[Math.floor(Math.random() * availableColors.length)]
+              : COLOR_POOL[Math.floor(Math.random() * COLOR_POOL.length)];
+
+          updated[p] = newColor;
+        }
+      });
+
+      return updated;
+    });
+  }, [players]);
 
   // 🧽 Cleanup socket on unmount
   useEffect(() => {
@@ -614,14 +646,64 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
         
         {/* Player List */}
         {players.length > 0 && (
-          <View style={{ marginVertical: 10, width: '100%' }}>
-            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18, marginBottom: 5 }}>
-              👥 Players ({players.length})
+          <View 
+            style={{ 
+              marginVertical: 10, 
+              width: '100%', 
+              alignItems: 'center',       
+              justifyContent: 'center'    
+            }}
+          >
+            <Text 
+              style={{ 
+                color: 'white', 
+                fontWeight: 'bold', 
+                fontSize: 18, 
+                marginBottom: 5, 
+                textAlign: 'center' 
+              }}
+            >
+              👥 Players {/*({players.length})*/}
             </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+
+            <View 
+              style={{ 
+                flexDirection: 'row', 
+                flexWrap: 'wrap',          
+                justifyContent: 'center',  
+                alignItems: 'center' 
+              }}
+            >
               {players.map((p, idx) => (
-                <View key={idx} style={{ backgroundColor: '#ffffff33', padding: 6, borderRadius: 8, marginRight: 6, marginBottom: 6 }}>
-                  <Text style={{ color: 'white', fontWeight: 'bold' }}>{p}</Text>
+                <View 
+                  key={idx} 
+                  style={{ 
+                    flexDirection: 'row', 
+                    alignItems: 'center', 
+                    marginHorizontal: 8,    
+                    marginBottom: 8         
+                  }}
+                >
+                  <View
+                    style={{
+                      backgroundColor: playerColors[p] || '#81C784',
+                      width: 14,
+                      height: 14,
+                      borderRadius: 7,            
+                      marginRight: 6,             
+                      borderWidth: 1,
+                      borderColor: '#fff',
+                    }}
+                  />
+                  <Text 
+                    style={{ 
+                      color: 'white', 
+                      fontWeight: 'bold', 
+                      fontSize: 14 
+                    }}
+                  >
+                    {p}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -629,13 +711,14 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
         )}
 
 
+
         {/* Opponent progress */}
         {Object.keys(opponentRows).length > 0 && (
-          <View style={{ marginVertical: 10, width: '100%' }}>
+          <View style={{ marginVertical: 10, width: '100%', alignItems: 'center', justifyContent: 'center' }}>
             {Object.entries(opponentRows).map(([player, info], idx) => (
               <View
                 key={idx}
-                style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}
+                style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, justifyContent: 'center' }}
               >
                 <Text
                   style={{
