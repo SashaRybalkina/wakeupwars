@@ -48,6 +48,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     padding: 14,
+    marginBottom: 10,
   },
   contentContainer: {
     flexDirection: "row",

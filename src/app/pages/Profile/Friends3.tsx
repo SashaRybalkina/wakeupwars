@@ -1,6 +1,6 @@
 import type React from "react"
 import { useEffect, useState } from "react"
-import { Alert, ImageBackground, StyleSheet, Text, TouchableOpacity, View, Animated } from "react-native"
+import { Alert, ImageBackground, StyleSheet, Text, TouchableOpacity, View, Animated, Modal } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { type NavigationProp, useRoute } from "@react-navigation/native"
 import UserProfileCard from "../Components/UserProfileCard"
@@ -14,18 +14,33 @@ type Props = {
 
 const Friends3: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
-  // groupId will be null if we're not navigating here to add this friend to a group
   const { friendId, groupId } = route.params as { friendId: number; groupId?: number }
   const [isLoading, setIsLoading] = useState(false)
   const [profileData, setProfileData] = useState<any>(null)
   const [buttonScale] = useState(new Animated.Value(1))
+  const [infoVisible, setInfoVisible] = useState(false)
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         console.log(friendId)
-        const response = await fetch(endpoints.profile(friendId))
-        const data = await response.json()
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+        const response = await fetch(endpoints.profile(friendId), {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        const text = await response.text()
+        let data: any = null
+        try {
+          data = text ? JSON.parse(text) : null
+        } catch (error) {
+          console.error("Failed to parse profile JSON:", error)
+        }
+        if (!response.ok) {
+          throw new Error((data && (data.detail || data.message)) || `Profile load failed (${response.status})`)
+        }
         console.log(data)
         setProfileData(data)
       } catch (error) {
@@ -110,7 +125,9 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
       </View>
 
       {/* Profile Section */}
-      {profileData && <UserProfileCard name={profileData.name} skillLevels={profileData.skill_levels} />}
+      {profileData && (
+        <UserProfileCard name={profileData.name || profileData.username || ""} />
+      )}
 
       {/* Add to Group Button */}
       {groupId !== undefined && groupId !== null && (
@@ -145,12 +162,52 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
           onPress={() => navigation.navigate("CreateChallengeForFriend", { friendId })}
         >
           <LinearGradient
-            colors={["#FFD700", "#FFA500"]}
-            style={styles.createButtonGradient}
+            colors={["rgba(50, 50, 60, 0.35)", "rgba(50, 50, 60, 0.35)"]}
+            style={[styles.createButtonGradient, { borderColor: "rgba(255, 255, 255, 0.5)" }]}
           >
-            <Text style={styles.createButtonText}>Create Challenge </Text>
+            <Text style={styles.createButtonText}>Create Challenge</Text>
           </LinearGradient>
         </TouchableOpacity>
+      )}
+
+      {/* Floating Info icon and modal */}
+      {profileData && (
+        <>
+          <TouchableOpacity style={styles.infoFab} onPress={() => setInfoVisible(true)}>
+            <Ionicons name="information-circle-outline" size={26} color="#FFF" />
+          </TouchableOpacity>
+          <Modal
+            transparent
+            visible={infoVisible}
+            animationType="fade"
+            onRequestClose={() => setInfoVisible(false)}
+          >
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalCard}>
+                <Text style={styles.infoTitle}>What happens?</Text>
+                <View style={styles.infoBulletRow}>
+                  <View style={styles.infoBulletDot} />
+                  <Text style={styles.infoBulletText}>Choose games and set alarms for your friend</Text>
+                </View>
+                <View style={styles.infoBulletRow}>
+                  <View style={styles.infoBulletDot} />
+                  <Text style={styles.infoBulletText}>We notify {profileData.name || profileData.username} to join</Text>
+                </View>
+                <View style={styles.infoBulletRow}>
+                  <View style={styles.infoBulletDot} />
+                  <Text style={styles.infoBulletText}>Send a customized challenge just for them</Text>
+                </View>
+                <View style={styles.infoBulletRow}>
+                  <View style={styles.infoBulletDot} />
+                  <Text style={styles.infoBulletText}>Your friend can accept or decline</Text>
+                </View>
+                <TouchableOpacity style={styles.modalCloseButton} onPress={() => setInfoVisible(false)}>
+                  <Text style={styles.modalCloseText}>Got it</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        </>
       )}
 
       {/* Navigation Bar */}
@@ -295,28 +352,106 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: "600",
   },
-   createChallengeButton: {
-    marginTop: 20,
+  infoFab: {
+    position: "absolute",
+    left: 40, // align near content margin, just left of the button (button left is 40)
+    bottom: 105, // vertically centered with 56px-tall button placed at bottom: 105
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(50, 50, 60, 0.35)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    zIndex: 6,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalCard: {
+    width: "100%",
+    backgroundColor: "rgba(40, 40, 48, 0.95)",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+  modalCloseButton: {
+    marginTop: 14,
+    alignSelf: "flex-end",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  modalCloseText: {
+    color: "#FFF",
+    fontWeight: "600",
+  },
+  infoCard: {
+    backgroundColor: "rgba(50, 50, 60, 0.25)",
     borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 12,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+  infoTitle: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  infoBulletRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  infoBulletDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    marginRight: 8,
+  },
+  infoBulletText: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 14,
+    flexShrink: 1,
+  },
+   createChallengeButton: {
+    position: "absolute",
+    bottom: 105, // above the 80px nav bar + padding
+    left: 100,
+    right: 0,
+    borderRadius: 24,
     overflow: "hidden",
-    width: "80%",
-    alignSelf: "center",
+    width: "65%",
+    zIndex: 5,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 10, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
   },
   createButtonGradient: {
-    paddingVertical: 15,
+    height: 56,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 12,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   createButtonText: {
     color: "#FFF",
     fontSize: 18,
-    fontWeight: "700",
-    textAlign: "center",
+    fontWeight: "500",
   },
 })
 

@@ -43,25 +43,57 @@ const FriendsSearch: React.FC<Props> = ({ navigation }) => {
 
       try {
         setLoading(true)
-        // Fetch all users
-        const response = await fetch(endpoints.allUsers())
-        const allUsers = await response.json()
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+        // Fetch all users (robust JSON parsing)
+        const response = await fetch(endpoints.allUsers(), {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        console.log(response)
+        const allUsersText = await response.text()
+        let allUsersData: any = []
+        try {
+          allUsersData = allUsersText ? JSON.parse(allUsersText) : []
+        } catch {}
+        const allUsersList: UserType[] = Array.isArray(allUsersData)
+          ? allUsersData
+          : (Array.isArray((allUsersData as any)?.results) ? (allUsersData as any).results : [])
 
-        // Fetch current friends to filter them out
-        const friendsResponse = await fetch(endpoints.friends(Number(user.id)))
-        const friends = await friendsResponse.json()
+        // Fetch current friends
+        const friendsResponse = await fetch(endpoints.friends(Number(user.id)), {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        const friendsText = await friendsResponse.text()
+        let friendsData: any = []
+        try {
+          friendsData = friendsText ? JSON.parse(friendsText) : []
+        } catch {}
+        const friendsList: UserType[] = Array.isArray(friendsData)
+          ? friendsData
+          : (Array.isArray((friendsData as any)?.friends) ? (friendsData as any).friends : [])
 
         // Fetch sent friend requests
-        const requestsResponse = await fetch(endpoints.sentFriendRequests(Number(user.id)))
-        const sentRequests = await requestsResponse.json()
+        const requestsResponse = await fetch(endpoints.sentFriendRequests(Number(user.id)), {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        const requestsText = await requestsResponse.text()
+        let requestsData: any = []
+        try {
+          requestsData = requestsText ? JSON.parse(requestsText) : []
+        } catch {}
+        const requestsList: any[] = Array.isArray(requestsData)
+          ? requestsData
+          : (Array.isArray((requestsData as any)?.results) ? (requestsData as any).results : [])
 
         // Mark users who are already friends or have pending requests
-        const processedUsers = allUsers
-          .filter((u: UserType) => u.id !== user.id) // Filter out current user
+        const processedUsers = allUsersList
+          .filter((u: UserType) => u.id !== user.id)
           .map((u: UserType) => ({
             ...u,
-            isFriend: friends.some((f: UserType) => f.id === u.id),
-            requestSent: sentRequests.some((r: any) => r.recipient.id === u.id),
+            isFriend: friendsList.some((f: UserType) => f.id === u.id),
+            requestSent: requestsList.some((r: any) => (r.recipient?.id ?? r.recipient_id) === u.id),
           }))
 
         setUsers(processedUsers)

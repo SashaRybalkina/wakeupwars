@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: 16,
     overflow: "hidden",
-    padding: 14,
+    padding: 10,
     color: "#EDE7F6",
   },
   contentContainer: {

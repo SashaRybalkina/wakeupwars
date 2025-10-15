@@ -6,6 +6,7 @@ import { type NavigationProp, useRoute } from "@react-navigation/native"
 import { ScrollView } from "tamagui"
 import { useUser } from "../../context/UserContext"
 import { endpoints } from "../../api"
+import { getAccessToken } from "../../auth"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -16,7 +17,6 @@ const Friends1: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
   const params = route.params as { groupId?: number } | undefined
   const groupId = params?.groupId
-
   const [friends, setFriends] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -30,12 +30,32 @@ const Friends1: React.FC<Props> = ({ navigation }) => {
     const fetchFriends = async () => {
       try {
         setLoading(true)
-        const response = await fetch(endpoints.friends(Number(user.id)))
-        const data = await response.json()
-        setFriends(data)
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+        const response = await fetch(endpoints.friends(Number(user.id)), {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        // Be robust to empty or non-JSON responses
+        const text = await response.text()
+        let data: any = []
+        try {
+          data = text ? JSON.parse(text) : []
+        } catch {}
+        const list = Array.isArray(data)
+          ? data
+          : (Array.isArray((data as any)?.friends)
+              ? (data as any).friends
+              : (Array.isArray((data as any)?.results)
+                  ? (data as any).results
+                  : []))
+        setFriends(list)
 
         // Fetch friend request count
-        const requestsResponse = await fetch(endpoints.friendRequests(Number(user.id)))
+        const requestsResponse = await fetch(endpoints.friendRequests(Number(user.id)), {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
         const requestsData = await requestsResponse.json()
         setRequestCount(requestsData.length)
       } catch (error) {

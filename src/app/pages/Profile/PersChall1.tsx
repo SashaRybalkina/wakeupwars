@@ -227,7 +227,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
             </View>
 
             {/* -------- CURRENT -------- */}
-            <View style={styles.challengesSection}>
+            <View style={[styles.challengesSection, styles.currentSection]}>
               <Text style={styles.sectionTitle}>Current Challenges</Text>
               {currentChallenges.length === 0 ? (
                 <View style={styles.emptyStateContainer}>
@@ -248,18 +248,16 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
                           })
                         }
                       >
-                        <View style={{ transform: [{ scale: 0.97 }] }}>
-                          <ChallengeCard
-                            title={c.name}
-                            icon={require("../../images/school.png")}
-                            startDate={c.startDate}
+                        <ChallengeCard
+                          title={c.name}
+                          icon={require("../../images/school.png")}
+                          startDate={c.startDate}
                             endDate={c.endDate || null}
-                            daysCompleted={c.daysCompleted || 0}
-                            totalDays={c.totalDays ?? 30}
-                            daysOfWeek={c.daysOfWeek ?? []}
-                            isCompleted={!!c.isCompleted}
-                          />
-                        </View>
+                          daysCompleted={c.daysCompleted || 0}
+                          totalDays={c.totalDays ?? 30}
+                          daysOfWeek={c.daysOfWeek ?? []}
+                          isCompleted={!!c.isCompleted}
+                        />
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -296,8 +294,8 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
               ) : (
                 <View style={styles.challengeCardsContainer}>
                   {pastChallenges.map((c) => (
+                    <View key={c.id} style={styles.challengeRow}>
                     <TouchableOpacity
-                      key={c.id}
                       style={styles.challengeCardWrapper}
                       onPress={() =>
                         navigation.navigate("ChallDetails", {
@@ -318,6 +316,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
                         isCompleted={!!c.isCompleted}
                       />
                     </TouchableOpacity>
+                    </View>
                   ))}
                 </View>
               )}
@@ -371,7 +370,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 24, fontWeight: "700", color: "#FFF", marginTop: 10, marginBottom: 15 },
   challengeCardsContainer: { width: "100%" },
   challengeCardWrapper: {
-    marginBottom: 15, borderRadius: 16, overflow: "hidden",
+    borderRadius: 16, overflow: "hidden",
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2, shadowRadius: 4, flex: 1,
   },
