@@ -897,6 +897,8 @@ class GetMatchingChallengesView(APIView):
         #     # Exclude singleplayer challenges that already started
         #     q = base_q.filter(challenge__startDate__gte=today)
 
+        q = base_q
+        
         if is_multiplayer_flag:
             # Annotate with member count for filtering
             q = base_q.annotate(member_count=Count('challenge__challengemembership', distinct=True)).filter(
