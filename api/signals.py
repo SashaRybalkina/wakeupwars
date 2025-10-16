@@ -34,9 +34,6 @@ def _gp_deleted(sender, instance, **kwargs):
 # atomically advance daysCompleted and mark isCompleted if the last day is reached.
 @receiver(post_save, sender=GamePerformance)
 def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kwargs):
-    if not created:
-        return  # only evaluate on newly created rows
-
     def _after_commit():
         try:
             ch = instance.challenge
@@ -65,17 +62,27 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                 .filter(game_schedule_id__in=sched_ids)
                 .values_list('game_id', flat=True)
             )
-            if not game_ids:
+            played_game_ids_qs = (
+                GamePerformance.objects
+                .filter(challenge=ch, date=play_date)
+                .values_list('game_id', flat=True)
+                .distinct()
+            )
+            if game_ids:
+                played_game_ids = [gid for gid in played_game_ids_qs if gid in set(game_ids)]
+            else:
+                played_game_ids = list(played_game_ids_qs)
+            if not played_game_ids:
                 return
 
-            # Expected vs found performances for the day
-            expected = len(participant_ids) * len(game_ids)
+            # Expected vs found performances for the day (only games that actually have performances)
+            expected = len(participant_ids) * len(played_game_ids)
             found = (
                 GamePerformance.objects
                 .filter(
                     challenge=ch,
                     date=play_date,
-                    game_id__in=game_ids,
+                    game_id__in=played_game_ids,
                     user_id__in=participant_ids,
                 )
                 .values('game_id', 'user_id')

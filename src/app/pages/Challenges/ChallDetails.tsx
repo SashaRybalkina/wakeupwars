@@ -267,6 +267,32 @@ const loadPerformances = async () => {
     // run every time the screen gains focus
     useFocusEffect(
       useCallback(() => {
+        // Immediately refetch challenge details on focus
+        (async () => {
+          try {
+                  const accessToken = await getAccessToken();
+                  if (!accessToken) {
+                    throw new Error("Not authenticated");
+                  }
+            const res = await axios.get(endpoints.challengeDetail(challId), {
+                    headers: {
+                      Authorization: `Bearer ${accessToken}`
+                    }
+                  });
+            const data = res.data;
+            const parsedDaysOfWeek = (data.daysOfWeek as string[])
+              .filter((day): day is keyof typeof DayOfWeekReverseLabels => day in DayOfWeekReverseLabels)
+              .sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+              .map((day) => DayOfWeekReverseLabels[day]);
+            setDaysOfWeek(parsedDaysOfWeek.map(String));
+            setDaysComplete(data.daysCompleted);
+            setTotalDays(data.totalDays ?? 30);
+            setMembers(data.members);
+          } catch (err) {
+            console.error(err);
+          }
+        })();
+
         if (whichChall === "Personal") {
           loadPerformances();
         } else {

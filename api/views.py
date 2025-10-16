@@ -2786,22 +2786,13 @@ class SubmitGameScoresView(APIView):
                     return Response({"detail": "Each score needs username or user_id."}, status=400)
 
                 sc = int(row.get("score", 0))
-                qs = GamePerformance.objects.filter(
-                    challenge=challenge, game=game, user=user, date=play_date
+                GamePerformance.objects.update_or_create(
+                    challenge=challenge,
+                    game=game,
+                    user=user,
+                    date=play_date,
+                    defaults={"score": sc, "auto_generated": False},
                 )
-                updated = qs.update(score=sc, auto_generated=False)
-                if not updated:
-                    try:
-                        GamePerformance.objects.create(
-                            challenge=challenge,
-                            game=game,
-                            user=user,
-                            date=play_date,
-                            score=sc,
-                            auto_generated=False,
-                        )
-                    except IntegrityError:
-                        qs.update(score=sc, auto_generated=False)
                 submitted_ids.add(user.id)
                 created_or_updated += 1
 

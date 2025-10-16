@@ -471,6 +471,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
 
             case 'game_complete': {
               const { scores } = data;
+              console.log("game complete score: ", scores);
 
               (async () => {
                 try {
@@ -486,20 +487,19 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                     })),
                   });
                   await refreshSkills();
+                  Alert.alert(
+                    "🎉 Puzzle Complete!",
+                    `\n\nScores:\n` +
+                      scores
+                        .sort((a, b) => b.score - a.score)
+                        .map(s => `${s.username}: ${s.score} (✅ ${s.accuracy} / ❌ ${s.inaccuracy})`)
+                        .join("\n"),
+                    [{ text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) }]
+                  );
                 } catch (err) {
                   console.error("submit score failed", err);
                 }
               })();
-
-              Alert.alert(
-                "🎉 Puzzle Complete!",
-                `\n\nScores:\n` +
-                  scores
-                    .sort((a, b) => b.score - a.score)
-                    .map(s => `${s.username}: ${s.score} (✅ ${s.accuracy} / ❌ ${s.inaccuracy})`)
-                    .join("\n"),
-                [{ text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) }]
-              );
               break;
             }
             default:

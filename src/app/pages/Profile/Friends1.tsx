@@ -1,5 +1,6 @@
 import type React from "react"
 import { useEffect, useState } from "react"
+import * as SecureStore from "expo-secure-store"
 import { ImageBackground, StyleSheet, Text, TouchableOpacity, View, TextInput, ActivityIndicator } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { type NavigationProp, useRoute } from "@react-navigation/native"
@@ -22,6 +23,30 @@ const Friends1: React.FC<Props> = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("")
   const [requestCount, setRequestCount] = useState(0)
 
+  // Retry once on 401 by refreshing the access token with the stored refresh token
+  const fetchWithAutoRefresh = async (url: string) => {
+    let accessToken = await getAccessToken();
+    if (!accessToken) throw new Error("Not authenticated");
+    let res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (res.status !== 401) return res;
+
+    const refresh = await SecureStore.getItemAsync("refresh");
+    if (!refresh) return res;
+
+    // attempt refresh
+    const r = await fetch(endpoints.tokenRefresh, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh }),
+    });
+    if (!r.ok) return res;
+    const data = await r.json().catch(() => ({} as any));
+    if (!data?.access) return res;
+    await SecureStore.setItemAsync("access", data.access);
+    accessToken = data.access;
+    return await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  };
+
   useEffect(() => {
     if (!user?.id) {
       console.error("userId is missing!")
@@ -34,9 +59,7 @@ const Friends1: React.FC<Props> = ({ navigation }) => {
         if (!accessToken) {
           throw new Error("Not authenticated");
         }
-        const response = await fetch(endpoints.friends(Number(user.id)), {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        })
+        const response = await fetchWithAutoRefresh(endpoints.friends(Number(user.id)))
         // Be robust to empty or non-JSON responses
         const text = await response.text()
         let data: any = []
@@ -53,11 +76,13 @@ const Friends1: React.FC<Props> = ({ navigation }) => {
         setFriends(list)
 
         // Fetch friend request count
-        const requestsResponse = await fetch(endpoints.friendRequests(Number(user.id)), {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        })
-        const requestsData = await requestsResponse.json()
-        setRequestCount(requestsData.length)
+        const requestsResponse = await fetchWithAutoRefresh(endpoints.friendRequests(Number(user.id)))
+        if (requestsResponse.ok) {
+          const requestsData = await requestsResponse.json().catch(() => [])
+          setRequestCount(Array.isArray(requestsData) ? requestsData.length : 0)
+        } else {
+          setRequestCount(0)
+        }
       } catch (error) {
         console.error("Failed to fetch friends:", error)
       } finally {

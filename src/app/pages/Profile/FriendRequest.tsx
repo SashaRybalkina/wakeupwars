@@ -1,5 +1,6 @@
 import type React from "react"
 import { useState, useEffect } from "react"
+import * as SecureStore from "expo-secure-store"
 import { ImageBackground, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Alert } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import type { NavigationProp } from "@react-navigation/native"
@@ -22,11 +23,52 @@ type FriendRequest = {
   created_at: string
 }
 
+const isFriendRequestArray = (data: unknown): data is FriendRequest[] => {
+  return (
+    Array.isArray(data) &&
+    data.every((item) => {
+      if (typeof item !== "object" || item === null) return false
+      const it = item as any
+      return (
+        typeof it.id === "number" &&
+        typeof it.created_at === "string" &&
+        typeof it.sender === "object" &&
+        it.sender !== null &&
+        typeof it.sender.id === "number" &&
+        typeof it.sender.name === "string" &&
+        typeof it.sender.username === "string"
+      )
+    })
+  )
+}
+
 const FriendsRequests: React.FC<Props> = ({ navigation }) => {
   const { user } = useUser()
   const [requests, setRequests] = useState<FriendRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<number | null>(null)
+
+  // Retry once on 401 by refreshing with stored refresh token
+  const fetchWithAutoRefresh = async (url: string) => {
+    let accessToken = await getAccessToken();
+    if (!accessToken) throw new Error("Not authenticated");
+    let res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (res.status !== 401) return res;
+
+    const refresh = await SecureStore.getItemAsync("refresh");
+    if (!refresh) return res;
+    const r = await fetch(endpoints.tokenRefresh, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh }),
+    });
+    if (!r.ok) return res;
+    const data = await r.json().catch(() => ({} as any));
+    if (!data?.access) return res;
+    await SecureStore.setItemAsync("access", data.access);
+    accessToken = data.access;
+    return await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  };
 
   useEffect(() => {
     fetchRequests()
@@ -37,9 +79,13 @@ const FriendsRequests: React.FC<Props> = ({ navigation }) => {
 
     try {
       setLoading(true)
-      const response = await fetch(endpoints.friendRequests(Number(user.id)))
-      const data = await response.json()
-      setRequests(data)
+      const response = await fetchWithAutoRefresh(endpoints.friendRequests(Number(user.id)))
+      if (response.ok) {
+        const data: unknown = await response.json().catch(() => null)
+        setRequests(isFriendRequestArray(data) ? data : [])
+      } else {
+        setRequests([])
+      }
     } catch (error) {
       console.error("Failed to fetch friend requests:", error)
     } finally {

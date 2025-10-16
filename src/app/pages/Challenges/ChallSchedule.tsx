@@ -537,6 +537,7 @@ const getInitials = (name: string): string => {
                     // const name = (game[0] || "").trim();
                     const lower = game.name.toLowerCase();
                     const isSudoku = lower.includes("sudoku");   
+                    const isWordle = lower.includes("wordle");
                     const isPattern = lower.includes("pattern"); 
 
                     return (
@@ -563,6 +564,19 @@ const getInitials = (name: string): string => {
                           <>
                             <ImageBackground
                               source={require("../../images/patternGame.png")}
+                              style={styles.sudokuImage}
+                              resizeMode="contain"
+                            />
+                            <View style={styles.playIndicator}>
+                              <Ionicons name="play-circle" size={24} color="#FFD700" />
+                              <Text style={styles.playText}>Play</Text>
+                            </View>
+                          </>
+                        ) : 
+                        isWordle ? (
+                          <>
+                            <ImageBackground
+                              source={require("../../images/wordle.png")}
                               style={styles.sudokuImage}
                               resizeMode="contain"
                             />
