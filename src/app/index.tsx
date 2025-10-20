@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { NativeEventEmitter, NativeModules } from 'react-native';
+import { NativeEventEmitter, NativeModules, Platform } from 'react-native';
 import {
   createNavigationContainerRef,
   NavigationContainer,
@@ -9,6 +9,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import * as Notifications from 'expo-notifications';
 import NotificationService from './Notification';
 import { getAccessToken } from "./auth";
+import messaging from '@react-native-firebase/messaging';
 
 import { useUser } from './context/UserContext';
 
@@ -65,6 +66,10 @@ import EditChallengeSharingFriends from './pages/Challenges/EditChallengeSharing
 import CreateChallengeForFriend from './pages/Challenges/CreateChallengeForFriend';
 import { BASE_URL } from './api';
 
+messaging().setBackgroundMessageHandler(async remoteMessage => {
+  console.log('FCM background message:', remoteMessage);
+});
+
 const { IntentModule, NotificationModule, AlarmModule } = NativeModules;
 const alarmEmitter = new NativeEventEmitter(AlarmModule);
 
@@ -94,10 +99,10 @@ async function registerForFCM(userId: string) {
   if (!userId) return;
 
   try {
-    const token = await messaging().getToken(); // get device FCM token
-    const platform = Platform.OS; // 'ios' or 'android'
+    const token = await messaging().getToken();
+    const platform = Platform.OS;
 
-    const accessToken = await getAccessToken(); // your auth function
+    const accessToken = await getAccessToken();
     if (!accessToken) throw new Error("Not authenticated");
 
     await fetch(`${BASE_URL}/api/save-fcm-token/`, {
