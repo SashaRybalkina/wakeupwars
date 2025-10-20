@@ -60,3 +60,5 @@ android/app/src/main/res/values/generated.xml
 
 # React Native Android autolinking
 android/build/generated/autolinking/
+
+wakeupwars_private_key.json
