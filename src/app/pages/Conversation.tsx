@@ -16,7 +16,6 @@ import { BASE_URL } from "../api"
 import { useUser } from "../context/UserContext"
 import { getAccessToken } from "../auth"
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import SharedPreferences from 'react-native-shared-preferences';
 
 type Props = {
   route: any
@@ -24,35 +23,16 @@ type Props = {
 }
 
 const Conversation: React.FC<Props> = ({ route }) => {
-  const { user, setActiveConversationId, setActiveGroupId } = useUser()
+  const { user } = useUser()
   const { otherUserId, groupId, groupName, otherUserName } = route.params
 
   const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState("")
   const [sending, setSending] = useState(false)
-  const [loading, setLoading] = useState(true) // Loading state
+  const [loading, setLoading] = useState(true)
 
   const ws = useRef<WebSocket | null>(null)
   const flatListRef = useRef<FlatList>(null)
-
-  useEffect(() => {
-    const updateActiveChat = async () => {
-      if (groupId) {
-        await AsyncStorage.setItem("activeGroupId", groupId.toString());
-        await AsyncStorage.removeItem("activeConversationId");
-      } else if (otherUserId) {
-        await AsyncStorage.setItem("activeConversationId", otherUserId.toString());
-        await AsyncStorage.removeItem("activeGroupId");
-      } else {
-        await AsyncStorage.multiRemove(["activeConversationId", "activeGroupId"]);
-      }
-    };
-    updateActiveChat();
-
-    return () => {
-      AsyncStorage.multiRemove(["activeConversationId", "activeGroupId"]);
-    };
-  }, [groupId, otherUserId]);
 
   // Connect WebSocket
   useEffect(() => {
@@ -114,43 +94,13 @@ const Conversation: React.FC<Props> = ({ route }) => {
     fetchConversation()
   }, [user, otherUserId, groupId])
 
-  // Set active conversation/group
-  useEffect(() => {
-    if (groupId) {
-      setActiveGroupId(groupId)
-      setActiveConversationId(null)
-    } else if (otherUserId) {
-      setActiveConversationId(otherUserId)
-      setActiveGroupId(null)
-    }
 
-    return () => {
-      setActiveConversationId(null)
-      setActiveGroupId(null)
-    }
-  }, [groupId, otherUserId, setActiveConversationId, setActiveGroupId])
-
-  useEffect(() => {
-    if (groupId) {
-      SharedPreferences.setItem("activeGroupId", groupId.toString());
-      SharedPreferences.removeItem("activeConversationId");
-    } else if (otherUserId) {
-      SharedPreferences.setItem("activeConversationId", otherUserId.toString());
-      SharedPreferences.removeItem("activeGroupId");
-    }
-
-    return () => {
-      SharedPreferences.removeItem("activeConversationId");
-      SharedPreferences.removeItem("activeGroupId");
-    };
-  }, [groupId, otherUserId]);
-
-  // Scroll to bottom when messages update
   useEffect(() => {
     if (messages.length > 0) {
       flatListRef.current?.scrollToEnd({ animated: true })
     }
   }, [messages])
+  
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !user?.id) return

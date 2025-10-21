@@ -30,8 +30,8 @@ type Props = {
 const { width } = Dimensions.get("window")
 
 const Messages: React.FC<Props> = ({ navigation }) => {
-  const [selected, setSelected] = useState("Friends")
   const { user, activeConversationId, activeGroupId } = useUser()
+  const [selected, setSelected] = useState("Friends")
   const [friendMessages, setFriendMessages] = useState<any[]>([])
   const [groupConversations, setGroupConversations] = useState<any[]>([])
   const [notifications, setNotifications] = useState<any[]>([])
@@ -44,7 +44,6 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   const wsNotification = useRef<WebSocket | null>(null)
   const wsPrivate = useRef<WebSocket | null>(null)
   const wsGroups = useRef<WebSocket | null>(null)
-
 
   const fetchMessages = async () => {
     if (!user?.id) return

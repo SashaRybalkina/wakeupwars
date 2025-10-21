@@ -46,7 +46,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 if not ACTIVE_CHAT_USERS[room]:
                     del ACTIVE_CHAT_USERS[room]
 
-    async def receive(self, text_data):
+    async def receive(self, text_data): 
         data = json.loads(text_data)
         message = data.get('message')
         sender_id = data.get('sender_id')
@@ -89,6 +89,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'timestamp': timestamp,
                 }
             )
+        
+        if group_id:
+            room_name = f'chat_group_{group_id}'
+        else:
+            ids = sorted([int(sender_id), int(recipient_id)])
+            room_name = f'chat_user_{ids[0]}_{ids[1]}'
+        
+        active_users_in_room = ACTIVE_CHAT_USERS.get(room_name, set())
+
+        if str(sender_id) in active_users_in_room and str(recipient_id) in active_users_in_room:
+            return
             
         if recipient_id:
             await database_sync_to_async(self.send_push_to_user)(sender, recipient_id, message)
@@ -103,7 +114,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
     
     def send_push_to_user(self, sender, recipient_id, message):
         """Send push for a 1:1 chat"""
-        title = sender.name
+        sender_name = sender.name
+        title = sender_name
         body = message[:100]
         data = {"screen": "Conversation", "sender_id": str(sender.id)}
         send_fcm_notification(title, body, data, recipient_id)

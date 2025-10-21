@@ -306,7 +306,7 @@ const handleLogout = async () => {
       {/* Navigation Bar stays fixed at the bottom */}
       <View style={styles.navBar}>
         <TouchableOpacity style={styles.navButton} onPress={goToChallenges}>
-          <Ionicons name="star" size={28} color="#FFF" />
+          <Ionicons name="star-outline" size={28} color="#FFF" />
           <Text style={styles.navText}>Challenges</Text>
         </TouchableOpacity>
 
@@ -321,7 +321,7 @@ const handleLogout = async () => {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navButton} onPress={goToProfile}>
-          <Ionicons name="person-outline" size={28} color="#FFD700" />
+          <Ionicons name="person" size={28} color="#FFD700" />
           <Text style={styles.activeNavText}>Profile</Text>
         </TouchableOpacity>
       </View>

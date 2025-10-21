@@ -5,7 +5,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.media.RingtoneManager;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
@@ -46,18 +45,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         }
     }
 
-    private void sendNotification(String title, String messageBody, String screen, String senderId, String groupId) {
-        SharedPreferences prefs = getSharedPreferences("ReactNativeSharedPreferences", MODE_PRIVATE);
-        String activeConversationId = prefs.getString("activeConversationId", null);
-        String activeGroupId = prefs.getString("activeGroupId", null);
-    
-        if (
-            (senderId != null && senderId.equals(activeConversationId)) ||
-            (groupId != null && groupId.equals(activeGroupId))
-        ) {
-            return;
-        }
-    
+    private void sendNotification(String title, String messageBody, String screen, String senderId, String groupId) {    
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         if (screen != null) {

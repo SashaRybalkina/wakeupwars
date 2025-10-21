@@ -3,7 +3,7 @@ from api.sudokuStuff import consumers
 from api.wordleStuff import consumers as wc
 from api.patternMem.consumers import PatternMemorizationConsumer
 from api.chat_consumer import ChatConsumer
-from api.notification_consumer import NotificationConsumer, UserNotificationConsumer
+from api.notification_consumer import UserNotificationConsumer
 
 websocket_urlpatterns = [
     re_path(r'ws/sudoku/(?P<game_state_id>\d+)/$', consumers.SudokuConsumer.as_asgi()),
