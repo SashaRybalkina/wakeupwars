@@ -12,6 +12,7 @@ from rest_framework.response import Response
 class User(AbstractUser):
     name = models.CharField(max_length=255, default='Anonymous')
     bio = models.TextField(blank=True, null=True) # can be null
+    numCoins = models.IntegerField(default=0)
 
     class Meta:
         db_table = 'Users'  # Define the table name
@@ -30,14 +31,6 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
-
-
-class UserCoin(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    numCoins = models.IntegerField(default=0)
-    
-    class Meta:
-        db_table = 'UserCoins'
 
 
 # Friendships: representing Many-to-many relationship between users
@@ -258,6 +251,17 @@ class Challenge(models.Model):
 
             self.rewards_finalized = True
             self.save(update_fields=['rewards_finalized'])
+
+
+class ChallengeBet(models.Model):
+    challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE)
+    initiator = models.ForeignKey(User, on_delete=models.CASCADE)
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE)
+    betAmount = models.IntegerField()
+    isPending = models.BooleanField()
+
+    class Meta:
+        db_table = 'ChallengeBets'
 
 
     

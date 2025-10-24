@@ -105,7 +105,7 @@ const handleLogout = async () => {
                 if (!access) {
                   throw new Error("Not authenticated");
                 }
-        const res = await fetch(endpoints.skillLevels(), {
+        const res = await fetch(endpoints.skillLevels(Number(user.id)), {
           headers: {
             Authorization: `Bearer ${access}`
           }

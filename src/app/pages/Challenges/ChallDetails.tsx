@@ -29,6 +29,13 @@ type Props = {
   navigation: NavigationProp<any>
 }
 
+type Member = {
+  id: number;
+  name: string;
+  username: string;
+  numCoins: number;
+};
+
 const { width } = Dimensions.get("window")
 const cardWidth = Math.min(width * 0.9, 400)
 const DAY_ORDER = ["M", "T", "W", "TH", "F", "S", "SU"]
@@ -81,7 +88,7 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
 
   const [daysComplete, setDaysComplete] = useState(0)
   const [totalDays, setTotalDays] = useState(0)
-  const [members, setMembers] = useState<{ name: string }[]>([])
+  const [members, setMembers] = useState<Member[]>([])
   const [daysOfWeek, setDaysOfWeek] = useState<string[]>([])
   const [isFavorite, setIsFavorite] = useState(false)
   const [progressAnim] = useState(new Animated.Value(0))
@@ -588,6 +595,29 @@ const loadPerformances = async () => {
       ))}
   </View>
 )}
+
+
+
+    <TouchableOpacity
+      style={styles.viewDetailsButton}
+      onPress={() =>
+        navigation.navigate("Bets", {
+          challId,
+          challName,
+          challengeMembers: members,
+        })
+      }
+    >
+      <LinearGradient
+        colors={["#FFD700", "#FFA500"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.viewDetailsGradient}
+      >
+        <Text style={styles.viewDetailsText}>Challenge bets</Text>
+      </LinearGradient>
+    </TouchableOpacity>
+
 
           {/* Challenge Stats */}
           <View style={styles.statsCard}>

@@ -37,7 +37,7 @@ from .serializers import (UserSerializer, RegisterSerializer, GroupSerializer, U
 from .models import (Group, UserNotification, PersonalChallengeInvite, PushToken, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule,
                      AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship, GroupMembership, FriendRequest,
                      SkillLevel, PendingGroupChallengeAvailability, GroupChallengeInvite, WordleMove, PublicChallengeConfiguration,
-                     UserAvailability, PublicChallengeCategoryAssociation, UserCoin)
+                     UserAvailability, PublicChallengeCategoryAssociation, ChallengeBet)
 from django.http import JsonResponse
 from typing     import Dict, List
 from rest_framework.exceptions import ValidationError
@@ -156,9 +156,8 @@ class GetChallengeInitiatorView(APIView):
     
 class GetNumCoinsView(APIView):
     def get(self, request, user_id):
-        userCoin = UserCoin.objects.filter(user_id=user_id).first()
-        numCoins = userCoin.numCoins if userCoin else 0
-        return Response({"numCoins": numCoins}, status=status.HTTP_200_OK)
+        user = User.objects.get(id=user_id)
+        return Response({"numCoins": user.numCoins}, status=status.HTTP_200_OK)
 
         
 
@@ -217,8 +216,7 @@ class GetAvailabilitiesView(APIView):
         # get the list of usernames (or any other field)
         declined_list = [invite.uID.name for invite in declined_invites]
 
-        userCoin = UserCoin.objects.filter(user_id=user_id).first()
-        numCoins = userCoin.numCoins if userCoin else 0
+        user = User.objects.get(id=user_id)
 
         return Response({
             "availabilities": availabilitiesData,
@@ -227,7 +225,7 @@ class GetAvailabilitiesView(APIView):
             # "start_date": challenge.startDate
             "declined_list": declined_list,
             "participation_fee": challenge.participationFee,
-            "num_user_coins": numCoins,
+            "num_user_coins": user.numCoins,
         }, status=status.HTTP_200_OK)
 
         
@@ -276,7 +274,6 @@ class RegisterView(APIView):
             for category in categories
         ]
         SkillLevel.objects.bulk_create(skill_levels)
-        UserCoin.objects.create(user=user, numCoins=0)
         return Response({'success': True, **UserSerializer(user).data}, status=status.HTTP_201_CREATED)
 
 
@@ -519,14 +516,12 @@ class JoinPublicChallengeView(APIView):
             cfg.save()
 
             # take away coins from joiner
-            uc1, _ = UserCoin.objects.get_or_create(user=user)
-            uc1.numCoins -= challenge.participationFee
-            uc1.save(update_fields=["numCoins"])
+            user.numCoins -= challenge.participationFee
+            user.save(update_fields=["numCoins"])
             # also take away coins from the initiator if this is the first person joining
             if ChallengeMembership.objects.filter(challengeID=challenge).count() == 2:
-                uc2, _ = UserCoin.objects.get_or_create(user=challenge.initiator)
-                uc2.numCoins -= challenge.participationFee
-                uc2.save(update_fields=["numCoins"])
+                challenge.initiator.numCoins -= challenge.participationFee
+                challenge.initiator.save(update_fields=["numCoins"])
                 
             
             # Build (time, game_id) pairs from schedule
@@ -607,6 +602,36 @@ class JoinPublicChallengeView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class SendBetView(APIView):
+    def post(self, request):
+        # const payload = {
+        #     chall_id
+        #     initiator_id
+        #     recipient_id
+        #     bet_amount
+        # };
+        data = request.data
+
+        try:
+            with transaction.atomic():
+                ChallengeBet.objects.create(
+                    challenge_id=data['chall_id'],
+                    initiator_id=data['initiator_id'],
+                    recipient_id=data['recipient_id'],
+                    betAmount=data['bet_amount'],
+                    isPending=True,
+                )
+                return Response(
+                    {"message": "Bet sent successfully"},
+                    status=status.HTTP_201_CREATED,
+                )
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
 
 # should no longer be called
@@ -909,7 +934,7 @@ class GetMatchingChallengesView(APIView):
         # --- query candidate public pending challenges that match category & isMultiplayer ---
         is_multiplayer_flag = True if sing_or_mult == "Multiplayer" else False
         
-        user_coin = get_object_or_404(UserCoin, user_id=user_id)
+        user = User.objects.get(id=user_id)
 
         # today = timezone.now().date()
         # print("Today's date:", today)
@@ -948,7 +973,7 @@ class GetMatchingChallengesView(APIView):
             challenge__challengemembership__uID_id=user_id
         )
         # only include challenges the user can afford to join
-        q = q.filter(challenge__participationFee__lte=user_coin.numCoins)
+        q = q.filter(challenge__participationFee__lte=user.numCoins)
 
 
 
@@ -1165,7 +1190,7 @@ class ChallengeDetailView(APIView):
             return Response({'error': 'Challenge not found'}, status=status.HTTP_404_NOT_FOUND)
 
         memberships = ChallengeMembership.objects.filter(challengeID=challenge)
-        members = [{'id': m.uID.id, 'name': m.uID.name, 'username': m.uID.username} for m in memberships]
+        members = [{'id': m.uID.id, 'name': m.uID.name, 'username': m.uID.username, 'numCoins': m.uID.numCoins} for m in memberships]
 
         serializer = ChallengeSummarySerializer(challenge, context={'user': request.user})
         
@@ -1325,6 +1350,46 @@ class GetChallengeScheduleView(APIView):
             "members": members,
             "schedule": schedule
         }, status=status.HTTP_200_OK)
+    
+
+class GetChallengeBetsView(APIView):
+    def get(self, request, chall_id):
+        try:
+            challenge = Challenge.objects.get(id=chall_id)
+        except Challenge.DoesNotExist:
+            return Response({'error': 'Challenge not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        bets = ChallengeBet.objects.filter(challenge=challenge)
+        results = []
+
+        for bet in bets:
+            # get the initiator and recipient points
+            initiator_points = (
+                GamePerformance.objects
+                .filter(challenge=challenge, user=bet.initiator)
+                .aggregate(total_points=Sum("score"))
+            )["total_points"] or 0
+            
+            recipient_points = (
+                GamePerformance.objects
+                .filter(challenge=challenge, user=bet.recipient)
+                .aggregate(total_points=Sum("score"))
+            )["total_points"] or 0
+
+            results.append({
+                "id": bet.id,
+                "initiator_name": bet.initiator.username,
+                "recipient_name": bet.recipient.username,
+                "initiator_points": initiator_points,
+                "recipient_points": recipient_points,
+                "bet_amount": bet.betAmount
+            })
+
+        return Response(results, status=status.HTTP_200_OK)
+
+
+
+        
     
 
 class GetChallengeUserScheduleView(APIView):
@@ -1934,9 +1999,8 @@ class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
 
                 # deduct all participation fees
                 for user in users_in_challenge:
-                    user_coin, _ = UserCoin.objects.get_or_create(user=user)
-                    user_coin.numCoins -= challenge.participationFee
-                    user_coin.save(update_fields=["numCoins"])
+                    user.numCoins -= challenge.participationFee
+                    user.save(update_fields=["numCoins"])
 
             return Response(
                 {"message": "Challenge schedule finalized.", "schedule": created_schedules},
@@ -2977,18 +3041,15 @@ class RewardSettingView(APIView):
 
 
 class SkillLevelsView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        qs = SkillLevel.objects.filter(user=request.user).select_related("category")
+    def get(self, request, user_id):
+        qs = SkillLevel.objects.filter(user_id=user_id).select_related("category")
         data = SkillLevelSerializer(qs, many=True).data
-        userCoin = UserCoin.objects.filter(user=request.user).first()
-        numCoins = userCoin.numCoins if userCoin else 0
+        user = User.objects.get(id=user_id)
 
         # return Response(data)
         return Response({
         "skillLevels": data,
-        "numCoins": numCoins,
+        "numCoins": user.numCoins,
     }, status=status.HTTP_200_OK)
 
 ## Generated by AI ##

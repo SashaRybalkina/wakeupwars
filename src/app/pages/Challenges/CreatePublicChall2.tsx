@@ -282,7 +282,7 @@ const onTimeChange = (event: any, time?: Date) => {
       const fee = parseInt(trimmed, 10);
       console.log(fee)
 
-      if (fee <= 0) {
+      if (fee < 0) {
         Alert.alert('Error', 'Enter a valid positive amount for the reward');
         return;
       }

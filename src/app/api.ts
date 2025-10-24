@@ -44,6 +44,8 @@ export const endpoints = {
     `${BASE_URL}/api/challenge-schedule/${challId}/`,
   getChallengeSchedule: (challId: number) =>
     `${BASE_URL}/api/get-challenge-schedule/${challId}/`,
+  getChallengeBets: (challId: number) =>
+  `${BASE_URL}/api/get-challenge-bets/${challId}/`,
   getChallengeUserSchedule: (challId: number, userId: number) =>
     `${BASE_URL}/api/get-challenge-user-schedule/${challId}/${userId}/`,
   getHasSetAlarms: (challId: number, userId: number) => `${BASE_URL}/api/get-has-set-alarms/${challId}/${userId}/`,
@@ -93,11 +95,13 @@ export const endpoints = {
     `${BASE_URL}/api/get-performances/${challId}/`,
   submitGameScores: () => `${BASE_URL}/api/submit-game-scores/`,
   addGameToSchedule: () => `${BASE_URL}/api/add-game-to-schedule/`,
-  skillLevels: () => `${BASE_URL}/api/skill-levels/`,
+  skillLevels: (userId: number) => `${BASE_URL}/api/skill-levels/${userId}/`,
   // Pattern (REST)
   patternCreate: `${BASE_URL}/api/pattern/create/`,
   patternValidate: `${BASE_URL}/api/pattern/validate/`,
   csrfToken: `${BASE_URL}/api/csrf-token/`,
+
+  sendBet: () => `${BASE_URL}/api/send-bet/`,
 
   myObligations: () => `${BASE_URL}/api/obligations/me/`,
 

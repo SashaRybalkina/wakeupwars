@@ -100,6 +100,9 @@ from .views import (
     SetUserHasSetAlarmsView,
     GetPerformancesView,
     GetNumCoinsView,
+    SendBetView,
+    SendBetView,
+    GetChallengeBetsView,
 )
 
 
@@ -144,6 +147,7 @@ urlpatterns = [
     path('challenge-detail/<int:chall_id>/', ChallengeDetailView.as_view(), name='challenge-detail'),
     path('challenge-schedule/<int:chall_id>/', ChallengeGameScheduleView.as_view(), name='challenge-schedule'),
     path('get-challenge-schedule/<int:chall_id>/', GetChallengeScheduleView.as_view(), name='get-challenge-schedule'),
+    path('get-challenge-bets/<int:chall_id>/', GetChallengeBetsView.as_view(), name='get-challenge-bets'),
     path('get-challenge-user-schedule/<int:chall_id>/<int:user_id>/', GetChallengeUserScheduleView.as_view(), name='get-challenge-user-schedule'),
     path('get-has-set-alarms/<int:chall_id>/<int:user_id>/', GetHasSetAlarmsView.as_view(), name='get-has-set-alarms'),
     path('set-user-has-set-alarms/<int:chall_id>/<int:user_id>/', SetUserHasSetAlarmsView.as_view(), name='set-user-has-set-alarms'),
@@ -186,7 +190,9 @@ urlpatterns = [
     path('get-performances/<int:chall_id>/', GetPerformancesView.as_view(), name='get-performances'),
     path('submit-game-scores/', SubmitGameScoresView.as_view(), name='submit-game-scores'),
     path('add-game-to-schedule/', AddGameToScheduleView.as_view(), name='add-game-to-schedule'),
-    path('skill-levels/', SkillLevelsView.as_view(), name="skill-levels"),
+    path('skill-levels/<int:user_id>/', SkillLevelsView.as_view(), name="skill-levels"),
+
+    path('send-bet/', SendBetView.as_view(), name='send-bet'),
 
     # sending challenge to friends
     path("share-challenge/<int:chall_id>/", ShareChallengeView.as_view()),

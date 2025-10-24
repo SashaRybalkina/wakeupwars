@@ -44,7 +44,7 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
   const [selectedDays, setSelectedDays] = useState<string[]>([])
   const [gamesByDay, setGamesByDay] = useState<Record<string, [string, string][]>>({})
   const [numUserCoins, setNumUserCoins] = useState<number>(0)
-  const [participationFee, setParticipationFee] = useState('5');
+  const [participationFee, setParticipationFee] = useState('');
 
   const dayToInt: Record<string, number> = {
     M: 1,
@@ -168,7 +168,7 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
       const fee = parseInt(trimmed, 10);
       console.log(fee)
 
-      if (fee <= 0) {
+      if (fee < 0) {
         Alert.alert('Error', 'Enter a valid positive amount for the reward');
         return;
       }
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
     color: "#FFD700",
   },
   rewardHeader:{flexDirection:'row',alignItems:'center',marginBottom:12},
-    inputRow: {
+  inputRow: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 10,
