@@ -13,6 +13,7 @@ from .models import (
     ChallengeBet,
     Badge,
     UserBadge,
+    User,
 )
 from .services.skill import recompute_skill_for_category
 
@@ -132,6 +133,11 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                         UserBadge.objects.get_or_create(user=winner_user, badge=lone_wolf_badge)
 
                     else:
+                        # for now just give reward here
+                        reward_amount = ch.participationFee * ch.members.count()
+                        winner_user.numCoins += reward_amount
+                        winner_user.save(update_fields=["numCoins"])
+
                         # check for first public challenge win
                         if ch.isPublic:
                             first_public_badge = Badge.objects.get(name="First Public")
@@ -157,10 +163,13 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                     user=bet.recipient
                                 ).aggregate(total_points=Sum("score"))["total_points"] or 0
 
+                                # for now just give reward here
                                 if initiator_points > recipient_points:
                                     bet.winner = bet.initiator
+                                    User.objects.filter(pk=bet.initiator.pk).update(numCoins=F('numCoins') + bet.betAmount)
                                 elif recipient_points > initiator_points:
                                     bet.winner = bet.recipient
+                                    User.objects.filter(pk=bet.recipient.pk).update(numCoins=F('numCoins') + bet.betAmount)
                                 else:
                                     bet.winner = None  # tie
                                 bet.save()
