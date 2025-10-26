@@ -63,6 +63,7 @@ import SudokuScreen from './pages/SudokuScreen';
 import EditChallengeSharingFriends from './pages/Challenges/EditChallengeSharingFriends';
 import CreateChallengeForFriend from './pages/Challenges/CreateChallengeForFriend';
 import { BASE_URL } from './api';
+import TypingRace from './pages/TypingRaceGame/TypingRace';
 
 const { IntentModule, NotificationModule, AlarmModule } = NativeModules;
 const alarmEmitter = new NativeEventEmitter(AlarmModule);
@@ -208,8 +209,8 @@ function App() {
   return (
     <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
       <Stack.Navigator
-        // initialRouteName="Login"
-        initialRouteName="Bootstrap"
+        initialRouteName="TypingRace"
+        //initialRouteName="Bootstrap"
         screenOptions={{ animationEnabled: false, headerShown: false }}
       >
         <Stack.Screen
@@ -462,6 +463,12 @@ function App() {
           component={CreateChallengeForFriend}
           options={{ headerShown: false }}
         />
+        <Stack.Screen
+          name="TypingRace"
+          component={TypingRace}
+          options={{ headerShown: false }}
+        />
+
         
       </Stack.Navigator>
     </NavigationContainer>
