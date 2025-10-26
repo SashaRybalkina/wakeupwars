@@ -16,6 +16,7 @@ const UserProfileCard: React.FC<Props> = ({ name, avatarSource }) => {
         style={styles.avatar}
       />
       <Text style={styles.profileName}>{name}</Text>
+      
 <View style={styles.statsContainer}>
   {skillLevels.map((s, i) => {
     const level =

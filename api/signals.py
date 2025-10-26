@@ -2,12 +2,17 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 import logging
 from django.db import transaction
+from django.db.models import Q, Count, F, Value, Sum
+from django.db.models.functions import Coalesce
 from .models import (
     GamePerformance,
     ChallengeMembership,
     GameSchedule,
     GameScheduleGameAssociation,
     Challenge,
+    ChallengeBet,
+    Badge,
+    UserBadge,
 )
 from .services.skill import recompute_skill_for_category
 
@@ -114,8 +119,64 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                     should_complete = True
                 if should_complete and not ch.isCompleted:
                     Challenge.objects.filter(pk=ch.id, isCompleted=False).update(isCompleted=True)
+                    # mark challenge winner/bet winners/check for badges here
+
+                    # mark the challenge winner (if personal, will be the single member)
+                    winner_user = ch.get_winner_user()
+                    if winner_user:
+                        Challenge.objects.filter(pk=ch.id).update(winner=winner_user)
+
+                    # if a personal challenge, just check the one badge
+                    if ch.groupID == None and ch.isPublic == False:
+                        lone_wolf_badge = Badge.objects.get(name="Lone Wolf")
+                        UserBadge.objects.get_or_create(user=winner_user, badge=lone_wolf_badge)
+
+                    else:
+                        # check for first public challenge win
+                        if ch.isPublic:
+                            first_public_badge = Badge.objects.get(name="First Public")
+                            UserBadge.objects.get_or_create(user=winner_user, badge=first_public_badge)
+
+                        # check for first group challenge win, and all betting badges since betting is only
+                        # in group challenges
+                        else:
+                            squad_leader_badge = Badge.objects.get(name="Squad Leader")
+                            UserBadge.objects.get_or_create(user=winner_user, badge=squad_leader_badge)
+
+
+                            # mark bet winners
+                            bets = ChallengeBet.objects.filter(challenge=ch)
+                            for bet in bets:
+                                initiator_points = GamePerformance.objects.filter(
+                                    challenge=ch,
+                                    user=bet.initiator
+                                ).aggregate(total_points=Sum("score"))["total_points"] or 0
+
+                                recipient_points = GamePerformance.objects.filter(
+                                    challenge=ch,
+                                    user=bet.recipient
+                                ).aggregate(total_points=Sum("score"))["total_points"] or 0
+
+                                if initiator_points > recipient_points:
+                                    bet.winner = bet.initiator
+                                elif recipient_points > initiator_points:
+                                    bet.winner = bet.recipient
+                                else:
+                                    bet.winner = None  # tie
+                                bet.save()
+
+                            # mark first blood winners
+                            first_blood_badge = Badge.objects.get(name="First Blood")
+                            winners = bets.filter(winner__isnull=False).values_list('winner', flat=True)
+                            for user_id in winners:
+                                UserBadge.objects.get_or_create(user_id=user_id, badge=first_blood_badge)
+
+
         except Exception:
             logging.exception("daily progress rollup (post_save) failed")
 
     # Defer the daily progress rollup until after commit to reduce lock scope
     transaction.on_commit(_after_commit)
+
+
+

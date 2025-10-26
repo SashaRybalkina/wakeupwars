@@ -103,6 +103,8 @@ from .views import (
     SendBetView,
     SendBetView,
     GetChallengeBetsView,
+    RespondToBetInviteView,
+    BadgesView,
 )
 
 
@@ -142,6 +144,7 @@ urlpatterns = [
     path('groups/<int:group_id>/', GroupDetailsView.as_view(), name='group-details'),
     path('user/<int:user_id>/group-conversations/', UserGroupConversationsView.as_view(), name='user-group-conversations'),
     path('group-member-add/<int:group_id>/', AddGroupMemberView.as_view(), name='group-mem-add'),
+    path('respond-to-bet-invite/', RespondToBetInviteView.as_view(), name='respond-to-bet-invite'),
     path('join-public-challenge/<int:user_id>/', JoinPublicChallengeView.as_view(), name='join-public-challenge'),
     path('finalize-public-challenge/', FinalizePublicChallengeView.as_view(), name='finalize-public-challenge'),
     path('challenge-detail/<int:chall_id>/', ChallengeDetailView.as_view(), name='challenge-detail'),
@@ -191,6 +194,7 @@ urlpatterns = [
     path('submit-game-scores/', SubmitGameScoresView.as_view(), name='submit-game-scores'),
     path('add-game-to-schedule/', AddGameToScheduleView.as_view(), name='add-game-to-schedule'),
     path('skill-levels/<int:user_id>/', SkillLevelsView.as_view(), name="skill-levels"),
+    path('badges/<int:user_id>/', BadgesView.as_view(), name="badges"),
 
     path('send-bet/', SendBetView.as_view(), name='send-bet'),
 

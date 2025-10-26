@@ -1,7 +1,7 @@
 import type React from "react"
 import { useCallback, useEffect, useState } from "react"
 import { endpoints } from "../../api"
-import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { Alert, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { type NavigationProp, useRoute } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
@@ -49,41 +49,21 @@ const Bets: React.FC<Props> = ({ navigation }) => {
   const [bets, setBets] = useState<Bet[]>([]);
   const [myBets, setMyBets] = useState<Bet[]>([]);
   const [myPendingBets, setPendingMyBets] = useState<Bet[]>([]);
-  const [selectedTab, setSelectedTab] = useState<"all" | "mine">("all");
+  const [selectedTab, setSelectedTab] = useState<"all" | "mine">("mine");
 
 
+  const fetchData = async () => {
+    if (!user?.id) return;
+    setIsLoading(true);
+    try {
+        const accessToken = await getAccessToken();
+        if (!accessToken) throw new Error("Not authenticated");
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!user?.id) {
-        console.error("userId is missing!");
-        return;
-      }
+        const response = await fetch(endpoints.getChallengeBets(challId, Number(user.id)), {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const data = await response.json();
 
-      setIsLoading(true);
-
-      const fetchData = async () => {
-
-        setIsLoading(true)
-        try {
-
-                const accessToken = await getAccessToken();
-                if (!accessToken) {
-                  throw new Error("Not authenticated");
-                }
-          const response = await fetch(endpoints.getChallengeBets(challId, Number(user.id)), {
-                headers: {
-                  Authorization: `Bearer ${accessToken}`
-                }
-              });
-          const data = await response.json()
-        // fields = [
-        //     'id', 'initiatorId', 'recipientId',
-        //     'initiator_name', 'recipient_name',
-        //     'initiator_points', 'recipient_points',
-        //     'betAmount', 'isPending'
-        // ]
-        
         const formattedData: Bet[] = data.map((item: any) => ({
         id: item.id,
         initiatorId: item.initiatorId,
@@ -95,14 +75,11 @@ const Bets: React.FC<Props> = ({ navigation }) => {
         betAmount: item.betAmount,
         isPending: item.isPending,
         }));
-        console.log(formattedData)
-  
-        const allNonPending = formattedData.filter(bet => !bet.isPending);
 
+        const allNonPending = formattedData.filter(bet => !bet.isPending);
         const myNonPending = formattedData.filter(
         bet => !bet.isPending && (bet.initiatorId === user.id || bet.recipientId === user.id)
         );
-
         const myPending = formattedData.filter(
         bet => bet.isPending && (bet.initiatorId === user.id || bet.recipientId === user.id)
         );
@@ -110,17 +87,69 @@ const Bets: React.FC<Props> = ({ navigation }) => {
         setBets(allNonPending);
         setMyBets(myNonPending);
         setPendingMyBets(myPending);
+    } catch (error) {
+        console.error("Failed to fetch bets:", error);
+    } finally {
+        setIsLoading(false);
+    }
+    };
 
-        } catch (error) {
-          console.error("Failed to fetch bets:", error)
-        } finally {
-          setIsLoading(false)
-        }
+
+    useFocusEffect(
+        useCallback(() => {
+            if (!user?.id) {
+            console.error("userId is missing!");
+            return;
+            }
+
+            setIsLoading(true);
+            fetchData();
+        }, [user?.id])
+    );
+
+
+  
+    const handleRespond = async (betId: number, accept: boolean) => {  
+      try {
+          const accessToken = await getAccessToken();
+          if (!accessToken) throw new Error("Not authenticated");
+  
+  
+          const payload = {
+              bet_id: betId,
+              accept,
+          };
+          console.log(JSON.stringify(payload))
+  
+          const res = await fetch(endpoints.respondToBetInvite(), {
+              method: "POST",
+              headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify(payload),
+          });
+  
+          if (!res.ok) {
+              const error = await res.json();
+              throw new Error(error.message || "Failed to respond to bet");
+          }
+  
+          const data = await res.json();
+          console.log('Responded to bet:', data);
+
+          // refresh bets
+          await fetchData();
+  
+          Alert.alert('Success', 'Responded to bet successfully')
+      
+      } catch (err: any) {
+        Alert.alert("Error", err.message);
       }
   
-      fetchData()
-    }, [user?.id])
-  );
+    };
+
+
 
 
 return (
@@ -182,17 +211,49 @@ return (
         <Text style={styles.addNewButtonText}>Make A Bet</Text>
     </TouchableOpacity>
 
-      {myPendingBets.length > 0 && (
-        <>
-          {myPendingBets.map((bet) => (
-            <View key={bet.id} style={styles.pendingBetCard}>
-              <Text style={styles.pendingText}>
-                {bet.initiatorName} vs {bet.recipientName} 💰 {bet.betAmount}
-              </Text>
-            </View>
-          ))}
-        </>
-      )}
+
+{myPendingBets.length > 0 && (
+  <>
+    {/* Bets waiting for MY response */}
+    <Text style={styles.sectionHeader}>Pending Invites</Text>
+    {myPendingBets
+      .filter(bet => bet.recipientId === user?.id)
+      .map(bet => (
+        <View key={bet.id} style={styles.pendingBetCard}>
+          <Text style={styles.pendingText}>
+            {bet.initiatorName} invited you to bet 💰 {bet.betAmount}
+          </Text>
+          <View style={styles.pendingActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.acceptButton]}
+              onPress={() => handleRespond(bet.id, true)}
+            >
+              <Text style={styles.actionButtonText}>Accept</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.declineButton]}
+              onPress={() => handleRespond(bet.id, false)}
+            >
+              <Text style={styles.actionButtonText}>Decline</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ))}
+
+    {/* Bets I initiated, waiting for others */}
+    <Text style={styles.sectionHeader}>Waiting for Others</Text>
+    {myPendingBets
+      .filter(bet => bet.initiatorId === user?.id)
+      .map(bet => (
+        <View key={bet.id} style={styles.pendingBetCard}>
+          <Text style={styles.pendingText}>
+            You challenged {bet.recipientName} for 💰 {bet.betAmount} — waiting for response
+          </Text>
+        </View>
+      ))}
+  </>
+)}
+
       {myBets.length === 0 && myPendingBets.length === 0 ? (
         <Text style={styles.noBetsText}>No bets yet.</Text>
       ) : (
@@ -406,19 +467,65 @@ tabText: {
   fontWeight: "600",
   color: "#000",
 },
+// pendingBetCard: {
+//   backgroundColor: "rgba(255,255,255,0.1)",
+//   borderRadius: 12,
+//   padding: 12,
+//   marginVertical: 6,
+//   width: "90%",
+//   alignItems: "center",
+// },
+// pendingText: {
+//   color: "#fff",
+//   fontSize: 16,
+//   fontWeight: "600",
+// },
+
+
+sectionHeader: {
+  color: '#FFD700',
+  fontSize: 18,
+  fontWeight: '700',
+  marginTop: 20,
+  marginBottom: 8,
+  textAlign: 'center',
+},
 pendingBetCard: {
-  backgroundColor: "rgba(255,255,255,0.1)",
+  backgroundColor: 'rgba(255,255,255,0.1)',
   borderRadius: 12,
   padding: 12,
   marginVertical: 6,
-  width: "90%",
-  alignItems: "center",
+  width: '90%',
+  alignSelf: 'center',
+  alignItems: 'center',
 },
 pendingText: {
-  color: "#fff",
-  fontSize: 16,
-  fontWeight: "600",
+  color: '#FFF',
+  fontSize: 15,
+  marginBottom: 8,
+  textAlign: 'center',
 },
+pendingActions: {
+  flexDirection: 'row',
+  justifyContent: 'space-around',
+  width: '100%',
+},
+actionButton: {
+  paddingVertical: 8,
+  paddingHorizontal: 16,
+  borderRadius: 8,
+},
+acceptButton: {
+  backgroundColor: '#4CAF50',
+},
+declineButton: {
+  backgroundColor: '#E53935',
+},
+actionButtonText: {
+  color: '#FFF',
+  fontWeight: '600',
+},
+
 
 })
 

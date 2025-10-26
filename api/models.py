@@ -261,11 +261,33 @@ class ChallengeBet(models.Model):
     recipient = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='bets_received'
     )
+    winner = models.ForeignKey(
+        User, on_delete=models.CASCADE, null=True, related_name='bets_won'
+    )
     betAmount = models.IntegerField()
     isPending = models.BooleanField()
 
     class Meta:
         db_table = 'ChallengeBets'
+
+
+class Badge(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    imageUrl = models.URLField(max_length=500)
+
+    class Meta:
+        db_table = 'Badges'
+
+
+class UserBadge(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_badges')
+    badge = models.ForeignKey(Badge, on_delete=models.CASCADE, related_name='earned_by_users')
+
+    class Meta:
+        db_table = 'UserBadges'
+        unique_together = ('user', 'badge')
+
 
 
     

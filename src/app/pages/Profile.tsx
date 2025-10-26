@@ -11,6 +11,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Image,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -19,7 +21,7 @@ import { NativeModules } from 'react-native';
 const { NotificationModule } = NativeModules;
 
 import { scheduleAlarms } from '../Alarm';
-import { endpoints } from '../api';
+import { endpoints, BASE_URL } from '../api';
 import { useUser } from '../context/UserContext';
 import UserProfileCard from './Components/UserProfileCard';
 const { AlarmModule } = NativeModules;
@@ -44,6 +46,8 @@ const Profile: React.FC<Props> = ({ navigation }) => {
   const [profileData, setProfileData] = useState<any>(null);
   const [numCoins, setNumCoins] = useState<number>(0);
   const { user, setUser, setSkillLevels } = useUser();
+  const [badges, setBadges] = useState<any[]>([]);
+  const [selectedBadge, setSelectedBadge] = useState<null | any>(null);
 
   // const handleLogout = () => {
   //   setUser(null);
@@ -78,21 +82,6 @@ const handleLogout = async () => {
 };
 
 
-  // useEffect(() => {
-  //   if (!user) return;
-  //   (async () => {
-  //     try {
-  //       const access = await getAccessToken();
-  //       const res = await fetch(endpoints.skillLevels(), {
-  //         headers: {
-  //           Authorization: `Bearer ${access}`
-  //         }
-  //       });
-  //       setSkillLevels(await res.json());
-  //     } catch {}
-  //   })();
-  // }, [user, setSkillLevels]);
-
   useFocusEffect(
     React.useCallback(() => {
       console.log("in profile")
@@ -125,6 +114,32 @@ const handleLogout = async () => {
       };
     }, [user, setSkillLevels]),
   );
+
+
+
+  useFocusEffect(
+  React.useCallback(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const access = await getAccessToken();
+        const res = await fetch(endpoints.badges(Number(user.id)), {
+          headers: { Authorization: `Bearer ${access}` },
+        });
+        const data = await res.json();
+        if (!cancelled) setBadges(data);
+      } catch (e) {
+        console.error('Failed to fetch badges', e);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [user])
+);
+
+
 
     const setUserAlarms = async() => {
       try {
@@ -177,9 +192,8 @@ const handleLogout = async () => {
         </View>
 
     <View style={styles.container}>
-      <Ionicons name="cash-outline" size={22} color="#FFD700" />
-      <Text style={styles.coinText}>{numCoins}</Text>
-      <Text style={styles.coinEmoji}>🪙</Text>
+      <Text style={styles.coinText}>{numCoins} 🪙</Text>
+      {/* <Text style={styles.coinEmoji}>🪙</Text> */}
     </View>
 
         <View style={styles.menu}>
@@ -235,6 +249,88 @@ const handleLogout = async () => {
             <Ionicons name="chevron-forward" size={22} color="#FFF" />
           </TouchableOpacity>
         </View>
+
+
+
+
+<ScrollView horizontal contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 5 }}>
+  {badges.map((badge) => (
+    <TouchableOpacity
+      key={badge.id}
+      onPress={() => setSelectedBadge(badge)}
+      style={{
+        width: 60,
+        height: 60,
+        margin: 5,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: badge.earned ? 2 : 0,      // add border only if earned
+        borderColor: badge.earned ? 'rgba(94, 204, 114, 1)' : 'transparent', // green outline
+        backgroundColor: badge.earned ? 'rgba(94, 204, 114, 0.2)' : 'rgba(255,255,255,0.1)', 
+      }}
+    >
+      <Image
+        source={{ uri: `${BASE_URL}${badge.imageUrl}` }}
+        style={{
+          width: 50,
+          height: 50,
+          opacity: badge.earned ? 1 : 0.3, // faded if not earned
+        }}
+        resizeMode="contain"
+      />
+    </TouchableOpacity>
+  ))}
+</ScrollView>
+
+
+{selectedBadge && (
+  <Modal
+    transparent
+    animationType="fade"
+    visible={!!selectedBadge}
+    onRequestClose={() => setSelectedBadge(null)}
+  >
+    <View style={{
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    }}>
+      <View style={{
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 20,
+        width: '100%',
+        maxWidth: 300,
+        alignItems: 'center',
+      }}>
+        <Image
+          source={{ uri: `${BASE_URL}${selectedBadge.imageUrl}` }}
+          style={{ width: 80, height: 80 }}
+          resizeMode="contain"
+        />
+        <Text style={{ fontWeight: 'bold', fontSize: 18, marginTop: 10 }}>
+          {selectedBadge.name}
+        </Text>
+        <Text style={{ fontSize: 14, textAlign: 'center', marginTop: 5 }}>
+          {selectedBadge.description}
+        </Text>
+        <TouchableOpacity
+          onPress={() => setSelectedBadge(null)}
+          style={{ marginTop: 15, padding: 10 }}
+        >
+          <Text style={{ color: '#007BFF', fontWeight: 'bold' }}>Close</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </Modal>
+)}
+
+
+
+
 
         <TouchableOpacity
           style={styles.logoutButton}
