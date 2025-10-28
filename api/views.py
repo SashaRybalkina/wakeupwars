@@ -494,6 +494,27 @@ class JoinPublicChallengeView(APIView):
                 hasSetAlarms=True # TODO: change this later
             )
 
+            other_members = ChallengeMembership.objects.filter(challengeID=challenge).exclude(uID=user)
+            for m in other_members:
+                UserNotification.objects.create(
+                    user=m.uID,
+                    title="New Member Joined",
+                    body=f"{user.name or user.username} joined the public challenge '{challenge.name}'.",
+                    type="public_challenge_join",
+                    screen="PublicChallenges",
+                    challengeId=challenge.id,
+                    challName=challenge.name,
+                    whichChall="Public"
+                )
+                device = FCMDevice.objects.filter(user=m.uID).first()
+                if device:
+                    send_fcm_notification(
+                        "New Member Joined",
+                        f"{user.name or user.username} joined the public challenge '{challenge.name}'.",
+                        {"screen": "PublicChallenges", "type": "public_challenge_join", "challengeId": challenge.id},
+                        m.uID.id
+                    )
+
             challenge.isPending = False
             challenge.save()
 
@@ -1761,6 +1782,28 @@ class CreatePendingCollaborativeGroupChallengeView(APIView):
                 ) for member in group_members
             ]
             GroupChallengeInvite.objects.bulk_create(invites)
+
+            for invite in invites:
+                if invite.uID_id != data['initiator_id']:
+                    UserNotification.objects.create(
+                        user=invite.uID,
+                        title="New Group Challenge",
+                        body=f"A new group challenge '{challenge.name}' needs your availability.",
+                        type="group_challenge_invite",
+                        screen="GroupChallenges",
+                        challengeId=challenge.id,
+                        challName=challenge.name,
+                        whichChall="Group"
+                    )
+                    device = FCMDevice.objects.filter(user=invite.uID).first()
+                    if device:
+                        send_fcm_notification(
+                            "New Group Challenge",
+                            f"A new group challenge '{challenge.name}' needs your availability.",
+                            {"screen": "GroupChallenges", "type": "group_challenge_invite", "challengeId": challenge.id},
+                            invite.uID.id
+                        )
+
             print("here3")
 
             return Response({"success": True, "challenge_id": challenge.id}, status=status.HTTP_201_CREATED)
@@ -1897,7 +1940,31 @@ class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
 
 
                 challenge.isPending = False
-                challenge.save(update_fields=["isPending"]) 
+                challenge.save(update_fields=["isPending"])
+
+                members = ChallengeMembership.objects.filter(challengeID=challenge)
+
+                for m in members:
+                    if m.uID_id != request.user.id:
+                        UserNotification.objects.create(
+                            user=m.uID,
+                            title="Group Challenge Finalized",
+                            body=f"The group challenge '{challenge.name}' has been finalized. Set your alarms!",
+                            type="group_challenge_finalized",
+                            screen="GroupChallenges",
+                            challengeId=challenge.id,
+                            challName=challenge.name,
+                            whichChall="Group"
+                        )
+                        device = FCMDevice.objects.filter(user=m.uID).first()
+                        if device:
+                            send_fcm_notification(
+                                "Group Challenge Finalized",
+                                f"The group challenge '{challenge.name}' has been finalized. Set your alarms!",
+                                {"screen": "GroupChallenges", "type": "group_challenge_finalized", "challengeId": challenge.id},
+                                m.uID.id
+                            )
+
                 # delete all invites
                 GroupChallengeInvite.objects.filter(chall=challenge).delete()
 
@@ -1979,10 +2046,34 @@ class RespondToFriendRequestView(APIView):
         except FriendRequest.DoesNotExist:
             return Response({'error': 'Friend request not found'}, status=status.HTTP_404_NOT_FOUND)
 
+        sender = fr.sender
+        recipient = fr.recipient
+
         if accept:
             # Add friendship both ways
             Friendship.objects.create(uID1=fr.sender, uID2=fr.recipient)
+            status_str = "accepted"
+        else:
+            status_str = "declined"
         fr.delete()
+
+        # Send notification to sender
+        UserNotification.objects.create(
+            user=sender,
+            title="Friend Request " + status_str.capitalize(),
+            body=f"{recipient.name or recipient.username} has {status_str} your friend request.",
+            type="friend_request_response",
+            screen="FriendsRequests",
+        )
+        device = FCMDevice.objects.filter(user=sender).first()
+        if device:
+            send_fcm_notification(
+                "Friend Request " + status_str.capitalize(),
+                f"{recipient.name or recipient.username} has {status_str} your friend request.",
+                {"screen": "FriendsRequests", "type": "friend_request_response"},
+                sender.id
+            )
+
         return Response({'message': 'Friend request processed'}, status=status.HTTP_200_OK)
 
 
@@ -3215,6 +3306,22 @@ class ShareChallengeView(APIView):
                     chall=new_challenge, sender=request.user, recipient=friend, status=2
                 )
 
+                UserNotification.objects.create(
+                    user=friend,
+                    title="Personal Challenge Invite",
+                    body=f"{request.user.name or request.user.username} shared a challenge '{challenge_name}' with you.",
+                    type="personal_challenge_invite",
+                    screen="PersonalChallenges",
+                )
+                device = FCMDevice.objects.filter(user=friend).first()
+                if device:
+                    send_fcm_notification(
+                        "Personal Challenge Invite",
+                        f"{request.user.name or request.user.username} shared a challenge '{challenge_name}' with you.",
+                        {"screen": "PersonalChallenges", "type": "personal_challenge_invite"},
+                        friend.id
+                    )
+
                 results.append({"friend": friend.id, "challenge": new_challenge.id})
 
             return Response({"message": "Challenge shared successfully", "results": results}, status=201)
@@ -3264,6 +3371,25 @@ class AcceptPersonalChallenge(APIView):
 
         inv.status = 1  # accepted
         inv.save(update_fields=['status'])
+
+        sender = inv.sender
+        status_str = "accepted" if isinstance(self, AcceptPersonalChallenge) else "declined"
+        UserNotification.objects.create(
+            user=sender,
+            title="Personal Challenge Response",
+            body=f"{inv.recipient.name or inv.recipient.username} has {status_str} your challenge invite.",
+            type="personal_challenge_response",
+            screen="PersonalChallenges",
+        )
+        device = FCMDevice.objects.filter(user=sender).first()
+        if device:
+            send_fcm_notification(
+                "Personal Challenge Response",
+                f"{inv.recipient.name or inv.recipient.username} has {status_str} your challenge invite.",
+                {"screen": "PersonalChallenges", "type": "personal_challenge_response"},
+                sender.id
+            )
+
         return Response({"ok": True}, status=200)
 
 
@@ -3278,6 +3404,24 @@ class DeclinePersonalChallenge(APIView):
        
         inv.status = 0  # declined
         inv.save(update_fields=['status'])
+
+        sender = inv.sender
+        status_str = "accepted" if isinstance(self, AcceptPersonalChallenge) else "declined"
+        UserNotification.objects.create(
+            user=sender,
+            title="Personal Challenge Response",
+            body=f"{inv.recipient.name or inv.recipient.username} has {status_str} your challenge invite.",
+            type="personal_challenge_response",
+            screen="PersonalChallenges",
+        )
+        device = FCMDevice.objects.filter(user=sender).first()
+        if device:
+            send_fcm_notification(
+                "Personal Challenge Response",
+                f"{inv.recipient.name or inv.recipient.username} has {status_str} your challenge invite.",
+                {"screen": "PersonalChallenges", "type": "personal_challenge_response"},
+                sender.id
+            )
 
         inv.chall.delete()
         return Response({"ok": True}, status=200)
@@ -3512,3 +3656,71 @@ class SaveFCMTokenView(APIView):
             return Response({"error": str(e)}, status=500)
 
         return Response({"success": True})
+
+
+class SendGroupInviteView(APIView):
+    @transaction.atomic
+    def post(self, request):
+        group_id = request.data.get("group_id")
+        recipient_id = request.data.get("recipient_id")
+        group = get_object_or_404(Group, id=group_id)
+        recipient = get_object_or_404(User, id=recipient_id)
+        sender = request.user
+
+        invite = GroupInvite.objects.create(group=group, sender=sender, recipient=recipient)
+        UserNotification.objects.create(
+            user=recipient,
+            title="Group Invite",
+            body=f"{sender.name or sender.username} invited you to join group '{group.name}'.",
+            type="group_invite",
+            screen="Groups",
+        )
+        device = FCMDevice.objects.filter(user=recipient).first()
+        if device:
+            send_fcm_notification(
+                "Group Invite",
+                f"{sender.name or sender.username} invited you to join group '{group.name}'.",
+                {"screen": "Groups", "type": "group_invite"},
+                recipient.id
+            )
+        return Response({"message": "Invite sent."}, status=201)
+
+
+class RespondGroupInviteView(APIView):
+    @transaction.atomic
+    def post(self, request, invite_id):
+        accept = request.data.get("accept")
+        invite = get_object_or_404(GroupInvite, id=invite_id)
+        group = invite.group
+        recipient = invite.recipient
+        sender = invite.sender
+
+        if accept:
+            GroupMembership.objects.create(groupID=group, uID=recipient)
+            invite.status = 1
+        else:
+            invite.status = 0
+        invite.save()
+
+        # Notify all group members
+        member_ids = GroupMembership.objects.filter(groupID=group).values_list("uID_id", flat=True)
+        for uid in member_ids:
+            if uid == recipient.id:
+                continue
+            user = User.objects.get(id=uid)
+            UserNotification.objects.create(
+                user=user,
+                title="Group Invite Response",
+                body=f"{recipient.name or recipient.username} has {'accepted' if accept else 'declined'} the invite to '{group.name}'.",
+                type="group_invite_response",
+                screen="Groups",
+            )
+            device = FCMDevice.objects.filter(user=user).first()
+            if device:
+                send_fcm_notification(
+                    "Group Invite Response",
+                    f"{recipient.name or recipient.username} has {'accepted' if accept else 'declined'} the invite to '{group.name}'.",
+                    {"screen": "Groups", "type": "group_invite_response"},
+                    user.id
+                )
+        return Response({"message": "Response recorded."}, status=200)

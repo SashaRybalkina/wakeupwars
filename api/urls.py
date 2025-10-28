@@ -100,6 +100,8 @@ from .views import (
     SetUserHasSetAlarmsView,
     GetPerformancesView,
     SaveFCMTokenView,
+    SendGroupInviteView,
+    RespondGroupInviteView
 )
 
 
@@ -195,4 +197,7 @@ urlpatterns = [
     path('save-push-token/', SavePushTokenView.as_view(), name='save-push-token'),
     path('notifications/<int:user_id>/', UserNotificationsView.as_view(), name='user-notifications'),
     path("notifications/<int:notification_id>/delete/", DeleteNotificationView.as_view(), name="delete-notification"),
+
+    path('groups/invite/', SendGroupInviteView.as_view()),
+    path('groups/invite/respond/<int:invite_id>/', RespondGroupInviteView.as_view()),
 ]

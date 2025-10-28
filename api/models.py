@@ -675,3 +675,11 @@ class FCMDevice(models.Model):
     token = models.CharField(max_length=255, unique=True)
     platform = models.CharField(max_length=10, choices=[("ios", "iOS"), ("android", "Android")])
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class GroupInvite(models.Model):
+    group = models.ForeignKey(Group, on_delete=models.CASCADE)
+    sender = models.ForeignKey(User, related_name='sent_group_invites', on_delete=models.CASCADE)
+    recipient = models.ForeignKey(User, related_name='received_group_invites', on_delete=models.CASCADE)
+    status = models.IntegerField(default=2)  # 2=pending, 1=accepted, 0=declined
+    created_at = models.DateTimeField(auto_now_add=True)
