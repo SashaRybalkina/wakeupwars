@@ -3615,6 +3615,9 @@ class CreateTypingRaceGameView(APIView):
     """
 
     def post(self, request):
+        print("DEBUG user:", request.user)
+        print("DEBUG is_authenticated:", request.user.is_authenticated)
+        print("DEBUG headers:", request.headers)
         challenge_id = request.data.get("challenge_id")
         user = request.user
 
@@ -3628,14 +3631,14 @@ class CreateTypingRaceGameView(APIView):
             return Response({"error": "Challenge not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Check if the user has already played this challenge today
-        gs = TypingRaceGameState.objects.filter(challenge_id=challenge_id).order_by('-id').first()
-        if gs:
-            today = timezone.localdate()
-            if GamePerformance.objects.filter(challenge_id=challenge_id, game_id=gs.game_id, date=today, user=user).exists():
-                return Response(
-                    {"code": "GAME_ENDED", "detail": "You have already completed this game today."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+        # gs = TypingRaceGameState.objects.filter(challenge_id=challenge_id).order_by('-id').first()
+        # if gs:
+        #     today = timezone.localdate()
+        #     if GamePerformance.objects.filter(challenge_id=challenge_id, game_id=gs.game_id, date=today, user=user).exists():
+        #         return Response(
+        #             {"code": "GAME_ENDED", "detail": "You have already completed this game today."},
+        #             status=status.HTTP_403_FORBIDDEN,
+        #         )
 
         game_data = get_or_create_typing_race_game(challenge_id, user)
         return Response(game_data, status=status.HTTP_200_OK)

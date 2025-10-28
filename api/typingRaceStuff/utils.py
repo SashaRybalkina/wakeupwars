@@ -41,7 +41,9 @@ def _load_passages_from_file() -> List[str]:
     with open(file_path, "r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip()]
 
-TYPING_PASSAGES: List[str] = _load_passages_from_file()
+#TYPING_PASSAGES: List[str] = _load_passages_from_file()
+
+TYPING_PASSAGES  = ["Typing games are a fun way to improve your speed and accuracy."]
 
 # ===============================
 # Helpers
