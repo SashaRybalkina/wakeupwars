@@ -1,5 +1,3 @@
-from django.urls import path
-
 from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalChallenge, 
                     ExternalHandleViewSet, FinalizeChallengeView, FinalizePublicChallengeView, 
                     GetMatchingChallengesView, GetPendingPublicChallengesView, GetPersonalChallengeInvites, 
@@ -99,6 +97,8 @@ from .views import (
     GetHasSetAlarmsView,
     SetUserHasSetAlarmsView,
     GetPerformancesView,
+    CreateTypingRaceGameView,
+    FinalizeTypingRaceResultView
 )
 
 
@@ -195,4 +195,9 @@ urlpatterns = [
     path('save-push-token/', SavePushTokenView.as_view(), name='save-push-token'),
     path('notifications/<int:user_id>/', UserNotificationsView.as_view(), name='user-notifications'),
     path("notifications/<int:notification_id>/delete/", DeleteNotificationView.as_view(), name="delete-notification"),
+
+    # Typing Race Game
+    path('typing-race/create/', CreateTypingRaceGameView.as_view(), name='typing-race-create'),
+    path('typing-race/finalize/', FinalizeTypingRaceResultView.as_view(), name='typing-race-finalize'),
+
 ]

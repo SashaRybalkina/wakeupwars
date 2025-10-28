@@ -10,8 +10,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.views import View
 from rest_framework import status
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, IsAdminUser
 from rest_framework import generics, permissions
 from rest_framework import generics, permissions, status, viewsets, mixins
@@ -20,7 +18,6 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import action
-from rest_framework import status
 from django.http import JsonResponse, HttpResponseNotAllowed
 from django.db import transaction
 from collections import defaultdict
@@ -46,9 +43,10 @@ from datetime import datetime, time
 
 #### Sudoku Game Imports ####
 from .models import (SudokuGameState, WordleGameState, Challenge, SudokuGamePlayer, WordleGamePlayer, User, Game, GamePerformance, RewardSetting,
-                     ExternalHandle, Obligation, Payment, PaymentStatus, PaymentMethod, PaymentProvider, ObligationStatus, RewardType)
+                     ExternalHandle, Obligation, Payment, PaymentStatus, PaymentMethod, PaymentProvider, ObligationStatus, RewardType, TypingRaceGameState)
 from api.sudokuStuff.utils import validate_sudoku_move, get_or_create_game
 from api.wordleStuff.utils import validate_wordle_move, get_or_create_game_wordle
+from api.typingRaceStuff.utils import get_or_create_typing_race_game, finalize_single_result
 from .serializers import ChallengeSummarySerializer
 from sudoku import Sudoku
 import time
@@ -3600,3 +3598,94 @@ class DeleteNotificationView(APIView):
             return Response({"success": True})
         except UserNotification.DoesNotExist:
             return Response({"error": "Not found"}, status=404)
+        
+class CreateTypingRaceGameView(APIView):
+    """
+    [Single / Multiplayer] Create or join a Typing Race game.
+
+    Request:
+      - challenge_id: int
+
+    Response:
+      - game_state_id: int (Game session ID)
+      - text: str (Passage to type)
+      - is_multiplayer: bool
+      - created_at: str (ISO format)
+      - join_deadline_at: str (ISO format or None)
+    """
+
+    def post(self, request):
+        challenge_id = request.data.get("challenge_id")
+        user = request.user
+
+        if not challenge_id:
+            return Response({"error": "Missing challenge_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Ensure challenge exists
+        try:
+            Challenge.objects.get(id=challenge_id)
+        except Challenge.DoesNotExist:
+            return Response({"error": "Challenge not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if the user has already played this challenge today
+        gs = TypingRaceGameState.objects.filter(challenge_id=challenge_id).order_by('-id').first()
+        if gs:
+            today = timezone.localdate()
+            if GamePerformance.objects.filter(challenge_id=challenge_id, game_id=gs.game_id, date=today, user=user).exists():
+                return Response(
+                    {"code": "GAME_ENDED", "detail": "You have already completed this game today."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        game_data = get_or_create_typing_race_game(challenge_id, user)
+        return Response(game_data, status=status.HTTP_200_OK)
+
+
+class FinalizeTypingRaceResultView(APIView):
+    """
+    [Single-player only] Submit the final accuracy after finishing the game.
+
+    Request:
+      - game_state_id: int
+      - accuracy: float (calculated on frontend)
+
+    Response:
+      - progress
+      - accuracy
+      - final_score
+      - scores (snapshot leaderboard for this game)
+    """
+
+    def post(self, request):
+        game_id = request.data.get("game_state_id")
+        accuracy = request.data.get("accuracy")
+        user = request.user
+
+        if game_id is None or accuracy is None:
+            return Response({"error": "Missing parameters"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Ensure the game exists
+        try:
+            game_state = TypingRaceGameState.objects.get(id=game_id)
+        except TypingRaceGameState.DoesNotExist:
+            return Response({"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Convert accuracy to float
+        try:
+            accuracy_val = float(accuracy)
+        except ValueError:
+            return Response({"error": "Invalid accuracy value"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Calculate final result (update TypingRaceGamePlayer)
+        result = finalize_single_result(game_id, user, accuracy_val)
+
+        # Save result to GamePerformance for leaderboard
+        GamePerformance.objects.update_or_create(
+            challenge=game_state.challenge,
+            game=game_state.game,
+            user=user,
+            date=timezone.localdate(),
+            defaults={"score": int(result["final_score"])}
+        )
+
+        return Response(result, status=status.HTTP_200_OK)

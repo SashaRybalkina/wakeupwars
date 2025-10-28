@@ -240,29 +240,7 @@ const handleLogout = async () => {
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
-        {/* <TouchableOpacity
-          style={styles.logoutButton}
-          activeOpacity={0.8}
-          onPress={() =>
-            NotificationService.sendNotification(
-              user.id,
-              "Wassupppp",
-              "This is a real push notification!",
-              "FriendsRequests",
-              {}
-            )
-          }
-        >
-          {/* <Ionicons
-            name="game-controller"
-            size={22}
-            color="#FFF"
-            style={styles.logoutIcon}
-          />
-          <Text style={styles.logoutText}>Notification</Text> */}
-
-
-
+        
         {/* <TouchableOpacity
           style={styles.logoutButton}
           activeOpacity={0.8}
@@ -309,19 +287,26 @@ const handleLogout = async () => {
           <Text style={styles.logoutText}>Alarm</Text>
         </TouchableOpacity> */}
 
-        {/* <TouchableOpacity
+        
+        <TouchableOpacity
           style={styles.logoutButton}
           activeOpacity={0.8}
-          onPress={setUserAlarms}
+          onPress={() =>
+            navigation.navigate('TypingRace', {
+              challId: 477,  // Challenge ID for single player typing race
+              challName: 'Typing Race Test',
+            })
+          }
         >
           <Ionicons
-            name="log-out-outline"
-            size={22}
+            name="car-sport"  
             color="#FFF"
             style={styles.logoutIcon}
           />
-          <Text style={styles.logoutText}>Test Schedule Alarms</Text>
-        </TouchableOpacity> */}
+          <Text style={styles.logoutText}>Typing Race Test</Text>
+        </TouchableOpacity>
+
+
 
         {/* Add padding at the bottom to ensure content isn't hidden behind the nav bar */}
         <View style={styles.bottomPadding} />

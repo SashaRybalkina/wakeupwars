@@ -1,5 +1,4 @@
 // TypingRace.tsx
-// Version: Move on correct keystroke (no lag even if typing fast)
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -17,8 +16,10 @@ import {
   Dimensions,
 } from 'react-native';
 import { NavigationProp, useRoute } from '@react-navigation/native';
+import { BASE_URL, endpoints } from '../../api';
+import { useUser } from '../../context/UserContext';
+import { getAccessToken } from "../../auth";
 
-const MOCK_MODE = true;
 const GAME_SECONDS = 40;
 const CAR_SIZE = 24;
 const COUNTDOWN_START = 3;
@@ -37,9 +38,6 @@ const TRACK_WIDTH = remainingWidth * TRACK_RATIO;
 type Props = { navigation: NavigationProp<any>; };
 type PlayerProgress = { username: string; color: string; progress: number; wpm: number; isMe?: boolean; };
 
-const SAMPLE_TEXT =
-  "The quick brown fox jumps over the lazy dog. Typing race should be smooth, accurate, and fun.";
-
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
@@ -48,22 +46,30 @@ const formatTime = (seconds: number) => {
 
 const TypingRace: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { challName = 'Typing Race' } = (route.params as any) || {};
+  const { challId, challName = 'Typing Race' } = (route.params as any) || {};
+  const { user } = useUser();
 
+  // ===============================
+  // ⏳ Game State (shared between solo & multiplayer)
+  // ===============================
   const [waitingActive, setWaitingActive] = useState(true);
   const [countdown, setCountdown] = useState<number | null>(COUNTDOWN_START);
   const [gameTime, setGameTime] = useState(GAME_SECONDS);
   const [gameOver, setGameOver] = useState(false);
 
+  // ===============================
+  // 🧑 Player Data
+  // ===============================
   const [playerProgress, setPlayerProgress] = useState<PlayerProgress[]>([
-    { username: 'You', color: 'gold', progress: 0, wpm: 0, isMe: true },
-    { username: 'Alex', color: 'dodgerblue', progress: 0, wpm: 0 },
-    { username: 'Bob', color: 'hotpink', progress: 0, wpm: 0 },
+    { username: user?.username || 'You', color: 'gold', progress: 0, wpm: 0, isMe: true },
   ]);
 
   const playerMapRef = useRef<Map<string, Animated.Value>>(new Map());
   const [input, setInput] = useState('');
-  const totalChars = SAMPLE_TEXT.length;
+  const [passage, setPassage] = useState('');
+  const [gameStateId, setGameStateId] = useState<number | null>(null);
+
+  const totalChars = passage.length;
 
   const me = useMemo(
     () => playerProgress.find(p => p.isMe) || playerProgress[0],
@@ -72,10 +78,13 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
   const accuracy = useMemo(() => {
     if (input.length === 0) return 100;
-    const correct = input.split('').filter((ch, i) => ch === SAMPLE_TEXT[i]).length;
+    const correct = input.split('').filter((ch, i) => ch === passage[i]).length;
     return Math.max(0, Math.round((correct / input.length) * 100));
-  }, [input]);
+  }, [input, passage]);
 
+  // ===============================
+  // 🪝 Animation handling
+  // ===============================
   const ensureAnim = (username: string) => {
     if (!playerMapRef.current.has(username)) {
       playerMapRef.current.set(username, new Animated.Value(0));
@@ -83,7 +92,6 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
     return playerMapRef.current.get(username)!;
   };
 
-  // 🏎️ smooth animation on each progress update
   useEffect(() => {
     playerProgress.forEach(p => {
       const anim = ensureAnim(p.username);
@@ -97,57 +105,106 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
     });
   }, [playerProgress]);
 
-  // Countdown
+  // ===============================
+  // 🧭 Init: Fetch typing passage from API
+  // ===============================
+  useEffect(() => {
+    const fetchGame = async () => {
+      try {
+        const accessToken = await getAccessToken();
+        if (!accessToken) throw new Error('Not authenticated');
+
+        const res = await fetch(endpoints.typingRaceCreate, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ challenge_id: challId }),
+        });
+
+        if (!res.ok) throw new Error('Failed to create game');
+        const data = await res.json();
+        setPassage(data.text);
+        setGameStateId(data.game_state_id);
+
+        //  WebSocket
+        // connectWebSocket(data.game_state_id);
+
+      } catch (err) {
+        console.error(err);
+        Alert.alert('Error', 'Failed to start game.');
+      }
+    };
+
+    fetchGame();
+  }, [challId]);
+
+  // ===============================
+  // 📡 WebSocket Placeholder
+  // ===============================
+  /*
+  const socketRef = useRef<WebSocket | null>(null);
+
+  const connectWebSocket = async (id: number) => {
+    const accessToken = await getAccessToken();
+    const wsUrl = `${BASE_URL.replace(/^http/, 'ws')}/ws/typing/${id}/?token=${accessToken}`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => console.log('[Typing WS] connected');
+    ws.onclose = () => console.log('[Typing WS] disconnected');
+    ws.onerror = (e) => console.error('[Typing WS] error:', e);
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'player_progress') {
+        setPlayerProgress(prev => prev.map(p =>
+          p.username === msg.username ? { ...p, progress: msg.progress, wpm: msg.wpm } : p
+        ));
+      }
+    };
+
+    socketRef.current = ws;
+  };
+  */
+
+  // ===============================
+  // 🕒 Countdown Timer
+  // ===============================
   useEffect(() => {
     if (!waitingActive) return;
     setGameOver(false);
 
-    if (MOCK_MODE) {
-      let c = COUNTDOWN_START;
+    let c = COUNTDOWN_START;
+    setCountdown(c);
+    const timer = setInterval(() => {
+      c -= 1;
       setCountdown(c);
-      const timer = setInterval(() => {
-        c -= 1;
-        setCountdown(c);
-        if (c <= 0) {
-          clearInterval(timer);
-          setWaitingActive(false);
-          setCountdown(null);
-        }
-      }, 1000);
-      return () => clearInterval(timer);
-    }
+      if (c <= 0) {
+        clearInterval(timer);
+        setWaitingActive(false);
+        setCountdown(null);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
   }, [waitingActive]);
 
-  // Timer
+  // ===============================
+  // ⏳ Game Timer
+  // ===============================
   useEffect(() => {
     if (waitingActive || gameOver) return;
     if (gameTime <= 0) {
-      setGameOver(true);
-      Alert.alert('⏰ Time’s up!', 'Race finished.', [
-        { text: 'Play Again', onPress: resetRace },
-        { text: 'Exit', onPress: () => navigation.goBack() },
-      ]);
+      finishGame();
       return;
     }
     const t = setInterval(() => setGameTime(t => t - 1), 1000);
     return () => clearInterval(t);
-  }, [waitingActive, gameOver, gameTime, navigation]);
+  }, [waitingActive, gameOver, gameTime]);
 
-  // opponent move 1 char at a time
-  useEffect(() => {
-    if (waitingActive || gameOver || !MOCK_MODE) return;
-    const interval = setInterval(() => {
-      setPlayerProgress(prev =>
-        prev.map(p => {
-          if (p.isMe) return p;
-          const newProgress = Math.min(100, p.progress + (1 / totalChars) * 100);
-          return { ...p, progress: newProgress };
-        })
-      );
-    }, 500);
-    return () => clearInterval(interval);
-  }, [waitingActive, gameOver, totalChars]);
-
+  // ===============================
+  // 🔄 Reset Game
+  // ===============================
   const resetRace = () => {
     setInput('');
     setPlayerProgress(ps => ps.map(p => ({ ...p, progress: 0, wpm: 0 })));
@@ -157,34 +214,75 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
     setGameOver(false);
   };
 
-  // ✅ move on each correct keystroke
+  // ===============================
+  // 🏁 Finish Game
+  // ===============================
+  const finishGame = async () => {
+    setGameOver(true);
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error('Not authenticated');
+
+      const res = await fetch(endpoints.typingRaceFinalize, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          game_state_id: gameStateId,
+          accuracy,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Submit failed');
+
+      Alert.alert('🎉 Race Finished', `Accuracy: ${data.accuracy}%\nScore: ${data.final_score}`, [
+        { text: 'Play Again', onPress: resetRace },
+        { text: 'Exit', onPress: () => navigation.goBack() },
+      ]);
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Failed to submit result.');
+    }
+  };
+
+  // ===============================
+  // ⌨️ Handle Player Input
+  // ===============================
   const onChangeInput = (text: string) => {
     if (gameOver || waitingActive) return;
     const limited = text.slice(0, totalChars);
     setInput(limited);
 
-    const correctChars = limited.split('').filter((ch, i) => ch === SAMPLE_TEXT[i]).length;
+    const correctChars = limited.split('').filter((ch, i) => ch === passage[i]).length;
     const newProgress = Math.min(100, (correctChars / totalChars) * 100);
-
-    // ✨ calculate WPM
     const elapsedSeconds = GAME_SECONDS - gameTime;
     const newWpm = elapsedSeconds > 0 ? Math.round((correctChars / 5) / (elapsedSeconds / 60)) : 0;
 
     setPlayerProgress(prev =>
-      prev.map(p => 
+      prev.map(p =>
         p.isMe ? { ...p, progress: newProgress, wpm: newWpm } : p
       )
     );
+
+    if (limited.length === totalChars) {
+      finishGame();
+    }
   };
 
+  // ===============================
+  // 📝 Render Typing Passage
+  // ===============================
   const renderTypingText = () => {
     const typed = input;
-    const correctLen = typed.split('').findIndex((ch, i) => ch !== SAMPLE_TEXT[i]);
+    const correctLen = typed.split('').findIndex((ch, i) => ch !== passage[i]);
     const firstIncorrectIndex = correctLen === -1 ? typed.length : correctLen;
 
-    const correctPart = SAMPLE_TEXT.slice(0, firstIncorrectIndex);
-    const incorrectPart = SAMPLE_TEXT.slice(firstIncorrectIndex, typed.length);
-    const remainingPart = SAMPLE_TEXT.slice(typed.length);
+    const correctPart = passage.slice(0, firstIncorrectIndex);
+    const incorrectPart = passage.slice(firstIncorrectIndex, typed.length);
+    const remainingPart = passage.slice(typed.length);
 
     return (
       <Text style={styles.textLine}>
@@ -201,7 +299,6 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
       style={styles.background}
       resizeMode="cover"
     >
-      {/* Waiting Room */}
       {waitingActive && (
         <View style={styles.waitingOverlay}>
           <View style={styles.waitingCard}>
@@ -214,7 +311,6 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
         </View>
       )}
 
-      {/* Countdown */}
       {countdown !== null && waitingActive && (
         <View style={styles.countdownOverlay}>
           <Text style={styles.countdownText}>{countdown}</Text>
@@ -230,9 +326,9 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.exitText}>Exit</Text>
           </TouchableOpacity>
 
-          <Text style={styles.title}>{challName || 'Typing Race'}</Text>
+          <Text style={styles.title}>{challName}</Text>
 
-          {/* Player Rows */}
+          {/* 🏎️ Progress Board */}
           <View style={styles.progressBoard}>
             {playerProgress.map(p => {
               const anim = ensureAnim(p.username);
@@ -282,14 +378,12 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
             })}
           </View>
 
-          {/* Typing Stats */}
           <View style={styles.headerStats}>
             <Text style={styles.headerStatText}>⏱ {formatTime(gameTime)}</Text>
             <Text style={styles.headerStatText}>WPM {me?.wpm ?? 0}</Text>
             <Text style={styles.headerStatText}>Acc {accuracy}%</Text>
           </View>
 
-          {/* Typing Area */}
           <View style={styles.typingArea}>
             {renderTypingText()}
             <TextInput
@@ -309,6 +403,8 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
     </ImageBackground>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   background: { flex: 1 },

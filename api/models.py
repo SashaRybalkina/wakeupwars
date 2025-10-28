@@ -668,3 +668,51 @@ class PushToken(models.Model):
 
     def __str__(self):
         return f"ExpoPushToken for {self.user.username}: {self.token}"
+    
+
+class TypingRaceGameState(models.Model):
+    """
+    Represents a single Typing Race game instance.
+    Stores the text content and basic game metadata.
+    """
+    game = models.ForeignKey('Game', on_delete=models.CASCADE)
+    challenge = models.ForeignKey('Challenge', on_delete=models.CASCADE, related_name='typing_race_games')
+    text = models.TextField()  # The passage players will type
+    game_code = models.CharField(max_length=50, default="typing_race")
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    join_deadline_at = models.DateTimeField(null=True, blank=True)
+    joins_closed = models.BooleanField(default=False, null=True, blank=True)
+
+    class Meta:
+        db_table = 'TypingRaceGameStates'
+
+    def __str__(self):
+        return f"TypingRace Game {self.id} (Challenge {self.challenge.id})"
+
+
+class TypingRaceGamePlayer(models.Model):
+    """
+    Represents each player's progress and result in a Typing Race game.
+    Designed for both single-player and multiplayer expansion.
+    """
+    game_state = models.ForeignKey(TypingRaceGameState, on_delete=models.CASCADE, related_name='players')
+    player = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    progress = models.FloatField(default=0.0)  # percentage (0–100)
+    accuracy = models.FloatField(default=100.0)  # percentage (0–100)
+    final_score = models.FloatField(default=0.0)  # score (single: accuracy, multi: rank-based)
+
+    is_completed = models.BooleanField(default=False)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    joined_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+
+    # for future multiplayer use
+    rank = models.IntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'TypingRaceGamePlayers'
+        unique_together = ('game_state', 'player')
+
+    def __str__(self):
+        return f"{self.player.username} in TypingRace Game {self.game_state.id}"
+

@@ -209,8 +209,8 @@ function App() {
   return (
     <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
       <Stack.Navigator
-        initialRouteName="TypingRace"
-        //initialRouteName="Bootstrap"
+        //initialRouteName="TypingRace"
+        initialRouteName="Bootstrap"
         screenOptions={{ animationEnabled: false, headerShown: false }}
       >
         <Stack.Screen
