@@ -70,44 +70,40 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
   }
 
   const handleAddToGroup = async () => {
-    if (isLoading) return
-
-    setIsLoading(true)
+    if (isLoading) return;
+    setIsLoading(true);
+  
     const payload = {
-      friend_id: friendId,
-    }
-
+      group_id: groupId,
+      recipient_id: friendId,
+    };
+  
     try {
       const accessToken = await getAccessToken();
-      if (!accessToken) {
-        throw new Error("Not authenticated");
-      }
-      
-      const response = await fetch(endpoints.addGroupMember(groupId!), {
+      if (!accessToken) throw new Error("Not authenticated");
+  
+      const response = await fetch(endpoints.sendGroupInvite(), {
         method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(payload),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to add friend to group")
-      }
-
-      const data = await response.json()
-      console.log("Friend added to group", data)
-      Alert.alert("Success!", `${profileData?.name || "Friend"} has been added to your group.`, [
+      });
+  
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.message || "Failed to send invite");
+  
+      console.log("Friend added to group", data);
+      Alert.alert("Success!", `${profileData?.name || "Friend"} has been invited to your group.`, [
         { text: "OK", onPress: () => navigation.navigate("GroupDetails", { groupId }) },
-      ])
+      ]);
     } catch (err: any) {
-      Alert.alert("Error", err.message)
+      Alert.alert("Error", err.message);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };  
 
   const goToChallenges = () => navigation.navigate("Challenges")
   const goToGroups = () => navigation.navigate("Groups")

@@ -99,11 +99,6 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
       Alert.alert("Error", "Please enter a group name");
       return;
     }
-    
-    if (selectedFriends.length === 0) {
-      Alert.alert("Error", "Please select at least one friend")
-      return
-    }
 
     try {
       setCreating(true)

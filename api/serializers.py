@@ -249,7 +249,10 @@ class FriendRequestSerializer(serializers.ModelSerializer):
 class CreateGroupSerializer(serializers.Serializer):
     name = serializers.CharField()
     members = serializers.ListField(
-        child=serializers.IntegerField()
+        child=serializers.IntegerField(),
+        required=False,
+        default=list,
+        allow_empty=True
     )
 
 class GroupSerializer(serializers.ModelSerializer):

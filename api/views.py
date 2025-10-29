@@ -2096,30 +2096,55 @@ class CancelFriendRequestView(APIView):
 
 
 class CreateGroupView(APIView):
+    @transaction.atomic
     def post(self, request):
         serializer = CreateGroupSerializer(data=request.data)
-        if serializer.is_valid():
-            name = serializer.validated_data['name']
-            raw_ids = serializer.validated_data['members']
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            member_ids = {mid for mid in raw_ids if mid is not None}
+        name = serializer.validated_data['name']
+        raw_ids = serializer.validated_data.get('members', [])
+        member_ids = {mid for mid in raw_ids if mid is not None}
 
-            if request.user and request.user.id:
-                member_ids.add(request.user.id)
+        # Create the group
+        group = Group.objects.create(name=name)
 
-            group = Group.objects.create(name=name)
+        # Add creator as the only confirmed member
+        if request.user and request.user.id:
+            GroupMembership.objects.create(groupID=group, uID=request.user)
 
-            # Only get users that actually exist
-            users = User.objects.filter(id__in=member_ids)
+        # Send invites to provided member IDs (if any)
+        if member_ids:
+            users_to_invite = User.objects.filter(id__in=member_ids).exclude(id=request.user.id)
 
-            for user in users:
-                GroupMembership.objects.create(groupID=group, uID=user)
+            for recipient in users_to_invite:
+                GroupInvite.objects.create(group=group, sender=request.user, recipient=recipient)
+                
+                UserNotification.objects.create(
+                    user=recipient,
+                    title="Group Invite",
+                    body=f"{request.user.name or request.user.username} invited you to join group '{group.name}'.",
+                    type="group_invite",
+                    screen="Groups",
+                )
 
-            return Response({'message': 'Group created successfully', 'group_id': group.id}, status=201)
+                device = FCMDevice.objects.filter(user=recipient).first()
+                if device:
+                    send_fcm_notification(
+                        "Group Invite",
+                        f"{request.user.name or request.user.username} invited you to join group '{group.name}'.",
+                        {"screen": "Groups", "type": "group_invite"},
+                        recipient.id,
+                    )
 
-        else:
-            return Response(serializer.errors, status=400)
-
+        return Response(
+            {
+                "message": "Group created successfully",
+                "group_id": group.id,
+                "invites_sent": len(member_ids),
+            },
+            status=status.HTTP_201_CREATED,
+        )
     
 ################### Sudoku Game ###################
 
@@ -3483,57 +3508,44 @@ class SendMessageGroupView(APIView):
             timestamp=timezone.now()
         )
 
-        channel_layer = get_channel_layer()
-        room_name = f"chat_group_{group.id}"
+        # channel_layer = get_channel_layer()
+        # room_name = f"chat_group_{group.id}"
 
-        # Broadcast group message
-        async_to_sync(channel_layer.group_send)(
-            room_name,
-            {
-                "type": "chat_message",
-                "message": message.message,
-                "sender": {
-                    "id": sender.id,
-                    "name": sender.name,
-                    "username": sender.username,
-                },
-                "recipient_id": None,
-                "group_id": group.id,
-                "timestamp": message.timestamp.isoformat(),
-            },
-        )
-
-        # Notify other group members
+        # # Broadcast group message
+        # async_to_sync(channel_layer.group_send)(
+        #     room_name,
+        #     {
+        #         "type": "chat_message",
+        #         "message": message.message,
+        #         "sender": {
+        #             "id": sender.id,
+        #             "name": sender.name,
+        #             "username": sender.username,
+        #         },
+        #         "recipient_id": None,
+        #         "group_id": group.id,
+        #         "timestamp": message.timestamp.isoformat(),
+        #     },
+        # )
+        
         member_ids = GroupMembership.objects.filter(groupID=group).values_list("uID_id", flat=True)
-        for uid in member_ids:
-            if uid == sender.id:
-                continue
-            user_token = get_user_from_token(uid)
-            if user_token:
+        recipients = User.objects.filter(id__in=member_ids).exclude(id=sender.id)
+
+        for recipient in recipients:
+            device = FCMDevice.objects.filter(user=recipient).first()
+            if device:
                 send_fcm_notification(
-                    user_token,
-                    {
+                    title=f"{sender.name or sender.username}, {group.name}",
+                    body=f"{sender.name or sender.username}: {message_text}",
+                    data={
                         "screen": "Messages",
+                        "type": "group_message",
                         "group_id": group.id,
                         "sender_id": sender.id,
                         "message_id": message.id,
-                        "title": sender.name + ", " + group.name,
-                        "body": f"{sender.name or sender.username}: {message_text}",
-                    }
+                    },
+                    user_id=recipient.id,
                 )
-            async_to_sync(channel_layer.group_send)(
-                f"notifications_{uid}",
-                {
-                    "type": "notify",
-                    "event": "new_group_message",
-                    "group_id": group.id,
-                    "group_name": group.name,
-                    "sender": sender.username,
-                    "sender_id": sender.id,
-                    "message": message.message,
-                    "timestamp": message.timestamp.isoformat(),
-                },
-            )
 
         return Response({"success": True, "id": message.id})
 
@@ -3683,6 +3695,7 @@ class SendGroupInviteView(APIView):
                 {"screen": "Groups", "type": "group_invite"},
                 recipient.id
             )
+
         return Response({"message": "Invite sent."}, status=201)
 
 
@@ -3732,10 +3745,15 @@ class GroupInviteListView(APIView):
         data = [
             {
                 "id": invite.id,
-                "group_id": invite.group.id,
-                "group_name": invite.group.name,
-                "sender_id": invite.sender.id,
-                "sender_name": invite.sender.name or invite.sender.username,
+                "group": {
+                    "id": invite.group.id,
+                    "name": invite.group.name,
+                },
+                "sender": {
+                    "id": invite.sender.id,
+                    "name": invite.sender.name or invite.sender.username,
+                    "username": invite.sender.username,
+                },
                 "created_at": invite.created_at,
             }
             for invite in invites

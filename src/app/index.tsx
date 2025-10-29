@@ -266,7 +266,7 @@ function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="GroupsInvites"
+          name="GroupInvites"
           component={GroupInvites}
           options={{ headerShown: false }}
         />
