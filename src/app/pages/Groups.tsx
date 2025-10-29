@@ -5,7 +5,7 @@ import { ImageBackground, StyleSheet, Text, TouchableOpacity, View, ScrollView a
 import { Ionicons } from "@expo/vector-icons"
 import type { NavigationProp } from "@react-navigation/native"
 import { useUser } from "../context/UserContext"
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { getAccessToken } from "../auth"
 import * as SecureStore from "expo-secure-store"
 
@@ -20,6 +20,8 @@ type Group = {
 
 const Groups: React.FC<Props> = ({ navigation }) => {
   const { user } = useUser()
+  const route = useRoute()
+  const from = route?.params?.from;
   const [groups, setGroups] = useState<Group[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [inviteCount, setInviteCount] = useState(0)
@@ -156,7 +158,19 @@ const Groups: React.FC<Props> = ({ navigation }) => {
               <TouchableOpacity
                 key={group.id}
                 style={styles.groupCard}
-                onPress={() => navigation.navigate("GroupDetails", { groupId: group.id })}
+                onPress={() => {
+                  if (from === "Messages") {
+                    navigation.navigate("Conversation", { 
+                      otherUserId: null, 
+                      groupId: group.id, 
+                      groupName: group.name,
+                      otherUserName: null 
+                    });
+                  }
+                  else {
+                    navigation.navigate("GroupDetails", { groupId: group.id })
+                  }
+                }}                
                 activeOpacity={0.8}
               >
                 <View style={styles.groupIconContainer}>

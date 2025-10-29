@@ -544,7 +544,20 @@ const Messages: React.FC<Props> = ({ navigation }) => {
           )}
         </ScrollView>
 
-        <TouchableOpacity style={styles.newConversationButton} activeOpacity={0.8} onPress={() => setComposeVisible(true)}>
+        <TouchableOpacity
+          style={styles.newConversationButton}
+          activeOpacity={0.8}
+          onPress={() => {
+            if (selected == "Groups")
+            {
+              navigation.navigate("Groups", { from: "Messages" })
+            }
+            else
+            {
+              navigation.navigate("Friends1", { from: "Messages" })
+            }
+          }}
+        >
           <LinearGradient
             colors={["#FFD700", "#FFA500"]}
             start={{ x: 0, y: 0 }}
