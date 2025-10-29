@@ -139,10 +139,16 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                         winner_user.numCoins += reward_amount
                         winner_user.save(update_fields=["numCoins"])
 
-                        # check for first public challenge win
+                        # check for first public challenge completion/win
                         if ch.isPublic:
                             public_champion_badge = Badge.objects.get(name="Public Champion")
                             UserBadge.objects.get_or_create(user=winner_user, badge=public_champion_badge)
+
+                            community_member_badge = Badge.objects.get(name="Community Member")
+                            members = ch.members
+                            for member in members:
+                                UserBadge.objects.get_or_create(user=member, badge=community_member_badge)
+
 
                         # check for first group challenge win, and all betting badges since betting is only
                         # in group challenges
@@ -150,12 +156,16 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                             squad_leader_badge = Badge.objects.get(name="Squad Leader")
                             UserBadge.objects.get_or_create(user=winner_user, badge=squad_leader_badge)
 
+                            team_player_badge = Badge.objects.get(name="Team Player")
+                            members = ch.members
+                            for member in members:
+                                UserBadge.objects.get_or_create(user=member, badge=team_player_badge)
 
                             # mark bet winners
                             bets = ChallengeBet.objects.filter(challenge=ch, isPending=False)
                             for bet in bets:
                                 bet.isCompleted = True
-                                
+
                                 initiator_points = GamePerformance.objects.filter(
                                     challenge=ch,
                                     user=bet.initiator

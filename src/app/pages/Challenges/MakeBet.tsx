@@ -27,10 +27,11 @@ type Member = {
 
 const MakeBet: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
-  const { challId, challName, challengeMembers } = route.params as { 
+  const { challId, challName, challengeMembers, isCompleted } = route.params as { 
     challId: number,
     challName: string,
-    challengeMembers: Member[] }
+    challengeMembers: Member[],
+    isCompleted: boolean }
 
   const { user } = useUser()
   const [recipientId, setRecipientId] = useState<number | undefined>(undefined);
@@ -107,6 +108,7 @@ const MakeBet: React.FC<Props> = ({ navigation }) => {
                 challId,
                 challName,
                 challengeMembers,
+                isCompleted,
             }) },
         ]);
     

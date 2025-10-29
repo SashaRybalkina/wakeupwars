@@ -76,10 +76,11 @@ const getInitials = (name: string): string => {
 
 const ChallDetails: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
-  const { challId, challName, whichChall } = route.params as {
+  const { challId, challName, whichChall, isCompleted } = route.params as {
     challId: number
     challName: string
     whichChall: string
+    isCompleted: boolean // will be passed this for Group challenges for betting purpsoes
   }
   console.log("ChallDetails route params:", route.params);
 
@@ -605,6 +606,7 @@ const loadPerformances = async () => {
           challId,
           challName,
           challengeMembers: members,
+          isCompleted,
         })
       }
     >

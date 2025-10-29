@@ -40,10 +40,10 @@ class ChallengeBetSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChallengeBet
         fields = [
-            'id', 'initiatorId', 'recipientId', 'winnerId'
+            'id', 'initiatorId', 'recipientId', 'winnerId',
             'initiator_name', 'recipient_name',
             'initiator_points', 'recipient_points',
-            'betAmount', 'isPending', 'isCompleted', 'isCollected'
+            'betAmount', 'isPending', 'isCompleted', 'isCollected',
         ]
 
     def get_initiator_points(self, obj):

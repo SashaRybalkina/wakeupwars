@@ -41,10 +41,11 @@ type Member = {
 
 const Bets: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
-  const { challId, challName, challengeMembers } = route.params as { 
+  const { challId, challName, challengeMembers, isCompleted } = route.params as { 
     challId: number, 
     challName: string,
-    challengeMembers: Member[] }
+    challengeMembers: Member[],
+    isCompleted: boolean }
 
   const { user } = useUser()
 
@@ -205,18 +206,21 @@ return (
   ) : (
     <>
     
-    <TouchableOpacity
-        style={styles.addNewButton}
-        onPress={() => {
-            navigation.navigate("MakeBet", {
-            challId,
-            challName,
-            challengeMembers,
-            })
-        }}
-        >
-        <Text style={styles.addNewButtonText}>Make A Bet</Text>
-    </TouchableOpacity>
+    {!isCompleted && (
+        <TouchableOpacity
+            style={styles.addNewButton}
+            onPress={() => {
+                navigation.navigate("MakeBet", {
+                challId,
+                challName,
+                challengeMembers,
+                isCompleted
+                })
+            }}
+            >
+            <Text style={styles.addNewButtonText}>Make A Bet</Text>
+        </TouchableOpacity>
+    )}
 
 
 {myPendingBets.length > 0 && (
@@ -546,6 +550,7 @@ export default Bets
 const BetCard: React.FC<{ bet: Bet; user: any; onRefresh: () => Promise<void> }> = ({ bet, user, onRefresh }) => {
   const isComplete = bet.isCompleted;
   const isWinner = bet.winnerId === user?.id;
+  const isTie = isComplete && bet.winnerId === null
   const [isCollecting, setIsCollecting] = useState(false);
 
   const collectWinnings = async (amount: number) => {
@@ -574,11 +579,15 @@ const BetCard: React.FC<{ bet: Bet; user: any; onRefresh: () => Promise<void> }>
     }
   };
 
-  const cardColor = isComplete
-    ? isWinner
-      ? "rgba(94, 204, 114, 0.2)" // green tint for winner
-      : "rgba(255, 80, 80, 0.2)" // red tint for loser
-    : "rgba(255,255,255,0.1)";
+    const cardColor =
+    !isComplete || (isComplete && user.id !== bet.initiatorId && user.id !== bet.recipientId)
+        ? "rgba(255,255,255,0.1)" // grey for incomplete or not involved
+        : isTie
+        ? "rgba(255, 215, 0, 0.2)" // gold/yellow for tie
+        : isWinner
+            ? "rgba(94, 204, 114, 0.2)" // green for winner
+            : "rgba(255, 80, 80, 0.2)"; // red for loser
+
 
   return (
     <View style={[styles.betCard, { backgroundColor: cardColor }]}>
@@ -586,9 +595,15 @@ const BetCard: React.FC<{ bet: Bet; user: any; onRefresh: () => Promise<void> }>
         <Text style={styles.betAmountText}>💰 {bet.betAmount} coins</Text>
         {isComplete && (
         <Text style={{ color: "#FFD700", fontWeight: "600", marginTop: 5 }}>
-            {bet.winnerId === null
-            ? "It's a tie!"
-            : `Winner: ${isWinner ? "You 🏆" : bet.winnerId === bet.initiatorId ? bet.initiatorName : bet.recipientName}`}
+        {bet.winnerId === null
+            ? `It's a tie!${
+                bet.initiatorId === user.id || bet.recipientId === user.id
+                ? ` You have been refunded ${bet.betAmount} coins.`
+                : ""
+            }`
+            : bet.winnerId === user.id
+            ? "Winner: You 🏆"
+            : `Winner: ${bet.winnerId === bet.initiatorId ? bet.initiatorName : bet.recipientName} — You lose!`}
         </Text>
         )}
       </View>
@@ -623,11 +638,11 @@ const BetCard: React.FC<{ bet: Bet; user: any; onRefresh: () => Promise<void> }>
         </TouchableOpacity>
       )}
 
-      {isComplete && bet.winnerId === null && (bet.initiatorId === user.id || bet.recipientId === user.id) && ( // in case of tie, tell them their coins have been given back
+      {/* {isTie && (bet.initiatorId === user.id || bet.recipientId === user.id) && ( // in case of tie, tell them their coins have been given back
           <Text style={styles.actionButtonText}>
-            It's a tie! You have been given back {bet.betAmount} coins.
+            You have been given back {bet.betAmount} coins.
           </Text>
-      )}
+      )} */}
     </View>
   );
 };

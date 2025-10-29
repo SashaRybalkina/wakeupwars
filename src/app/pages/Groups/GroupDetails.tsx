@@ -298,6 +298,7 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
                           challId: challenge.id,
                           challName: challenge.name,
                           whichChall: "Group",
+                          isCompleted: challenge.isCompleted
                         })
                       }
                     >
@@ -355,6 +356,7 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
                           challId: challenge.id,
                           challName: challenge.name,
                           whichChall: "Group",
+                          isCompleted: challenge.isCompleted
                         })
                       }
                     >
