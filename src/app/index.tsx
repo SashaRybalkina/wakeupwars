@@ -47,6 +47,8 @@ import Messages from './pages/Messages';
 import Conversation from './pages/Conversation';
 import PatternGameScreen from './pages/PatternGame/PatternGameScreen';
 import Profile from './pages/Profile';
+import MySkills from './pages/Profile/MySkills';
+import SkillDetail from './pages/Profile/SkillDetail';
 import AcceptFInvite from './pages/Profile/AcceptFInvite';
 import AcceptGInvite from './pages/Profile/AcceptGInvite';
 import FriendsRequests from './pages/Profile/FriendRequest';
@@ -330,6 +332,16 @@ function App() {
         <Stack.Screen
           name="Profile"
           component={Profile}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MySkills"
+          component={MySkills}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SkillDetail"
+          component={SkillDetail}
           options={{ headerShown: false }}
         />
         <Stack.Screen

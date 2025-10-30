@@ -173,7 +173,7 @@ const handleLogout = async () => {
         </View>
 
         <View style={styles.menu}>
-          <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.menuItem} activeOpacity={0.7} onPress={() => navigation.navigate('MySkills')}>
             <View style={styles.menuItemContent}>
               <Ionicons
                 name="star"
