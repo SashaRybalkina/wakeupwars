@@ -180,6 +180,10 @@ def finalize_single_result(game_state_id: int, user, accuracy: float):
 # ===============================
 
 def _compute_leaderboard_snapshot(state: TypingRaceGameState, is_multiplayer: bool):
+    """
+    multiplayer: rank by final_score (0 if not completed)
+    singleplayer: rank by accuracy
+    """
     players = TypingRaceGamePlayer.objects.filter(game_state=state)
     if not is_multiplayer:
         return sorted(
@@ -190,10 +194,20 @@ def _compute_leaderboard_snapshot(state: TypingRaceGameState, is_multiplayer: bo
     items = []
     for p in players:
         score = p.final_score if p.is_completed else 0
-        items.append({"username": p.player.username, "score": score})
+        items.append({
+            "username": p.player.username,
+            "score": round(score, 2),
+            "progress": round(p.progress, 2),
+            "accuracy": round(p.accuracy, 2),
+            "rank": p.rank if p.rank else None,
+            "is_completed": p.is_completed,
+        })
     return sorted(items, key=lambda x: x["score"], reverse=True)
 
 def _assign_ranks_and_scores_for_finishers(state: TypingRaceGameState):
+    """
+    assign ranks and final scores based on finish order
+    """
     all_players = TypingRaceGamePlayer.objects.filter(game_state=state)
     finishers = list(all_players.filter(is_completed=True).exclude(finished_at=None).order_by("finished_at"))
     total = all_players.count()
