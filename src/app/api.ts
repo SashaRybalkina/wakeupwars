@@ -1,5 +1,5 @@
 // export const BASE_URL = 'http://192.168.50.3:8000';
-export const BASE_URL = 'https://c706c4c87bc6.ngrok-free.app';
+export const BASE_URL = 'https://d72de342d565.ngrok-free.app';
 
 export const endpoints = {
   // getToken
@@ -101,6 +101,7 @@ export const endpoints = {
   submitGameScores: () => `${BASE_URL}/api/submit-game-scores/`,
   addGameToSchedule: () => `${BASE_URL}/api/add-game-to-schedule/`,
   skillLevels: (userId: number) => `${BASE_URL}/api/skill-levels/${userId}/`,
+  userData: (userId: number) => `${BASE_URL}/api/user-data/${userId}/`,
   badges: (userId: number) => `${BASE_URL}/api/badges/${userId}/`,
   // Pattern (REST)
   patternCreate: `${BASE_URL}/api/pattern/create/`,

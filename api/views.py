@@ -5,7 +5,7 @@ from datetime import timezone, datetime, date, timedelta
 from datetime import date as date_cls, timedelta
 import random
 from unittest import result
-from django.db.models import Sum, Count, Q, F, Prefetch
+from django.db.models import Sum, Count, Q, F, Prefetch, Exists, OuterRef
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.views import View
@@ -38,7 +38,7 @@ from .serializers import (UserSerializer, RegisterSerializer, GroupSerializer, U
 from .models import (Group, UserNotification, PersonalChallengeInvite, PushToken, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule,
                      AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship, GroupMembership, FriendRequest,
                      SkillLevel, PendingGroupChallengeAvailability, GroupChallengeInvite, WordleMove, PublicChallengeConfiguration,
-                     UserAvailability, PublicChallengeCategoryAssociation, ChallengeBet, Badge, UserBadge)
+                     UserAvailability, PublicChallengeCategoryAssociation, ChallengeBet, Badge, UserBadge, Memoji, UserMemoji)
 from django.http import JsonResponse
 from typing     import Dict, List
 from rest_framework.exceptions import ValidationError
@@ -3096,6 +3096,24 @@ class SkillLevelsView(APIView):
     }, status=status.HTTP_200_OK)
 
 
+class UserDataView(APIView):
+    def get(self, request, user_id):
+        qs = SkillLevel.objects.filter(user_id=user_id).select_related("category")
+        data = SkillLevelSerializer(qs, many=True).data
+        user = User.objects.get(id=user_id)
+
+        memoji = user.current_memoji  # use your model field name
+
+        return Response({
+            "skillLevels": data,
+            "numCoins": user.numCoins,
+            "currentMemoji": (
+                {"id": memoji.id, "imageUrl": memoji.imageUrl}
+                if memoji is not None else None
+            ),
+        }, status=status.HTTP_200_OK)
+
+
 class BadgesView(APIView):
     def get(self, request, user_id):
         badges = Badge.objects.all()
@@ -3115,6 +3133,25 @@ class BadgesView(APIView):
         ]
         return Response(data)
     
+
+
+class MemojiesView(APIView):
+    def get(self, request, user_id, memoji_id):
+        base = Memoji.objects.filter(id=memoji_id)
+        all_memojies = base.variants.all()
+
+        unlocked = UserMemoji.objects.filter(user_id=user_id, memoji=OuterRef('pk'))
+        extras = Memoji.objects.filter(base=base).annotate(unlocked=Exists(unlocked))
+
+        data = [
+            {
+                "id": memoji.id,
+                "imageUrl": memoji.imageUrl,
+                "purchased": memoji in extras,
+            }
+            for memoji in all_memojies
+        ]
+        return Response(data)
 
 
 class CollectBadgeView(APIView):

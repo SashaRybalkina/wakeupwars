@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useEffect, useState } from 'react';
 import * as SecureStore from "expo-secure-store";
-import { getAccessToken } from "../auth";
+import { getAccessToken } from "../../auth";
 import {
   Alert,
   ImageBackground,
@@ -16,18 +16,10 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import { NativeModules } from 'react-native';
-const { NotificationModule } = NativeModules;
-
-import { scheduleAlarms } from '../Alarm';
-import { endpoints, BASE_URL } from '../api';
-import { useUser } from '../context/UserContext';
-import UserProfileCard from './Components/UserProfileCard';
-const { AlarmModule } = NativeModules;
-import { scheduleAlarmsForUser } from '../alarmService';
-import NotificationService from '../Notification';
+import { endpoints, BASE_URL } from '../../api';
+import { useUser } from '../../context/UserContext';
 
 type Props = {
   navigation: NavigationProp<any>;
@@ -39,100 +31,29 @@ type Memoji = {
   imageUrl: string;
 }
 
-const Profile: React.FC<Props> = ({ navigation }) => {
-  //--------------------------
-  //const goToPatternGame = () => navigation.navigate("PatternGame")
-  //-------------
 
-  const goToChallenges = () => navigation.navigate('Challenges');
-  const goToGroups = () => navigation.navigate('Groups');
-  const goToMessages = () => navigation.navigate('Messages');
-  const goToProfile = () => {
-    navigation.navigate('Profile');
-  };
-  const [profileData, setProfileData] = useState<any>(null);
-  const [currentMemoji, setCurrentMemoji] = useState<Memoji | null>(null);
+const EditAvatar: React.FC<Props> = ({ navigation }) => {
+    const route = useRoute()
+    const { currentMemoji } = route.params as { 
+      currentMemoji: Memoji | null }
+ 
+  const [currMemoji, setCurrMemoji] = useState<Memoji | null>(currentMemoji);
   const [numCoins, setNumCoins] = useState<number>(0);
-  const { user, setUser, setSkillLevels } = useUser();
-  const [badges, setBadges] = useState<any[]>([]);
+  const [avatars, setAvatars] = useState<any[]>([]);
   const [selectedBadge, setSelectedBadge] = useState<null | any>(null);
 
-  // const handleLogout = () => {
-  //   setUser(null);
-
-  //   navigation.reset({
-  //     index: 0,
-  //     routes: [{ name: 'Login' }],
-  //   });
-  // };
+  const { user } = useUser()
 
 
-const handleLogout = async () => {
-  try {
-    // 1. Clear tokens from SecureStore
-    await SecureStore.deleteItemAsync("access");
-    await SecureStore.deleteItemAsync("refresh");
-
-    // 2. Clear user context
-    setUser(null);
-
-    await AlarmModule.clearLaunchIntent();
-
-    // 3. Reset navigation to login screen
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Login" }],
-    });
-  } catch (err: any) {
-    console.error("Logout failed", err);
-    Alert.alert("Error", "Failed to log out. Try again.");
-  }
-};
-
-
-  useFocusEffect(
-    React.useCallback(() => {
-      console.log("in profile")
-      if (!user) return;
-      let cancelled = false;
-
-      (async () => {
-        try {
-                const access = await getAccessToken();
-                if (!access) {
-                  throw new Error("Not authenticated");
-                }
-        const res = await fetch(endpoints.userData(Number(user.id)), {
-          headers: {
-            Authorization: `Bearer ${access}`
-          }
-        });
-          const data = await res.json();
-          if (!cancelled) {
-            setSkillLevels(data.skillLevels);
-            setNumCoins(data.numCoins);
-            setCurrentMemoji(data.currentMemoji);
-            console.log(currentMemoji)
-          }
-        } catch (e) {
-          console.error('refresh skills failed', e);
-        }
-      })();
-
-      return () => {
-        cancelled = true;
-      };
-    }, [user, setSkillLevels]),
-  );
-
-  const fetchBadges = async () => {
+  const fetchAvatars = async () => {
     if (!user) return;
     const access = await getAccessToken();
-    const res = await fetch(endpoints.badges(Number(user.id)), {
+    const res = await fetch(endpoints.memojies(Number(user.id)), {
       headers: { Authorization: `Bearer ${access}` },
     });
     const data = await res.json();
-    setBadges(data);
+    setAvatars(data.avatars);
+    setNumCoins(data.numCoins);
   };
 
 
@@ -140,28 +61,16 @@ const handleLogout = async () => {
   React.useCallback(() => {
     (async () => {
       try {
-        await fetchBadges();
+        await fetchAvatars();
       } catch (e) {
-        console.error('Failed to fetch badges', e);
+        console.error('Failed to fetch avatars', e);
       }
     })();
   }, [user])
 );
 
 
-
-    const setUserAlarms = async() => {
-      try {
-        console.log("herein")
-        await scheduleAlarmsForUser(212, 'PAlarm', 5, '');
-      } catch (e) {
-        console.warn('Failed to schedule alarms for new group challenge', e);
-        Alert.alert('Error', 'Failed to schedule alarms');
-      }
-    }
-
-
-const collectBadge = async (badgeId: number) => {
+const purchaseAvatar = async (badgeId: number) => {
       const payload = {
         user_id: user?.id,
         badge_id: badgeId,
@@ -287,7 +196,7 @@ const PulsingBadge = ({ badge, onPress }) => {
       >
         <UserProfileCard
           name={user?.name ?? 'Loading…'}
-          currentMemoji={currentMemoji}
+          avatarSource={{ uri: `${BASE_URL}${currentMemoji}` }}
         />
 
         <View style={styles.profileButtons}>
@@ -800,4 +709,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Profile;
+export default EditAvatar;

@@ -1,40 +1,70 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { useUser } from '../../context/UserContext';
+import { Ionicons } from '@expo/vector-icons';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { BASE_URL } from '../../api';
 
 type Props = {
   name: string;
-  avatarSource?: any; // Optional override
+  currentMemoji: Memoji | null
 };
 
-const UserProfileCard: React.FC<Props> = ({ name, avatarSource }) => {
+
+type Memoji = {
+  id: number;
+  imageUrl: string;
+}
+
+
+const UserProfileCard: React.FC<Props> = ({ name, currentMemoji }) => {
+  const navigation = useNavigation<NavigationProp<any>>();
   const { skillLevels } = useUser();
+
   return (
     <View style={styles.profileContainer}>
+      {/* Avatar container */}
+      <View style={styles.avatarContainer}>
       <Image
-        source={avatarSource || require('../../../../assets/memojies/AngelaWhiteKiss.png')}
+        source={
+          currentMemoji?.imageUrl
+            ? { uri: `${BASE_URL}${currentMemoji.imageUrl}` }
+            : require('../../../../assets/memojies/JaneDefault.webp')
+        }
         style={styles.avatar}
+        resizeMode="contain"
       />
-      <Text style={styles.profileName}>{name}</Text>
-      
-<View style={styles.statsContainer}>
-  {skillLevels.map((s, i) => {
-    const level =
-      s.totalPossible === 0
-        ? "0.0"
-        : ((s.totalEarned / s.totalPossible) * 10).toFixed(1);
-
-    return (
-      <View style={styles.statCard} key={i}>
-        <View style={styles.statRow}>
-          <Text style={styles.stat}>{s.category.categoryName}</Text>
-          <Text style={styles.statValue}>{level} / 10</Text>
-        </View>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => navigation.navigate('EditAvatar', {
+                currentMemoji,
+            })}
+        >
+          <Ionicons name="pencil" size={18} color="#fff" />
+        </TouchableOpacity>
       </View>
-    );
-  })}
-</View>
 
+      {/* Name below the avatar */}
+      <Text style={styles.profileName}>{name}</Text>
+
+      {/* Stats */}
+      <View style={styles.statsContainer}>
+        {skillLevels.map((s, i) => {
+          const level =
+            s.totalPossible === 0
+              ? '0.0'
+              : ((s.totalEarned / s.totalPossible) * 10).toFixed(1);
+
+          return (
+            <View style={styles.statCard} key={i}>
+              <View style={styles.statRow}>
+                <Text style={styles.stat}>{s.category.categoryName}</Text>
+                <Text style={styles.statValue}>{level} / 10</Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 };
@@ -44,31 +74,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 50,
   },
-  avatar: {
+  avatarContainer: {
+    position: 'relative',
     width: 120,
     height: 120,
-    marginTop: 30,
+    marginBottom: 15, // ✅ adds space below avatar for name
+  },
+  avatar: {
+    width: '100%',
+    height: '100%',
     borderRadius: 60,
     borderWidth: 3,
     borderColor: '#FFD700',
+  },
+  editButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#007AFF',
+    borderRadius: 15,
+    padding: 5,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 1 },
   },
   profileName: {
     fontSize: 26,
     fontWeight: 'bold',
     color: '#FFF',
-    marginTop: 10,
+    marginBottom: 10, // ✅ spacing before stats
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
-  profileLink: {
-    color: '#EEE',
-    fontSize: 16,
-    marginBottom: 10,
-    fontWeight: '600',
-  },
   statsContainer: {
-    marginTop: 7.5,
     width: '100%',
   },
   statCard: {
@@ -87,11 +127,10 @@ const styles = StyleSheet.create({
     color: '#FFD700',
   },
   statRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-},
-
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
 });
 
 export default UserProfileCard;

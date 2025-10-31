@@ -10,6 +10,9 @@ from rest_framework.response import Response
 
 class Memoji(models.Model):
     imageUrl = models.URLField(max_length=500)
+
+    # If base is NULL, this is a "default" memoji.
+    # If base points to another memoji, it's an "extra" memoji variant.
     base = models.ForeignKey(
         'self',
         on_delete=models.CASCADE,
@@ -17,9 +20,6 @@ class Memoji(models.Model):
         blank=True,
         related_name='variants'
     )
-
-    # If base is NULL, this is a "default" memoji.
-    # If base points to another memoji, it's an "extra" memoji variant.
 
     class Meta:
         db_table = 'Memojies'
@@ -30,13 +30,13 @@ class User(AbstractUser):
     name = models.CharField(max_length=255, default='Anonymous')
     bio = models.TextField(blank=True, null=True) # can be null
     numCoins = models.IntegerField(default=0)
-    # current_memoji = models.ForeignKey(
-    #     Memoji,
-    #     on_delete=models.SET_NULL,
-    #     null=True,
-    #     blank=True,
-    #     related_name='users_using_this_memoji'
-    # )
+    currentMemoji = models.ForeignKey(
+        Memoji,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users_using_this_memoji'
+    )
 
     class Meta:
         db_table = 'Users'  # Define the table name

@@ -107,6 +107,7 @@ from .views import (
     BadgesView,
     CollectBadgeView,
     CollectBetCoinsView,
+    UserDataView,
 )
 
 
@@ -198,6 +199,7 @@ urlpatterns = [
     path('submit-game-scores/', SubmitGameScoresView.as_view(), name='submit-game-scores'),
     path('add-game-to-schedule/', AddGameToScheduleView.as_view(), name='add-game-to-schedule'),
     path('skill-levels/<int:user_id>/', SkillLevelsView.as_view(), name="skill-levels"),
+    path('user-data/<int:user_id>/', UserDataView.as_view(), name="user-data"),
     path('badges/<int:user_id>/', BadgesView.as_view(), name="badges"),
 
     path('send-bet/', SendBetView.as_view(), name='send-bet'),
