@@ -54,17 +54,17 @@ const Conversation: React.FC<Props> = ({ route }) => {
       const data = JSON.parse(event.data);
       setMessages(prev => [...prev, data]);
     
-      if (data.sender_id !== user.id) {
-        try {
-          const token = await getAccessToken();
-          await axios.post(`${BASE_URL}/api/messages/mark-read/`, 
-            groupId ? { group_id: groupId } : { other_user_id: otherUserId },
-            { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
-          );
-        } catch (err) {
-          console.error("Failed to mark new message as read:", err);
-        }
-      }
+      // if (data.sender_id !== user.id) {
+      //   try {
+      //     const token = await getAccessToken();
+      //     await axios.post(`${BASE_URL}/api/messages/mark-read/`, 
+      //       groupId ? { group_id: groupId } : { other_user_id: otherUserId },
+      //       { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+      //     );
+      //   } catch (err) {
+      //     console.error("Failed to mark new message as read:", err);
+      //   }
+      // }
     };
 
     ws.current.onerror = (err: any) => console.error("WebSocket error:", err)
@@ -109,43 +109,43 @@ const Conversation: React.FC<Props> = ({ route }) => {
   }, [user, otherUserId, groupId])
 
 
-  useFocusEffect(
-    React.useCallback(() => {
-      const markMessagesAsRead = async () => {
-        if (!user?.id) return;
+  // useFocusEffect(
+  //   React.useCallback(() => {
+  //     const markMessagesAsRead = async () => {
+  //       if (!user?.id) return;
 
-        try {
-          const token = await getAccessToken();
-          if (!token) return;
+  //       try {
+  //         const token = await getAccessToken();
+  //         if (!token) return;
 
-          const payload = groupId
-            ? { group_id: groupId }
-            : { other_user_id: otherUserId };
+  //         const payload = groupId
+  //           ? { group_id: groupId }
+  //           : { other_user_id: otherUserId };
 
-          await axios.post(`${BASE_URL}/api/messages/mark-read/`, payload, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          });
+  //         await axios.post(`${BASE_URL}/api/messages/mark-read/`, payload, {
+  //           headers: {
+  //             Authorization: `Bearer ${token}`,
+  //             "Content-Type": "application/json",
+  //           },
+  //         });
 
-          setMessages(prev =>
-            prev.map(msg =>
-              msg.sender_id !== user.id && msg.is_read === false
-                ? { ...msg, is_read: true }
-                : msg
-            )
-          );
-        } catch (err) {
-          console.error("Failed to mark messages as read:", err);
-        }
-      };
+  //         setMessages(prev =>
+  //           prev.map(msg =>
+  //             msg.sender_id !== user.id && msg.is_read === false
+  //               ? { ...msg, is_read: true }
+  //               : msg
+  //           )
+  //         );
+  //       } catch (err) {
+  //         console.error("Failed to mark messages as read:", err);
+  //       }
+  //     };
 
-      markMessagesAsRead();
+  //     markMessagesAsRead();
 
-      return () => {};
-    }, [user?.id, otherUserId, groupId])
-  );
+  //     return () => {};
+  //   }, [user?.id, otherUserId, groupId])
+  // );
 
 
   useEffect(() => {
