@@ -1,5 +1,5 @@
 // export const BASE_URL = 'http://192.168.50.3:8000';
-export const BASE_URL = 'https://d72de342d565.ngrok-free.app';
+export const BASE_URL = 'https://d81787112a22.ngrok-free.app';
 
 export const endpoints = {
   // getToken
@@ -21,6 +21,8 @@ export const endpoints = {
   singOrMultGames: (singOrMult: string) =>
     `${BASE_URL}/api/games/${singOrMult}/`,
   messages: (userId: number) => `${BASE_URL}/api/messages/${userId}/`,
+  baseMemojies: () => `${BASE_URL}/api/base-memojies/`,
+  extraMemojies: (userId: number, baseId: number) => `${BASE_URL}/api/extra-memojies/${userId}/${baseId}/`,
   conversation: (userId: number, recipientId: number) => `${BASE_URL}/api/conversation/${userId}/${recipientId}/`,
   groupConversations: (userId: number) => `${BASE_URL}/api/user/${userId}/group-conversations/`,
   sendGroupMessage: (groupId: number) => `${BASE_URL}/api/messages/send/group/${groupId}/`,

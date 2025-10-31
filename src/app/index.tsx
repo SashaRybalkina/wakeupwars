@@ -52,7 +52,8 @@ import AcceptGInvite from './pages/Profile/AcceptGInvite';
 import FriendsRequests from './pages/Profile/FriendRequest';
 import Friends1 from './pages/Profile/Friends1';
 import Friends3 from './pages/Profile/Friends3';
-import EditAvatar from './pages/Profile/EditAvatar';
+import EditAvatar2 from './pages/Profile/EditAvatar2';
+import EditAva from './pages/Profile/EditAva';
 import FriendsSearch from './pages/Profile/FriendSearch';
 import PersChall1 from './pages/Profile/PersChall1';
 import PersChall2 from './pages/Profile/PersChall2';
@@ -476,8 +477,13 @@ function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="EditAvatar"
-          component={EditAvatar}
+          name="EditAva"
+          component={EditAva}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="EditAvatar2"
+          component={EditAvatar2}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

@@ -1693,7 +1693,7 @@ class CreatePublicChallengeView(APIView):
                 totalDays=data['total_days'],
                 isPublic=True,
                 isPending=True,
-                particiationFee=data['participation_fee'],
+                participationFee=data['participation_fee'],
             )
 
             # # ─── Reward config ──────────────────────────────
@@ -3102,7 +3102,7 @@ class UserDataView(APIView):
         data = SkillLevelSerializer(qs, many=True).data
         user = User.objects.get(id=user_id)
 
-        memoji = user.current_memoji  # use your model field name
+        memoji = user.currentMemoji
 
         return Response({
             "skillLevels": data,
@@ -3131,27 +3131,58 @@ class BadgesView(APIView):
             }
             for badge in badges
         ]
-        return Response(data)
+        return Response(data, status=status.HTTP_200_OK)
     
 
 
-class MemojiesView(APIView):
-    def get(self, request, user_id, memoji_id):
-        base = Memoji.objects.filter(id=memoji_id)
-        all_memojies = base.variants.all()
+class ExtraMemojiesView(APIView):
+    def get(self, request, user_id, base_id):
+        user = get_object_or_404(User, id=user_id)
+        curr = get_object_or_404(Memoji, id=base_id)
 
+        # Determine base memoji
+        base = curr.base or curr
+
+        # Get all variants (including base itself)
+        all_memojies = Memoji.objects.filter(Q(id=base.id) | Q(base=base))
+
+        # Which memojies this user has unlocked
         unlocked = UserMemoji.objects.filter(user_id=user_id, memoji=OuterRef('pk'))
-        extras = Memoji.objects.filter(base=base).annotate(unlocked=Exists(unlocked))
+        memojies = all_memojies.annotate(unlocked=Exists(unlocked))
 
+        # Serialize them for the frontend
         data = [
             {
-                "id": memoji.id,
-                "imageUrl": memoji.imageUrl,
-                "purchased": memoji in extras,
+                "id": m.id,
+                "imageUrl": m.imageUrl,
+                "purchased": m.unlocked or m.id == base.id,  # base memoji is always unlocked
+                "price": getattr(m, "price", 0),
             }
-            for memoji in all_memojies
+            for m in memojies
         ]
-        return Response(data)
+
+        return Response({
+            "avatars": data,
+            "numCoins": user.numCoins,
+        }, status=status.HTTP_200_OK)
+    
+
+class BaseMemojiesView(APIView):
+    def get(self, request):
+        base_memojies = Memoji.objects.filter(base=None)
+
+        # Serialize them for the frontend
+        data = [
+            {
+                "id": m.id,
+                "imageUrl": m.imageUrl,
+            }
+            for m in base_memojies
+        ]
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
 
 
 class CollectBadgeView(APIView):

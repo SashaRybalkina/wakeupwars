@@ -29,15 +29,15 @@ const UserProfileCard: React.FC<Props> = ({ name, currentMemoji }) => {
         source={
           currentMemoji?.imageUrl
             ? { uri: `${BASE_URL}${currentMemoji.imageUrl}` }
-            : require('../../../../assets/memojies/JaneDefault.webp')
+            : require('../../../../assets/memojies/JaneBase.webp')
         }
         style={styles.avatar}
         resizeMode="contain"
       />
         <TouchableOpacity
           style={styles.editButton}
-          onPress={() => navigation.navigate('EditAvatar', {
-                currentMemoji,
+          onPress={() => navigation.navigate('EditAva', {
+                currentMemojiId: currentMemoji?.id
             })}
         >
           <Ionicons name="pencil" size={18} color="#fff" />
