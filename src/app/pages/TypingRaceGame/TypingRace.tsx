@@ -143,6 +143,15 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
   const [readyCount, setReadyCount] = useState(0);
   const [expectedCount, setExpectedCount] = useState(0);
+  const [joinDeadlineISO, setJoinDeadlineISO] = useState<string | null>(null);
+  const [remainingSec, setRemainingSec] = useState<number | null>(null);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [showCountdown, setShowCountdown] = useState(false);
+  const [countdownValue, setCountdownValue] = useState<number | null>(null);
+  const [canStartNow, setCanStartNow] = useState(false);
+  const [onlineIds, setOnlineIds] = useState<number[]>([]);
+
 
   // ===============================
   // 🧍 Player Progress
@@ -206,6 +215,7 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
       ws.onopen = () => {
         console.log('[Typing WS] connected');
+
       };
 
       ws.onclose = () => console.log('[Typing WS] disconnected');
@@ -217,17 +227,54 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
         // === 🧭 Waiting room updates ===
         if (msg.type === 'lobby_state') {
+          console.log("[TypingRace] Lobby state received:", msg);
           setWaitingActive(true);
           setReadyCount(msg.ready_count);
           setExpectedCount(msg.expected_count);
-          console.log(`[Lobby] ${msg.ready_count}/${msg.expected_count} players ready`);
+          setJoinDeadlineISO(msg.join_deadline_at || null);
+
+
+          if (msg.can_start_now !== undefined) setCanStartNow(msg.can_start_now);
+          if (msg.online_ids) setOnlineIds(msg.online_ids);
+
+          if (msg.join_deadline_at) {
+            const deadline = new Date(msg.join_deadline_at).getTime();
+            if (countdownRef.current) clearInterval(countdownRef.current);
+
+            const tick = () => {
+              const now = Date.now();
+              const diffMs = Math.max(0, deadline - now);
+              const sec = Math.floor(diffMs / 1000);
+              setRemainingSec(sec);
+            };
+
+            tick();
+            countdownRef.current = setInterval(tick, 1000);
+          }
         }
 
         // === 🚦 Countdown start ===
         if (msg.type === 'join_window_closed') {
-          Alert.alert('🚦 Race is about to start!');
+          console.log('[TypingRace] join_window_closed → start 3-second countdown');
           setWaitingActive(false);
-          setCountdown(COUNTDOWN_START);
+          setJoinDeadlineISO(null);
+          setRemainingSec(null);
+
+          if (countdownRef.current) clearInterval(countdownRef.current);
+
+          // Show 3-2-1 countdown overlay
+          setShowCountdown(true);
+          setCountdownValue(COUNTDOWN_START);
+
+          let c = COUNTDOWN_START;
+          const timer = setInterval(() => {
+            c -= 1;
+            setCountdownValue(c);
+            if (c <= 0) {
+              clearInterval(timer);
+              setShowCountdown(false);
+            }
+          }, 1000);
         }
 
         // === 🏎️ Real-time leaderboard updates ===
@@ -287,6 +334,7 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
         const accessToken = await getAccessToken();
         if (!accessToken) throw new Error('Not authenticated');
 
+        // create the game
         const res = await fetch(endpoints.typingRaceCreate, {
           method: 'POST',
           headers: {
@@ -302,6 +350,19 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
         setPassage(data.text);
         setGameStateId(data.game_state_id);
         setIsMultiplayer(data.is_multiplayer);
+
+        // get challenge members
+        try {
+          const detailRes = await fetch(endpoints.challengeDetail(challId), {
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          });
+          const detail = await detailRes.json();
+          setMembers(detail?.members || []);
+          console.log('[TypingRace] Loaded challenge members:', detail?.members);
+          setWaitingActive(true);
+        } catch (e) {
+          console.warn('[TypingRace] Failed to load challenge members', e);
+        }
 
         // 👥 Multiplayer mode
         if (data.is_multiplayer) {
@@ -326,18 +387,18 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
   // 🕒 Countdown timer before start
   // ===============================
   useEffect(() => {
-    if (waitingActive || countdown === null) return;
-    let c = COUNTDOWN_START;
-    const timer = setInterval(() => {
-      c -= 1;
-      setCountdown(c);
-      if (c <= 0) {
-        clearInterval(timer);
-        setCountdown(null);
+    if (remainingSec === 0 && waitingActive) {
+      console.log("[TypingRace] Countdown ended, auto starting game!");
+      const ws = socketRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "start_game" }));
       }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [waitingActive]);
+      setWaitingActive(false);
+      setJoinDeadlineISO(null);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    }
+  }, [remainingSec, waitingActive]);
+
 
   // ===============================
   // ⏳ Game timer countdown
@@ -358,14 +419,14 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
   const resetRace = async () => {
     console.log('[TypingRace] Resetting game...');
 
-    // 🧹 清空輸入與統計資料
+    
     setInput('');
     lastInputRef.current = '';
     setTypedCount(0);
     setErrorCount(0);
     setPlayerProgress(ps => ps.map(p => ({ ...p, progress: 0, wpm: 0 })));
 
-    // 🧭 重置遊戲狀態
+    
     setWaitingActive(false);
     setCountdown(COUNTDOWN_START);
     setGameTime(GAME_SECONDS);
@@ -373,17 +434,17 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
     setGameOver(false);
 
     try {
-      // 🚪 若已有 WebSocket 連線，先關閉
+      
       if (socketRef.current) {
         socketRef.current.close();
         socketRef.current = null;
       }
 
-      // 🔐 拿 Token
+      
       const accessToken = await getAccessToken();
       if (!accessToken) throw new Error('Not authenticated');
 
-      // 🎮 向後端重新建立新 TypingRace 遊戲
+      
       const res = await fetch(endpoints.typingRaceCreate, {
         method: 'POST',
         headers: {
@@ -396,12 +457,12 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
       if (!res.ok) throw new Error('Failed to create new game');
       const data = await res.json();
 
-      // 📝 更新 passage 與遊戲狀態
+      
       setPassage(data.text);
       setGameStateId(data.game_state_id);
       setIsMultiplayer(data.is_multiplayer);
 
-      // 👥 若是多人模式 → 回到等待室並重新連線
+      
       if (data.is_multiplayer) {
         console.log('[TypingRace] Multiplayer restart — reconnecting...');
         setWaitingActive(true);
@@ -561,19 +622,117 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
         <View style={styles.waitingOverlay}>
           <View style={styles.waitingCard}>
             <Text style={styles.waitingTitle}>Waiting Room</Text>
-            <Text style={styles.waitingText}>Players: {playerProgress.length}</Text>
+
+            {/* 👥 Players List */}
+            <View style={{ marginTop: 8 }}>
+              {members.map(m => {
+                const isOnline = onlineIds?.some(id => String(id) === String(m.id));
+                const initials = (m.name || '')
+                  .split(' ')
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((s: string) => (s.length > 0 ? s[0] : ''))
+                  .join('')
+                  .toUpperCase();
+
+                return (
+                  <View
+                    key={m.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingVertical: 6,
+                      opacity: isOnline ? 1 : 0.5,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 18,
+                        marginRight: 10,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: isOnline ? '#FFD700' : '#999',
+                        borderWidth: isOnline ? 2 : 1,
+                        borderColor: isOnline ? '#fff' : '#666',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: isOnline ? '#333' : '#eee',
+                          fontWeight: '700',
+                        }}
+                      >
+                        {initials || '?'}
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        color: 'white',
+                        fontSize: 16,
+                        fontWeight: '600',
+                      }}
+                    >
+                      {m.name}
+                    </Text>
+                    {isOnline && (
+                      <View
+                        style={{
+                          marginLeft: 8,
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: '#00E676',
+                        }}
+                      />
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* 👥 Status + Countdown */}
             <Text style={styles.waitingText}>
-              {countdown !== null ? `Starts in ${countdown}` : 'Starting...'}
+              Players: {readyCount}/{expectedCount}
             </Text>
+            <Text style={styles.waitingText}>
+              {remainingSec != null
+                ? `Starts in ${Math.floor(Math.max(0, remainingSec) / 60)}:${(
+                    Math.max(0, remainingSec) % 60
+                  )
+                    .toString()
+                    .padStart(2, '0')}`
+                : 'Starts soon'}
+            </Text>
+
+            {/* 🚦 Start button (for host only) */}
+            {canStartNow && socketRef.current && (
+              <TouchableOpacity
+                style={styles.startBtn}
+                onPress={() => {
+                  const ws = socketRef.current;
+                  if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'start_game' }));
+                  } else {
+                    console.log('[TypingRace] Start Game tapped but socket not open');
+                  }
+                }}
+              >
+                <Text style={styles.startBtnText}>Start Game</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       )}
 
-      {countdown !== null && waitingActive && (
+      {/* 🕒 Countdown overlay (3,2,1) */}
+      {showCountdown && (
         <View style={styles.countdownOverlay}>
-          <Text style={styles.countdownText}>{countdown}</Text>
+          <Text style={styles.countdownText}>{String(countdownValue ?? '')}</Text>
         </View>
       )}
+
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -740,6 +899,19 @@ const styles = StyleSheet.create({
     minHeight: 80, padding: 12,
     backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 8, color: '#000',
+  },
+  startBtn: {
+    marginTop: 16,
+    backgroundColor: '#FFD700',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignSelf: 'center',
+  },
+  startBtnText: {
+    color: '#333',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });
 
