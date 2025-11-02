@@ -18,7 +18,7 @@ import type { NavigationProp } from '@react-navigation/native';
 import { NativeModules } from 'react-native';
 
 import { scheduleAlarms } from '../Alarm';
-import { endpoints } from '../api';
+import { BASE_URL, endpoints } from '../api';
 import { useUser } from '../context/UserContext';
 import UserProfileCard from './Components/UserProfileCard';
 const { AlarmModule } = NativeModules;
@@ -41,6 +41,7 @@ const Profile: React.FC<Props> = ({ navigation }) => {
   };
   const [profileData, setProfileData] = useState<any>(null);
   const { user, setUser, setSkillLevels } = useUser();
+  const [notifCount, setNotifCount] = useState(0);
 
   // const handleLogout = () => {
   //   setUser(null);
@@ -73,6 +74,30 @@ const handleLogout = async () => {
     Alert.alert("Error", "Failed to log out. Try again.");
   }
 };
+
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchNotificationsCount = async () => {
+      try {
+        const access = await getAccessToken();
+        const res = await fetch(endpoints.notifications(Number(user.id)), {
+          headers: { Authorization: `Bearer ${access}` },
+        });
+        const data = await res.json();
+        setNotifCount(data);
+      } catch (e) {
+        console.error("Failed to fetch notification count:", e);
+      }
+    };
+
+    fetchNotificationsCount();
+
+    // Optional: refresh count every 30s while on profile
+    const interval = setInterval(fetchNotificationsCount, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
 
   // useEffect(() => {
@@ -138,6 +163,21 @@ const handleLogout = async () => {
     >
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       <View style={styles.container}>
+
+      <TouchableOpacity
+        style={styles.notificationButton}
+        onPress={() => navigation.navigate('Notifications')}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="notifications-outline" size={30} color="#FFD700" />
+        {notifCount > 0 && (
+          <View style={styles.notificationBadge}>
+            <Text style={styles.notificationBadgeText}>
+              {notifCount > 9 ? '9+' : notifCount}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
 
       {/* ScrollView wraps all content except the bottom navigation */}
       <ScrollView
@@ -496,6 +536,35 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 1.5,
   },
+  notificationButton: {
+    position: 'absolute',
+    top: 60, // adjust for status bar
+    left: 20,
+    zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    padding: 10,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    backgroundColor: 'red',
+    borderRadius: 10,
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },  
 });
 
 export default Profile;

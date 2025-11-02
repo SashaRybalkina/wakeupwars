@@ -48,6 +48,7 @@ import Messages from './pages/Messages';
 import Conversation from './pages/Conversation';
 import PatternGameScreen from './pages/PatternGame/PatternGameScreen';
 import Profile from './pages/Profile';
+import NotificationsPage from './pages/Profile/Notifications';
 import AcceptFInvite from './pages/Profile/AcceptFInvite';
 import AcceptGInvite from './pages/Profile/AcceptGInvite';
 import FriendsRequests from './pages/Profile/FriendRequest';
@@ -323,6 +324,11 @@ function App() {
         <Stack.Screen
           name="Profile"
           component={Profile}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Notifications"
+          component={NotificationsPage}
           options={{ headerShown: false }}
         />
         <Stack.Screen

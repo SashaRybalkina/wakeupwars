@@ -605,12 +605,15 @@ class JoinPublicChallengeView(APIView):
                 )
                 device = FCMDevice.objects.filter(user=m.uID).first()
                 if device:
-                    send_fcm_notification(
-                        "New Member Joined",
-                        f"{user.name or user.username} joined the public challenge '{challenge.name}'.",
-                        {"screen": "PublicChallenges", "type": "public_challenge_join", "challengeId": challenge.id},
-                        m.uID.id
-                    )
+                    title = "New Member Joined"
+                    body = f"{user.name or user.username} joined the public challenge '{challenge.name}'."
+                    recipient_id = m.uID
+                    data={
+                        "screen": "Notifications",
+                        "type": "public_challenge_join",
+                    }
+                    send_fcm_notification(title, body, data, recipient_id)
+                    
 
             challenge.isPending = False
             challenge.save()
@@ -821,7 +824,7 @@ class AddGroupMemberView(APIView):
                 title = "Added to Group"
                 body = f"You have been added to the group '{group.name}'."
                 data={
-                    "screen": "Groups",
+                    "screen": "Notifications",
                     "type": "group_add",
                 }
                 send_fcm_notification(title, body, data, recipient_id)
@@ -1897,7 +1900,7 @@ class CreatePendingCollaborativeGroupChallengeView(APIView):
                         send_fcm_notification(
                             "New Group Challenge",
                             f"A new group challenge '{challenge.name}' needs your availability.",
-                            {"screen": "GroupChallenges", "type": "group_challenge_invite", "challengeId": challenge.id},
+                            {"screen": "Notifications", "type": "group_challenge_invite", "challengeId": challenge.id},
                             invite.uID.id
                         )
 
@@ -2058,7 +2061,7 @@ class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
                             send_fcm_notification(
                                 "Group Challenge Finalized",
                                 f"The group challenge '{challenge.name}' has been finalized. Set your alarms!",
-                                {"screen": "GroupChallenges", "type": "group_challenge_finalized", "challengeId": challenge.id},
+                                {"screen": "Notifications", "type": "group_challenge_finalized", "challengeId": challenge.id},
                                 m.uID.id
                             )
 
@@ -2110,7 +2113,7 @@ class SendFriendRequestView(APIView):
                 title = "Friend Request"
                 body = sender.name + " (" + sender.username + ") sent you a friend request!"
                 data={
-                    "screen": "FriendsRequests",
+                    "screen": "Notifications",
                     "type": "notification_type",
                     "notification_type": "friend_request",
                 }
@@ -2167,7 +2170,7 @@ class RespondToFriendRequestView(APIView):
             send_fcm_notification(
                 "Friend Request " + status_str.capitalize(),
                 f"{recipient.name or recipient.username} has {status_str} your friend request.",
-                {"screen": "FriendsRequests", "type": "friend_request_response"},
+                {"screen": "Notifications", "type": "friend_request_response"},
                 sender.id
             )
 
@@ -2230,7 +2233,7 @@ class CreateGroupView(APIView):
                     send_fcm_notification(
                         "Group Invite",
                         f"{request.user.name or request.user.username} invited you to join group '{group.name}'.",
-                        {"screen": "Groups", "type": "group_invite"},
+                        {"screen": "Notifications", "type": "group_invite"},
                         recipient.id,
                     )
 
@@ -3440,7 +3443,7 @@ class ShareChallengeView(APIView):
                     send_fcm_notification(
                         "Personal Challenge Invite",
                         f"{request.user.name or request.user.username} shared a challenge '{challenge_name}' with you.",
-                        {"screen": "PersonalChallenges", "type": "personal_challenge_invite"},
+                        {"screen": "Notifications", "type": "personal_challenge_invite"},
                         friend.id
                     )
 
@@ -3508,7 +3511,7 @@ class AcceptPersonalChallenge(APIView):
             send_fcm_notification(
                 "Personal Challenge Response",
                 f"{inv.recipient.name or inv.recipient.username} has {status_str} your challenge invite.",
-                {"screen": "PersonalChallenges", "type": "personal_challenge_response"},
+                {"screen": "Notifications", "type": "personal_challenge_response"},
                 sender.id
             )
 
@@ -3541,7 +3544,7 @@ class DeclinePersonalChallenge(APIView):
             send_fcm_notification(
                 "Personal Challenge Response",
                 f"{inv.recipient.name or inv.recipient.username} has {status_str} your challenge invite.",
-                {"screen": "PersonalChallenges", "type": "personal_challenge_response"},
+                {"screen": "Notifications", "type": "personal_challenge_response"},
                 sender.id
             )
 
@@ -3791,7 +3794,7 @@ class SendGroupInviteView(APIView):
             send_fcm_notification(
                 "Group Invite",
                 f"{sender.name or sender.username} invited you to join group '{group.name}'.",
-                {"screen": "Groups", "type": "group_invite"},
+                {"screen": "Notifications", "type": "group_invite"},
                 recipient.id
             )
 
@@ -3832,7 +3835,7 @@ class RespondGroupInviteView(APIView):
                 send_fcm_notification(
                     "Group Invite Response",
                     f"{recipient.name or recipient.username} has {'accepted' if accept else 'declined'} the invite to '{group.name}'.",
-                    {"screen": "Groups", "type": "group_invite_response"},
+                    {"screen": "Notifications", "type": "group_invite_response"},
                     user.id
                 )
         return Response({"message": "Response recorded."}, status=200)
