@@ -2050,8 +2050,8 @@ class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
                             title="Group Challenge Finalized",
                             body=f"The group challenge '{challenge.name}' has been finalized. Set your alarms!",
                             type="group_challenge_finalized",
-                            screen="ChallDetails",
-                            challengeId=chall_id,
+                            screen="ChallSchedule",
+                            challengeId=challenge.id,
                             challName=challenge.name,
                             whichChall="Group"
                         )

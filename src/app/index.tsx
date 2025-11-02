@@ -126,6 +126,24 @@ function App() {
   const wsRef = React.useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    const handleInitialIntent = async () => {
+      const data = await IntentModule.getInitialIntent();
+      console.log('getInitialIntent =>', data);
+      if (data?.screen) {
+        setTimeout(() => {
+          if (!user) {
+            navigate('Login', { redirectTo: data.screen, redirectParams: data });
+          } else {
+            navigate(data.screen, data.params);
+          }
+        }, 800);
+      }
+    };
+  
+    handleInitialIntent();
+  }, [user]);  
+
+  useEffect(() => {
     if (user?.id) {
       registerForFCM(user.id);
     }
@@ -136,23 +154,23 @@ function App() {
     let notificationListener: any;
 
     // 1) cold-start intent
-    IntentModule.getInitialIntent()
-      .then((data: any) => {
-        console.log('getInitialIntent =>', data);
-        if (data?.screen) {
-          if (!user) {
-            navigate('Login', {
-              redirectTo: data.screen,
-              redirectParams: data,
-            });
-          } else {
-            navigate(data.screen, data.params);
-          }
-        }
-      })
-      .catch((e: any) => {
-        console.warn('getInitialIntent error', e);
-      });
+    // IntentModule.getInitialIntent()
+    //   .then((data: any) => {
+    //     console.log('getInitialIntent =>', data);
+    //     if (data?.screen) {
+    //       if (!user) {
+    //         navigate('Login', {
+    //           redirectTo: data.screen,
+    //           redirectParams: data,
+    //         });
+    //       } else {
+    //         navigate(data.screen, data.params);
+    //       }
+    //     }
+    //   })
+    //   .catch((e: any) => {
+    //     console.warn('getInitialIntent error', e);
+    //   });
 
     // 2) warm-start intents: subscribe to native event emitter
     const emitter = IntentModule ? new NativeEventEmitter(IntentModule) : null;

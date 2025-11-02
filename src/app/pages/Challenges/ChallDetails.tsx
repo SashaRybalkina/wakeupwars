@@ -69,8 +69,8 @@ const getInitials = (name: string): string => {
 
 const ChallDetails: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
-  const { challId, challName, whichChall } = route.params as {
-    challId: number
+  const { challengeId, challName, whichChall } = route.params as {
+    challengeId: number
     challName: string
     whichChall: string
   }
@@ -138,7 +138,7 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
               if (!accessToken) {
                 throw new Error("Not authenticated");
               }
-        const res = await axios.get(endpoints.challengeDetail(challId), {
+        const res = await axios.get(endpoints.challengeDetail(challengeId), {
                 headers: {
                   Authorization: `Bearer ${accessToken}`
                 }
@@ -180,7 +180,7 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
           throw new Error("Not authenticated");
         }
 
-          const res = await fetch(`${endpoints.leaderboard(challId)}?t=${Date.now()}`, {
+          const res = await fetch(`${endpoints.leaderboard(challengeId)}?t=${Date.now()}`, {
                   headers: {
                     Authorization: `Bearer ${accessToken}`
                   }
@@ -198,7 +198,7 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
           if (rows.length === 0) {
             setTimeout(async () => {
               try {
-                const res2 = await fetch(`${endpoints.leaderboard(challId)}?t=${Date.now()}`, {
+                const res2 = await fetch(`${endpoints.leaderboard(challengeId)}?t=${Date.now()}`, {
                   headers: {
                     Authorization: `Bearer ${accessToken}`
                   }
@@ -230,7 +230,7 @@ const loadPerformances = async () => {
     const accessToken = await getAccessToken();
     if (!accessToken) throw new Error("Not authenticated");
 
-    const res = await fetch(endpoints.getPerformances(challId), {
+    const res = await fetch(endpoints.getPerformances(challengeId), {
                 headers: {
                   Authorization: `Bearer ${accessToken}`
                 }
@@ -274,7 +274,7 @@ const loadPerformances = async () => {
                   if (!accessToken) {
                     throw new Error("Not authenticated");
                   }
-            const res = await axios.get(endpoints.challengeDetail(challId), {
+            const res = await axios.get(endpoints.challengeDetail(challengeId), {
                     headers: {
                       Authorization: `Bearer ${accessToken}`
                     }
@@ -299,7 +299,7 @@ const loadPerformances = async () => {
           loadLeaderboard();
         }
         return () => {};
-      }, [challId, whichChall])
+      }, [challengeId, whichChall])
     );
 
     async function loadMyObligations() {
@@ -341,7 +341,7 @@ const loadPerformances = async () => {
   //   Alert.alert('Rewards', 'Choose the reward the winner will get. \n\nMoney: Send a USD amount. \nPoints: In-app points. \nCustom: Any creative prize. \n\nAfter saving, rewards are locked.');
   // };
 
-  // const finalizeChallenge = async (challId: number) => {
+  // const finalizeChallenge = async (challengeId: number) => {
   //     try {
 
   //     const accessToken = await getAccessToken();
@@ -349,7 +349,7 @@ const loadPerformances = async () => {
   //       throw new Error("Not authenticated");
   //     }
 
-  //       const res = await fetch(`${BASE_URL}/api/challenges/${challId}/finalize/`, {
+  //       const res = await fetch(`${BASE_URL}/api/challenges/${challengeId}/finalize/`, {
   //         method: 'POST',
   //         headers: {
   //           'Content-Type': 'application/json',
@@ -363,7 +363,7 @@ const loadPerformances = async () => {
   //       }
 
   //       // await loadMyObligations();
-  //       // navigation.navigate("Rewards", { challengeId: challId });
+  //       // navigation.navigate("Rewards", { challengeId: challengeId });
 
   //       //Alert.alert('Finalized', 'Obligations created. You can settle up now.');
   //     } catch (e: any) {
@@ -476,7 +476,7 @@ const loadPerformances = async () => {
 
               <TouchableOpacity
                 style={styles.scheduleButton}
-                onPress={() => navigation.navigate("ChallSchedule", { challId, challName, whichChall })}
+                onPress={() => navigation.navigate("ChallSchedule", { challengeId, challName, whichChall })}
               >
                 <LinearGradient
                   colors={["#FFD700", "#FFA500"]}
@@ -540,7 +540,7 @@ const loadPerformances = async () => {
       style={styles.viewDetailsButton}
       onPress={() =>
         navigation.navigate("LeaderboardDetails", {
-          challId,
+          challengeId,
           myName,
         })
       }
@@ -613,7 +613,7 @@ const loadPerformances = async () => {
 
         {/* <TouchableOpacity
           style={[styles.scheduleButton, { marginTop: 14 }]}
-          onPress={() => navigation.navigate("Rewards", { challengeId: challId })}>
+          onPress={() => navigation.navigate("Rewards", { challengeId: challengeId })}>
           <LinearGradient
             colors={["#00C853", "#64DD17"]}
             style={styles.scheduleButtonGradient}>
@@ -624,7 +624,7 @@ const loadPerformances = async () => {
 
         {/* <TouchableOpacity
           style={[styles.scheduleButton, { marginTop: 14 }]}
-          onPress={() => finalizeChallenge(challId)}>
+          onPress={() => finalizeChallenge(challengeId)}>
           <LinearGradient
             colors={["#00C853", "#64DD17"]}
             style={styles.scheduleButtonGradient}>

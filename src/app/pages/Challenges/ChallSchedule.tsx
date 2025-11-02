@@ -42,8 +42,8 @@ const DayOfWeekLabels: Record<number, string> = { 1: "M", 2: "T", 3: "W", 4: "TH
 
 const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const route = useRoute()
-  const { challId, challName, fromSearch, userAverageSkillLevel, isInitiator, fromInvite } = route.params as { 
-    challId: number; 
+  const { challengeId, challName, fromSearch, userAverageSkillLevel, isInitiator, fromInvite } = route.params as { 
+    challengeId: number; 
     challName: string, 
     fromSearch: boolean,
     userAverageSkillLevel: number,
@@ -101,10 +101,10 @@ useEffect(() => {
               throw new Error("Not authenticated");
             }
       const [scheduleRes, alarmsRes] = await Promise.all([
-        axios.get(endpoints.getChallengeSchedule(challId), {
+        axios.get(endpoints.getChallengeSchedule(challengeId), {
           headers: { Authorization: `Bearer ${accessToken}` }
         }),
-        axios.get(endpoints.getHasSetAlarms(challId, Number(user?.id)), {
+        axios.get(endpoints.getHasSetAlarms(challengeId, Number(user?.id)), {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
       ]);
@@ -192,7 +192,7 @@ const addGameToDay = async (game: { id: number; name: string }) => {
   try {
 
         const payload = {
-          challengeId: challId,
+          challengeId: challengeId,
           gameId: game.id,
           dayOfWeek: selectedDay,
           gameOrder: gameOrder
@@ -249,22 +249,22 @@ const addGameToDay = async (game: { id: number; name: string }) => {
   const goToProfile = () => navigation.navigate("Profile")
 
   const goToSudoku = () => {
-    navigation.navigate('Sudoku', { challengeId: challId });
+    navigation.navigate('Sudoku', { challengeId: challengeId });
   };
 
   const goToWordle = () => {
-    navigation.navigate('Wordle', { challengeId: challId });
+    navigation.navigate('Wordle', { challengeId: challengeId });
   };
 
   const goToPattern = () => {
-    navigation.navigate('PatternGame', { challengeId: challId});
+    navigation.navigate('PatternGame', { challengeId: challengeId});
   }
 
 
   const handleGamePress = (game: { name: string; order: number; screen?: string }, index: number) => {
     // Prefer backend-provided screen for dynamic navigation
     if (game.screen) {
-      navigation.navigate(game.screen, { challengeId: challId, challName: 'Hmm', whichChall: 'Personal' });
+      navigation.navigate(game.screen, { challengeId: challengeId, challName: 'Hmm', whichChall: 'Personal' });
       return;
     }
 
@@ -286,7 +286,7 @@ const addGameToDay = async (game: { id: number; name: string }) => {
           try {
 
             const payload = {
-              challenge_id: challId,
+              challenge_id: challengeId,
               user_average_skill_level: userAverageSkillLevel
             }
   
@@ -310,9 +310,9 @@ const addGameToDay = async (game: { id: number; name: string }) => {
   
           setIsPending(false)
             try {
-                if (challId) {
-                console.log(challId)
-                await scheduleAlarmsForUser(challId, challName, Number(user?.id));
+                if (challengeId) {
+                console.log(challengeId)
+                await scheduleAlarmsForUser(challengeId, challName, Number(user?.id));
                 setHasSetAlarms(true)
                 }
             } catch (e) {
@@ -333,7 +333,7 @@ const addGameToDay = async (game: { id: number; name: string }) => {
       //     try {
 
       //       const payload = {
-      //         challenge_id: challId,
+      //         challenge_id: challengeId,
       //       }
 
       //   const accessToken = await getAccessToken();
@@ -517,7 +517,7 @@ const getInitials = (name: string): string => {
           catType: "Schedule",
           groupId: null,
           onGameSelected: addGameToDay,
-          challId,
+          challengeId,
           challName
         })}
       >
@@ -646,7 +646,7 @@ const getInitials = (name: string): string => {
 
       try {
         // 1. Schedule alarms locally
-        await scheduleAlarmsForUser(challId, challName, Number(user?.id));
+        await scheduleAlarmsForUser(challengeId, challName, Number(user?.id));
 
               const accessToken = await getAccessToken();
               if (!accessToken) {
@@ -654,7 +654,7 @@ const getInitials = (name: string): string => {
               }
         // 2. Mark in backend that user has set their alarms
         const res = await fetch(
-          endpoints.setUserHasSetAlarms(challId, Number(user?.id)),
+          endpoints.setUserHasSetAlarms(challengeId, Number(user?.id)),
           {
             method: 'POST',
             headers: {

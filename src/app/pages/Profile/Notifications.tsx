@@ -51,9 +51,10 @@ const NotificationsPage: React.FC<Props> = ({ navigation }) => {
     ts ? formatDistanceToNow(new Date(ts), { addSuffix: true }) : ""
 
   const handlePress = (n: any) => {
-    if (n.screen === "ChallDetails") {
+    console.log(n)
+    if (n.screen === "ChallDetails" || n.screen === "ChallSchedule") {
       navigation.navigate(n.screen as string, {
-        challengeId: n.challengeId,
+        challengeId: n.challengeId || n.challenge_id,
         challName: n.challName,
         whichChall: n.whichChall,
       })
