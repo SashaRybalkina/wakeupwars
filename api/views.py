@@ -1212,6 +1212,42 @@ class ChallengeListView(APIView):
             response_data.append(serialized)
 
         return Response(response_data)
+    
+
+class CurrentChallengesView(APIView):
+    def get(self, request, user_id, which_chall):
+        if which_chall == 'Group':
+            # TODO: only fetch group challeges you're a part of
+            group_ids = GroupMembership.objects.filter(uID=user_id).values_list('groupID', flat=True)
+            challenges = Challenge.objects.filter(
+                id__in=ChallengeMembership.objects.filter(uID=user_id).values_list('challengeID', flat=True),
+                groupID__in=group_ids, 
+                isPending=False, 
+                isCompleted=False,
+            )
+        elif which_chall == 'Personal':
+            challenges = Challenge.objects.filter(
+                id__in=ChallengeMembership.objects.filter(uID=user_id).values_list('challengeID', flat=True),
+                groupID=None,
+                isPublic=False,
+                isPending=False,
+                isCompleted=False,
+            )
+        elif which_chall == 'Public':
+            challenges = Challenge.objects.filter(
+                id__in=ChallengeMembership.objects.filter(uID=user_id).values_list('challengeID', flat=True),
+                isPublic=True,
+                isPending=False,
+                isCompleted=False,
+            )
+
+        response_data = []
+        for challenge in challenges:
+            serialized = ChallengeSummarySerializer(challenge, context={'user': request.user}).data
+            response_data.append(serialized)
+
+        print(response_data)
+        return Response(response_data)
 
 
 class ChallengeDetailView(APIView):

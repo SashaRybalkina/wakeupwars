@@ -20,15 +20,7 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
     // whichCall will be "Personal", "Group", or "Public"
   }
   const { user } = useUser()
-  const [challs, setChalls] = useState<
-    {
-      id: number
-      name: string
-      daysCompleted: number
-      totalDays: number
-      daysOfWeek: string[]
-    }[]
-  >([])
+  const [challs, setChalls] = useState<any[]>([])
 
   useFocusEffect(
     useCallback(() => {
@@ -41,20 +33,30 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
             throw new Error("Not authenticated");
           }
           const response = await axios.get(
-            endpoints.challengeList(Number(user.id), whichChall), {
+            endpoints.currentChallenges(Number(user.id), whichChall), {
               headers: {
                 "Authorization": `Bearer ${accessToken}`,
               },
             }
           )
+        // fields = [
+        //     'id', 'name', 'startDate', 'endDate', 'totalDays',
+        //     'isGroupChallenge', 'daysOfWeek', 'daysCompleted',
+        //     'isCompleted',
+        // ]
+        console.log(response.data)
           const data = response.data.map((c: any) => ({
             id: c.id,
             name: c.name,
+            startDate: c.startDate,
+            endDate: c.endDate,
             daysCompleted: c.daysCompleted,
             totalDays: c.totalDays ?? 30,
             daysOfWeek: c.daysOfWeek ?? [],
+            isCompleted: c.isCompleted,
           }))
           setChalls(data)
+          console.log(challs)
         } catch (error) {
           console.error(error)
         }
@@ -77,32 +79,6 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
   }
 
 
-  const Challenge: React.FC<{
-    id: number
-    name: string
-    daysCompleted: number
-    totalDays: number
-    daysOfWeek: string[]
-  }> = ({ id, name, daysCompleted, totalDays, daysOfWeek }) => (
-    <TouchableOpacity
-      onPress={() =>
-        navigation.navigate("ChallDetails", {
-          challId: id,
-          challName: name,
-          whichChall,
-        })
-      }
-      style={styles.challengeContainer}
-    >
-      <ChallengeCard
-        title={name}
-        icon={require("../../images/school.png")}
-        daysComplete={daysCompleted}
-        totalDays={totalDays}
-        daysOfWeek={daysOfWeek}
-      />
-    </TouchableOpacity>
-  )
 
   return (
     <View style={styles.container}>
@@ -123,39 +99,46 @@ const Chall1: React.FC<Props> = ({ navigation }) => {
 
 
 
-        {challs.length === 0 ? (
-          <View style={styles.emptyStateContainer}>
-            <Ionicons name="flag-outline" size={70} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.emptyStateText}>No challenges yet</Text>
-            
-          </View>
-        ) : (
+              {challs.length === 0 ? (
+                <View style={styles.emptyStateContainer}>
+                  <Ionicons name="flag-outline" size={40} color="rgba(255,255,255,0.7)" />
+                  <Text style={styles.emptyStateText}>No active challenges</Text>
+                </View>
+              ) : (
           <ScrollView
             style={styles.scrollViewContainer}
             contentContainerStyle={styles.scrollViewContent}
             showsVerticalScrollIndicator={false}
           >
-            {challs.map((challenge) => (
-              <Challenge
-                key={challenge.id}
-                id={challenge.id}
-                name={challenge.name}
-                daysCompleted={challenge.daysCompleted}
-                totalDays={challenge.totalDays}
-                daysOfWeek={challenge.daysOfWeek}
-              />
-            ))}
+                  {challs.map((c) => (
+                    <View key={c.id} style={styles.challengeRow}>
+                      <TouchableOpacity
+                        style={styles.challengeCardWrapper}
+                        onPress={() =>
+                          navigation.navigate("ChallDetails", {
+                            challId: c.id,
+                            challName: c.name,
+                            whichChall: whichChall,
+                          })
+                        }
+                      >
+                        <ChallengeCard
+                          title={c.name}
+                          icon={require("../../images/school.png")}
+                          startDate={c.startDate}
+                          endDate={c.endDate}
+                          daysCompleted={c.daysCompleted}
+                          totalDays={c.totalDays === null ? "?" : c.totalDays}
+                          daysOfWeek={c.daysOfWeek}
+                          isCompleted={c.isCompleted}
+                        />
+                      </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.addNewButton}
-                onPress={() => {
-                  navigation.navigate("CreatePublicChall1");
-                }}
-              >
-                <Text style={styles.addNewButtonText}>Add new +</Text>
-              </TouchableOpacity>
-          </ScrollView>
-        )}
+                    </View>
+                  ))}
+            </ScrollView>
+
+              )}
       </ImageBackground>
 
       <View style={styles.navBar}>
@@ -309,6 +292,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
   },
+  challengeCardsContainer: { width: "100%" },
+  challengeCardWrapper: {
+    borderRadius: 16, overflow: "hidden",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2, shadowRadius: 4, flex: 1,
+  },
+  challengeRow: { position: "relative", marginBottom: 15 },
 })
 
 export default Chall1

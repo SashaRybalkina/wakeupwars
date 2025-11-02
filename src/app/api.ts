@@ -46,6 +46,8 @@ export const endpoints = {
   challengeReward: (challId:number)=> `${BASE_URL}/api/challenges/${challId}/reward/`,
   challengeList: (userId: number, whichChall: string) =>
     `${BASE_URL}/api/challenges/${userId}/${whichChall}/`,
+  currentChallenges: (userId: number, whichChall: string) =>
+    `${BASE_URL}/api/current-challenges/${userId}/${whichChall}/`,
   getPendingPublicChallenges: (userId: number) => `${BASE_URL}/api/get-pending-public-challenges/${userId}/`,
   getPublicChallenges: (userId: number) => `${BASE_URL}/api/get-public-challenges/${userId}/`,
   joinPublicChallenge: (userId: number) => `${BASE_URL}/api/join-public-challenge/${userId}/`,

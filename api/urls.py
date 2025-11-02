@@ -93,6 +93,7 @@ from .views import (
     SavePushTokenView,
     UserNotificationsView,
     DeleteNotificationView,
+    CurrentChallengesView,
 )
 
 
@@ -109,6 +110,7 @@ urlpatterns = [
     path('challenges/<int:challenge_id>/finalize/', FinalizeChallengeView.as_view(), name='finalize-challenge'),
     path('challenges/<int:chall_id>/reward/', RewardSettingView.as_view(), name='challenge-reward'),
     path('challenges/<int:user_id>/<str:which_chall>/', ChallengeListView.as_view(), name='challenge-list'),
+    path('current-challenges/<int:user_id>/<str:which_chall>/', CurrentChallengesView.as_view(), name='current-challenges'),
     path('get-pending-public-challenges/<int:user_id>/', GetPendingPublicChallengesView.as_view(), name='get-pending-public-challenges'),
     path('get-public-challenges/<int:user_id>/', GetPublicChallengesView.as_view(), name='get-public-challenges'),
     path(

@@ -345,12 +345,12 @@ const PublicChallenges: React.FC<Props> = ({ navigation }) => {
 
       <View style={styles.navBar}>
         <TouchableOpacity style={styles.navButton} onPress={goToChallenges}>
-          <Ionicons name="star-outline" size={28} color="#FFF" />
+          <Ionicons name="star-outline" size={28} color="#FFD700" />
           <Text style={styles.navText}>Challenges</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navButton} onPress={goToGroups}>
-          <Ionicons name="people" size={28} color="#FFD700" />
+          <Ionicons name="people" size={28} color="#FFF" />
           <Text style={styles.activeNavText}>Groups</Text>
         </TouchableOpacity>
 

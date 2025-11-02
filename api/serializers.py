@@ -106,7 +106,6 @@ class SkillLevelSerializer(serializers.ModelSerializer):
 class ChallengeSummarySerializer(serializers.ModelSerializer):
     isGroupChallenge = serializers.SerializerMethodField()
     daysOfWeek = serializers.SerializerMethodField()
-    isCompleted = serializers.SerializerMethodField()  # ← add this
 
     class Meta:
         model = Challenge
@@ -138,19 +137,6 @@ class ChallengeSummarySerializer(serializers.ModelSerializer):
         day_labels = [numeric_to_label[d] for d in sorted(day_numbers)]
         return list(day_labels)
     
-
-    def get_isCompleted(self, obj):
-        # Prefer a real model flag if you have one
-        if hasattr(obj, 'isCompleted') and obj.isCompleted is not None:
-            return bool(obj.isCompleted)
-        # Or infer from status / ended_at / endDate
-        if getattr(obj, 'status', None) == 'COMPLETED':
-            return True
-        if getattr(obj, 'ended_at', None):
-            return True
-        if obj.endDate:
-            return obj.endDate < timezone.now().date()
-        return False
     
 
 class PendingPublicChallengeSummarySerializer(serializers.ModelSerializer):

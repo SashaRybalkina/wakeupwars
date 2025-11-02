@@ -64,7 +64,6 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
               totalDays: c.totalDays,
               daysOfWeek: c.daysOfWeek ?? [],
               alarmSchedule,
-              // isCompleted: c.endDate ? new Date(c.endDate) < new Date() : false,
               isCompleted: c.isCompleted,
             }
           } catch {
@@ -77,7 +76,6 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
               totalDays: c.totalDays ?? 30, // TODO: fix this
               daysOfWeek: c.daysOfWeek ?? [],
               alarmSchedule: [],
-              // isCompleted: c.endDate ? new Date(c.endDate) < new Date() : false,
               isCompleted: c.isCompleted,
             }
           }
