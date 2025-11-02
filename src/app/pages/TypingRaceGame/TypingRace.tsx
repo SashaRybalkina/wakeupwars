@@ -233,7 +233,7 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
           setExpectedCount(msg.expected_count);
           setJoinDeadlineISO(msg.join_deadline_at || null);
 
-
+          if (msg.members) setMembers(msg.members);
           if (msg.can_start_now !== undefined) setCanStartNow(msg.can_start_now);
           if (msg.online_ids) setOnlineIds(msg.online_ids);
 
@@ -351,18 +351,9 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
         setGameStateId(data.game_state_id);
         setIsMultiplayer(data.is_multiplayer);
 
-        // get challenge members
-        try {
-          const detailRes = await fetch(endpoints.challengeDetail(challId), {
-            headers: { 'Authorization': `Bearer ${accessToken}` },
-          });
-          const detail = await detailRes.json();
-          setMembers(detail?.members || []);
-          console.log('[TypingRace] Loaded challenge members:', detail?.members);
-          setWaitingActive(true);
-        } catch (e) {
-          console.warn('[TypingRace] Failed to load challenge members', e);
-        }
+        // 🧍 Wait for lobby_state to load members from WebSocket
+        setWaitingActive(true);
+        console.log('[TypingRace] Waiting for lobby members via WebSocket...');
 
         // 👥 Multiplayer mode
         if (data.is_multiplayer) {

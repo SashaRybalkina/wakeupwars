@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+import asyncio
 from django.utils import timezone
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from asgiref.sync import sync_to_async
@@ -260,8 +261,18 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             expected_count = await sync_to_async(
                 ChallengeMembership.objects.filter(challengeID=gs.challenge).count
             )()
-        except Exception:
+             # 🧍 Fetch all members in this challenge for the front-end display
+            members_qs = await sync_to_async(
+                list
+            )(ChallengeMembership.objects.filter(challengeID=gs.challenge).select_related("user"))
+            members = [
+                {"id": m.user.id, "name": m.user.username}
+                for m in members_qs
+            ]
+        except Exception as e:
+            print(f"[Typing][WARN] Could not fetch members: {e}")
             expected_count = ready_count
+            members = []
 
         started_key = _started_key(self.game_id)
         join_deadline_at = cache.get(_deadline_key(self.game_id))
@@ -281,7 +292,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
                         {"type": "join_window_closed", "server_now": timezone.now().isoformat()},
                     )
 
-            import asyncio
+            
             asyncio.create_task(delayed_close())
 
         message = {
@@ -293,29 +304,32 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             "expected_count": expected_count,
             "online_ids": list(conns),
             "can_start_now": ready_count == expected_count,
+            "members": members,
         }
 
         print(f"[Typing][BROADCAST] lobby_state -> {message}")
         await self.channel_layer.group_send(self.room_group_name, message)
-
-
-        @sync_to_async
-        def _save_zero_score_if_needed(self):
-            """Auto-save a zero score for disconnected users with no record."""
-            gs = TypingRaceGameState.objects.select_related("challenge", "game").get(id=self.game_id)
-            today = date.today()
-            exists = GamePerformance.objects.filter(
+    
+    @sync_to_async
+    def _save_zero_score_if_needed(self):
+        """Auto-save a zero score for disconnected users with no record."""
+        gs = TypingRaceGameState.objects.select_related("challenge", "game").get(id=self.game_id)
+        today = date.today()
+        exists = GamePerformance.objects.filter(
+            challenge=gs.challenge,
+            game=gs.game,
+            user=self.user,
+            date=today,
+        ).exists()
+        if not exists:
+            GamePerformance.objects.update_or_create(
                 challenge=gs.challenge,
                 game=gs.game,
                 user=self.user,
-                date=today
-            ).exists()
-            if not exists:
-                GamePerformance.objects.update_or_create(
-                    challenge=gs.challenge,
-                    game=gs.game,
-                    user=self.user,
-                    date=today,
-                    defaults={"score": 0, "auto_generated": True}
-                )
-                print(f"[Typing][SCORE] Auto-saved 0 score for {self.user.username}")
+                date=today,
+                defaults={"score": 0, "auto_generated": True},
+            )
+            print(f"[Typing][SCORE] Auto-saved 0 score for {self.user.username}")
+
+
+        
