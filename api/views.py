@@ -598,7 +598,7 @@ class JoinPublicChallengeView(APIView):
                     title="New Member Joined",
                     body=f"{user.name or user.username} joined the public challenge '{challenge.name}'.",
                     type="public_challenge_join",
-                    screen="PublicChallenges",
+                    screen="ChallDetails",
                     challengeId=challenge.id,
                     challName=challenge.name,
                     whichChall="Public"
@@ -1890,7 +1890,7 @@ class CreatePendingCollaborativeGroupChallengeView(APIView):
                         title="New Group Challenge",
                         body=f"A new group challenge '{challenge.name}' needs your availability.",
                         type="group_challenge_invite",
-                        screen="GroupChallenges",
+                        screen="GroupDetails",
                         challengeId=challenge.id,
                         challName=challenge.name,
                         whichChall="Group"
@@ -3436,7 +3436,7 @@ class ShareChallengeView(APIView):
                     title="Personal Challenge Invite",
                     body=f"{request.user.name or request.user.username} shared a challenge '{challenge_name}' with you.",
                     type="personal_challenge_invite",
-                    screen="PersonalChallenges",
+                    screen="PersChall1",
                 )
                 device = FCMDevice.objects.filter(user=friend).first()
                 if device:
@@ -3504,7 +3504,7 @@ class AcceptPersonalChallenge(APIView):
             title="Personal Challenge Response",
             body=f"{inv.recipient.name or inv.recipient.username} has {status_str} your challenge invite.",
             type="personal_challenge_response",
-            screen="PersonalChallenges",
+            screen="PersChall1",
         )
         device = FCMDevice.objects.filter(user=sender).first()
         if device:
@@ -3537,7 +3537,7 @@ class DeclinePersonalChallenge(APIView):
             title="Personal Challenge Response",
             body=f"{inv.recipient.name or inv.recipient.username} has {status_str} your challenge invite.",
             type="personal_challenge_response",
-            screen="PersonalChallenges",
+            screen="PersChall1",
         )
         device = FCMDevice.objects.filter(user=sender).first()
         if device:

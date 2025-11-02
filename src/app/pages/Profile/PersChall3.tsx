@@ -223,7 +223,8 @@ function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number
             startDate: start_date,
             endDate: end_date,
             members, 
-            totalDays: total_days
+            totalDays: total_days,
+            name,
           };
           console.log(JSON.stringify(payload))
 

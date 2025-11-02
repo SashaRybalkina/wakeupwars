@@ -51,14 +51,14 @@ const NotificationsPage: React.FC<Props> = ({ navigation }) => {
     ts ? formatDistanceToNow(new Date(ts), { addSuffix: true }) : ""
 
   const handlePress = (n: any) => {
-    if (n.type === "friend_request" || n.type === "group_add") {
-      navigation.navigate(n.screen as string)
-    } else {
+    if (n.screen === "ChallDetails") {
       navigation.navigate(n.screen as string, {
         challengeId: n.challengeId,
         challName: n.challName,
         whichChall: n.whichChall,
       })
+    } else {
+      navigation.navigate(n.screen as string)
     }
   }
 
