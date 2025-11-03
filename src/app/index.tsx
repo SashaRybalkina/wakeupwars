@@ -177,12 +177,11 @@ function App() {
     if (emitter) {
       subscription = emitter.addListener('NewIntent', (data: any) => {
       console.log('NewIntent event =>', data);
-      if (data?.screen) {
-        if (!user) {
-          navigate('Login', { redirectTo: data.screen, redirectParams: data });
-        } else {
-          navigate(data.screen, data.params);
-        }
+      const targetScreen = data.screen || "Notifications";
+      if (!user) {
+        navigate('Login', { redirectTo: targetScreen, redirectParams: data });
+      } else {
+        navigate(targetScreen, data.params);
       }
     });
     }
@@ -191,15 +190,14 @@ function App() {
     notificationListener =
       Notifications.addNotificationResponseReceivedListener((response) => {
         const data = response.notification.request.content.data;
-        if (data?.screen) {
-          if (!user) {
-            navigate('Login', {
-              redirectTo: data.screen,
-              redirectParams: data.params || {},
-            });
-          } else {
-            navigate(data.screen, data.params || {});
-          }
+        const targetScreen = data.screen || "Notifications";
+        if (!user) {
+          navigate('Login', {
+            redirectTo: targetScreen,
+            redirectParams: data.params || {},
+          });
+        } else {
+          navigate(targetScreen, data.params || {});
         }
       });
 
