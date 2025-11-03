@@ -74,11 +74,13 @@ import requests
 User = get_user_model()
 WORD_LIST = words
 
-
+#Here
 class SetChallAvailabilityView(APIView):
     @transaction.atomic
     def post(self, request, user_id, chall_id):
         availability_data = request.data.get('availability', [])
+        challenge = get_object_or_404(Challenge, id=chall_id)
+        user = get_object_or_404(User, id=user_id)
 
         for item in availability_data:
             day = item['dayOfWeek']
@@ -115,6 +117,32 @@ class SetChallAvailabilityView(APIView):
             challengeID_id=chall_id,
             uID_id=user_id,
         )
+        
+        if (user_id != challenge.initiator_id):
+            UserNotification.objects.create(
+                    user=challenge.initiator,
+                    title="Availability Set",
+                    body=f"{user.name or user.username} has set their availability for '{challenge.name}'.",
+                    type="availability_set",
+                    screen="EditAvailability",
+                    groupId=challenge.groupID.id,
+                    startDate=challenge.startDate,
+                    endDate=challenge.endDate,
+                    accepted=1,
+                    challengeId=challenge.id,
+                    challName=challenge.name,
+                    whichChall="Group"
+                )
+            device = FCMDevice.objects.filter(user=challenge.initiator).first()
+            if device:
+                title = "Availability Set"
+                body = f"{user.name or user.username} has set their availability for '{challenge.name}'."
+                recipient_id = challenge.initiator_id
+                data={
+                    "screen": "Notifications",
+                    "type": "availability_set",
+                }
+                send_fcm_notification(title, body, data, recipient_id)
 
         return Response({'status': 'availability toggled and invite accepted'})
     

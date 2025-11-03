@@ -64,6 +64,16 @@ const NotificationsPage: React.FC<Props> = ({ navigation }) => {
         groupId: n.groupId,
       })
     }
+    else if (n.screen === "EditAvailability") {
+      navigation.navigate(n.screen as string, {
+        groupId: n.groupId,
+        pendingChallengeId: n.challengeId, 
+        pendingChallengeName: n.challName, 
+        pendingChallengeStartDate: n.startDate,
+        pendingChallengeEndDate: n.endDate,
+        accepted: n.accepted,
+      })
+    }
     else {
       navigation.navigate(n.screen as string)
     }
