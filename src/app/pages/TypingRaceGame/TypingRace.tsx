@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -234,26 +233,26 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
         const log = (...args: any[]) => console.log("%c[Typing WS]", "color:#00BFFF;font-weight:bold;", ...args);
 
         switch (msg.type) {
-          case "lobby_state":
-            log("🏠 Lobby update:", {
-              ready: `${msg.ready_count}/${msg.expected_count}`,
-              members: msg.members?.map((m: any) => m.name ?? m.username),
-              canStart: msg.can_start_now,
-            });
-            break;
+          // case "lobby_state":
+          //   log("🏠 Lobby update:", {
+          //     ready: `${msg.ready_count}/${msg.expected_count}`,
+          //     members: msg.members?.map((m: any) => m.name ?? m.username),
+          //     canStart: msg.can_start_now,
+          //   });
+          //   break;
 
-          case "join_window_closed":
-            log("🚦 Join window closed → start countdown");
-            break;
+          // case "join_window_closed":
+          //   log("🚦 Join window closed → start countdown");
+          //   break;
 
           // case "player_progress_update":
           //   log("🚗 Player progress:", msg.player);
           //   break;
 
-          case "leaderboard_update":
-            log("🏎️ Leaderboard update:", msg.leaderboard);
-            if (msg.winner) log("👑 Winner:", msg.winner);
-            break;
+          // case "leaderboard_update":
+          //   log("🏎️ Leaderboard update:", msg.leaderboard);
+          //   if (msg.winner) log("👑 Winner:", msg.winner);
+          //   break;
 
           case "game_complete":
             log("🏁 Final results:", msg.leaderboard);
@@ -328,7 +327,7 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
         // === 👥 Player list update ===
         if (msg.type === "player_list") {
-          console.log("[TypingRace] Player list updated:", msg.players);
+          //console.log("[TypingRace] Player list updated:", msg.players);
 
             const players = msg.players || [];
 
@@ -558,7 +557,7 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
   // 🔄 Reset Game (Play Again)
   // ===============================
   const resetRace = async () => {
-    console.log('[TypingRace] Resetting game...');
+    //console.log('[TypingRace] Resetting game...');
 
     
     setInput('');
@@ -605,7 +604,7 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
       
       if (data.is_multiplayer) {
-        console.log('[TypingRace] Multiplayer restart — reconnecting...');
+        //console.log('[TypingRace] Multiplayer restart — reconnecting...');
         setWaitingActive(true);
         connectWebSocket(data.game_state_id);
       } else {
