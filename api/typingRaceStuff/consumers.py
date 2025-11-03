@@ -4,6 +4,9 @@ from django.utils import timezone
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from asgiref.sync import sync_to_async
 from django.core.cache import cache
+from channels.db import database_sync_to_async
+from time import time
+
 
 from api.models import (
     TypingRaceGameState,
@@ -75,6 +78,31 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         # Register player in DB
         await self._add_player()
         print(f"[Typing][DB] Player {self.user.username} added to TypingRaceGameState {self.game_id}")
+
+        # ✅ Get current connected users
+        conns = set(cache.get(_conns_key(self.game_id)) or [])
+
+        def get_connected_users_sync():
+            users = User.objects.filter(id__in=list(conns))
+            return [{"id": u.id, "name": u.username} for u in users]
+        
+        members = await sync_to_async(get_connected_users_sync)()
+
+        # ✅ Send current online players to self
+        await self.send_json({
+            "type": "player_list",
+            "players": members
+        })
+        print(f"[Typing][PLAYER LIST] sent to {self.user.username}: {members}")
+
+        # ✅ Broadcast updated online player list to others
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                "type": "player_list_update",
+                "players": members,
+            }
+        )
 
         # Broadcast lobby (waiting room) state to all players
         await self._broadcast_lobby_state()
@@ -155,6 +183,14 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         """Handle player's progress update event."""
         print(f"[Typing][PROGRESS] {self.user.username}: typed={total_typed}, errors={total_errors}")
 
+         # every 200ms at most to broadcast
+        throttle_key = f"typing_last_update_{self.game_id}_{self.user.id}"
+        now = time()
+        last_time = cache.get(throttle_key, 0)
+        if now - last_time < 0.2:  
+            return
+        cache.set(throttle_key, now, timeout=2)
+
         # Apply progress update and get player's updated data
         result = await apply_progress_update_async(self.game_id, self.user, total_typed, total_errors)
         player_snapshot = {
@@ -173,48 +209,57 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             },
         )
 
+    @database_sync_to_async
+    def _get_game_leaderboard(self):
+        """Run ORM safely in a synchronous thread."""
+
+        game_state = TypingRaceGameState.objects.get(id=self.game_id)
+        players = TypingRaceGamePlayer.objects.filter(game_state=game_state)
+
+        leaderboard = []
+        for p in players:
+            leaderboard.append({
+                "username": p.player.username,
+                "score": round(p.final_score or 0, 2),
+                "accuracy": round(p.accuracy or 0, 2),
+                "progress": round(p.progress or 0, 2),
+                "is_completed": p.is_completed,
+            })
+
+        all_done = all(p.is_completed for p in players)
+        return leaderboard, all_done
+
+
     async def _handle_game_finished(self):
-        """Handle game completion logic and broadcast final results."""
-        print(f"[Typing][FINISH] {self.user.username} finished game {self.game_id}")
+        """Handle player finishing the game and broadcast leaderboard if all done."""
         try:
-            gs = await sync_to_async(TypingRaceGameState.objects.get)(id=self.game_id)
-            all_players = await sync_to_async(list)(
-                TypingRaceGamePlayer.objects.filter(game_state=gs)
-            )
-            leaderboard = [
+            print(f"[Typing][FINISH] {self.user.username} finished game {self.game_id}")
+
+            await asyncio.sleep(0.3)
+
+            leaderboard, all_done = await self._get_game_leaderboard()
+
+            # if all_done:
+            sorted_lb = sorted(leaderboard, key=lambda x: x["score"], reverse=True)
+            winner = sorted_lb[0]["username"] if sorted_lb else None
+
+            await self.channel_layer.group_send(
+                self.room_group_name,
                 {
-                    "username": p.player.username,
-                    "score": round(p.final_score, 2),
-                    "progress": round(p.progress, 2),
-                    "accuracy": round(p.accuracy, 2),
-                    "is_completed": p.is_completed,
+                    "type": "leaderboard_update",
+                    "leaderboard": sorted_lb,
+                    "winner": winner,
                 }
-                for p in all_players
-            ]
+            )
+   
+            # else:
+            #     print(f"[Typing][WAIT] Some players still typing...")
 
-            print(f"[Typing][LEADERBOARD] Current standings={leaderboard}")
-            all_done = all(p.is_completed for p in all_players)
-
-            if all_done and leaderboard:
-                sorted_lb = sorted(leaderboard, key=lambda x: x["score"], reverse=True)
-                winner = sorted_lb[0]["username"]
-                print(f"[Typing][COMPLETE] All players finished. Winner={winner}")
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {
-                        "type": "game_complete",
-                        "leaderboard": sorted_lb,
-                        "winner": winner,
-                        "is_complete": True,
-                    },
-                )
-            else:
-                print(f"[Typing][WAIT] Waiting for remaining players to finish...")
         except Exception as e:
-            print(f"[Typing][ERROR] Exception in game_finished: {e}")
+            print(f"[Typing][ERROR] game_finished failed: {e}")
             await self.send_json({
                 "type": "error",
-                "message": f"Game finish failed: {str(e)}"
+                "message": f"Game finish failed: {e}"
             })
 
     # =========================
@@ -267,6 +312,12 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         await sync_to_async(TypingRaceGamePlayer.objects.get_or_create)(
             game_state=gs, player=self.user,
         )
+    
+    async def player_list_update(self, event):
+        await self.send_json({
+            "type": "player_list",
+            "players": event["players"],
+        })
 
     @sync_to_async
     def _get_lobby_state_data(self):

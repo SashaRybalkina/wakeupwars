@@ -19,12 +19,12 @@ import { NavigationProp, useRoute } from '@react-navigation/native';
 import { BASE_URL, endpoints } from '../../api';
 import { useUser } from '../../context/UserContext';
 import { getAccessToken } from "../../auth";
-import  styles  from './styles';
+import styles from './Styles'
 
 // ===============================
 // ⚙️ Game Config
 // ===============================
-const GAME_SECONDS = 40; // total game time
+const GAME_SECONDS = 60; // total game time
 const CAR_SIZE = 24;
 const COUNTDOWN_START = 3; // pre-game countdown
 
@@ -231,11 +231,42 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
       ws.onmessage = (event) => {
         const msg: ServerToClientMessage | any = JSON.parse(event.data);
-        console.log('[Typing WS] message:', msg);
+        const log = (...args: any[]) => console.log("%c[Typing WS]", "color:#00BFFF;font-weight:bold;", ...args);
+
+        switch (msg.type) {
+          case "lobby_state":
+            log("🏠 Lobby update:", {
+              ready: `${msg.ready_count}/${msg.expected_count}`,
+              members: msg.members?.map((m: any) => m.name ?? m.username),
+              canStart: msg.can_start_now,
+            });
+            break;
+
+          case "join_window_closed":
+            log("🚦 Join window closed → start countdown");
+            break;
+
+          // case "player_progress_update":
+          //   log("🚗 Player progress:", msg.player);
+          //   break;
+
+          case "leaderboard_update":
+            log("🏎️ Leaderboard update:", msg.leaderboard);
+            if (msg.winner) log("👑 Winner:", msg.winner);
+            break;
+
+          case "game_complete":
+            log("🏁 Final results:", msg.leaderboard);
+            log("👑 Winner:", msg.winner);
+            break;
+
+          // default:
+          //   log("⚙️ Other message:", msg);
+          //   break;
+        }
 
         // === 🧭 Waiting room updates ===
-        if (msg.type === 'lobby_state') {
-          console.log("[TypingRace] Lobby state received:", msg);
+        if (msg.type === 'lobby_state') {         
           setWaitingActive(true);
           setReadyCount(msg.ready_count);
           setExpectedCount(msg.expected_count);
@@ -246,37 +277,35 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
             const members: Member[] = msg.members || [];
             setMembers(members);
 
-            setPlayerProgress(prev => {
-              const existingUsernames = prev.map(p => p.username);
-              const usedColors = new Set(prev.map(p => p.color));
+          //   setPlayerProgress(prev => {
+          //     const existingUsernames = prev.map(p => p.username);
+          //     const usedColors = new Set(prev.map(p => p.color));
 
-              const newEntries: PlayerProgress[] = members
-                .filter(m => !existingUsernames.includes(m.name ?? m.username ?? `Player${m.id}`))
-                .map(m => {
-                  const username = m.name ?? m.username ?? `Player${m.id}`;
+          //     const newEntries: PlayerProgress[] = members
+          //       .filter(m => !existingUsernames.includes(m.name ?? m.username ?? `Player${m.id}`))
+          //       .map(m => {
+          //         const username = m.name ?? m.username ?? `Player${m.id}`;
 
-                  const availableColors = COLOR_POOL.filter(c => !usedColors.has(c));
-                  const assignedColor: string =
-                    availableColors.length > 0
-                      ? availableColors[Math.floor(Math.random() * availableColors.length)]
-                      : COLOR_POOL[Math.floor(Math.random() * COLOR_POOL.length)];
+          //         const availableColors = COLOR_POOL.filter(c => !usedColors.has(c));
+          //         const assignedColor: string =
+          //           availableColors.length > 0
+          //             ? availableColors[Math.floor(Math.random() * availableColors.length)]
+          //             : COLOR_POOL[Math.floor(Math.random() * COLOR_POOL.length)];
 
-                  usedColors.add(assignedColor);
+          //         usedColors.add(assignedColor);
 
-                  return {
-                    username,
-                    color: username === user?.username ? 'gold' : assignedColor,
-                    progress: 0,
-                    wpm: 0,
-                    isMe: username === user?.username,
-                  };
-                });
+          //         return {
+          //           username,
+          //           color: username === user?.username ? 'gold' : assignedColor,
+          //           progress: 0,
+          //           wpm: 0,
+          //           isMe: username === user?.username,
+          //         };
+          //       });
 
-              return [...prev, ...newEntries];
-            });
+          //     return [...prev, ...newEntries];
+          //   });
           }
-
-
 
           if (msg.can_start_now !== undefined) setCanStartNow(msg.can_start_now);
           if (msg.online_ids) setOnlineIds(msg.online_ids);
@@ -296,6 +325,34 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
             countdownRef.current = setInterval(tick, 1000);
           }
         }
+
+        // === 👥 Player list update ===
+        if (msg.type === "player_list") {
+          console.log("[TypingRace] Player list updated:", msg.players);
+
+            const players = msg.players || [];
+
+            
+            setPlayerProgress(() => {
+              const usedColors = new Set<string>();
+              return players.map((p: any) => {
+                const username = p.name;
+                const color =
+                  username === user?.username
+                    ? "gold"
+                    : [...COLOR_POOL].find(c => !usedColors.has(c)) || "#00BFFF";
+                usedColors.add(color);
+                return {
+                  username,
+                  color,
+                  progress: 0,
+                  wpm: 0,
+                  isMe: username === user?.username,
+                };
+              });
+            });
+          }
+
 
         // === 🚦 Countdown start ===
         if (msg.type === 'join_window_closed') {
@@ -324,6 +381,7 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
         // === 🚀 Player progress update ===
         if (msg.type === 'player_progress_update') {
           const p = msg.player;
+          //if (p.username === user?.username) return;
           setPlayerProgress(prev =>
             prev.map(pp =>
               pp.username === p.username
@@ -333,28 +391,42 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
           );
         }
 
-        // === 🏎️ Real-time leaderboard updates ===
-        if (msg.type === 'leaderboard_update') {
-          const newProgressList = msg.leaderboard.map((p: any) => ({
-            username: p.username,
-            color: p.username === user?.username ? 'gold' : '#00BFFF',
-            progress: p.progress ?? 0,
-            wpm: 0,
-            isMe: p.username === user?.username,
-          }));
-          setPlayerProgress(newProgressList);
-
-          if (msg.winner) {
-            Alert.alert('🏁 Race finished!', `Winner: ${msg.winner}`);
-            setGameOver(true);
-          }
-        }
-
-        // === 🏁 Game complete (final leaderboard) ===
+        // === 🏁 Leaderboard / Game Complete unified handler ===
         if (msg.type === 'game_complete') {
-          Alert.alert('🏁 Final Results', 'Check leaderboard for scores!');
+          const summary = msg.leaderboard
+            .map((p: any, i: number) => `${i + 1}. ${p.username} — ${p.score}`)
+            .join('\n');
+
+          Alert.alert('🏁 Final Results', `🏆 Winner: ${msg.winner}\n\n${summary}`);
           setGameOver(true);
         }
+
+
+        // if (msg.type === 'leaderboard_update' || msg.type === 'game_complete') {
+        //   const newProgressList = msg.leaderboard.map((p: any) => ({
+        //     username: p.username,
+        //     color: p.username === user?.username ? 'gold' : '#00BFFF',
+        //     progress: p.progress ?? 0,
+        //     wpm: 0,
+        //     isMe: p.username === user?.username,
+        //   }));
+        //   setPlayerProgress(newProgressList);
+
+        //   // === 🔔 Only show alert once at the end ===
+        //   if (msg.type === 'game_complete') {
+        //     const summary = msg.leaderboard
+        //       .map((p: any, i: number) => `${i + 1}. ${p.username} — ${p.score}`)
+        //       .join('\n');
+
+        //     const winnerText = msg.winner ? `🏆 Winner: ${msg.winner}\n\n` : '';
+
+        //     Alert.alert(
+        //       '🏁 Final Results',
+        //       `${winnerText}${summary}`,
+        //     );
+        //     setGameOver(true);
+        //   }
+        // }
       };
 
       socketRef.current = ws;
@@ -551,18 +623,16 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
   // ===============================
   const finishGame = async () => {
     setGameOver(true);
-    Alert.alert(
-      '🎉 Race Finished',
-      `Accuracy: ${accuracy}%\nWPM: ${me?.wpm ?? 0}\nErrors: ${errorCount}`,
-      [
-        { text: 'Play Again', onPress: () => resetRace() },
-        { text: 'Exit', onPress: () => navigation.goBack() },
-      ]
-    );
-
-    if (isMultiplayer) {
-      sendGameFinished();
-    } else {
+    
+    if (!isMultiplayer) {
+      Alert.alert(
+        '🎉 Race Finished',
+        `Accuracy: ${accuracy}%\nWPM: ${me?.wpm ?? 0}\nErrors: ${errorCount}`,
+        [
+          { text: 'Play Again', onPress: () => resetRace() },
+          { text: 'Exit', onPress: () => navigation.goBack() },
+        ]
+      );
       try {
         const accessToken = await getAccessToken();
         if (!accessToken) throw new Error('Not authenticated');
@@ -605,9 +675,19 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
   // ===============================
   // ⌨️ Handle Player Input
   // ===============================
+  const lastUpdateTime = useRef<number>(0);
+
   const onChangeInput = (rawText: string) => {
     if (gameOver || waitingActive) return;
 
+    const now = Date.now();
+    const deltaTime = now - lastUpdateTime.current;
+
+    // ✅ every 120ms at most to limit processing
+    if (deltaTime < 120) return;
+    lastUpdateTime.current = now;
+
+    // making sure is typing or deleting
     const limited = rawText.slice(0, totalChars);
     const prev = lastInputRef.current;
 

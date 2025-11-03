@@ -160,7 +160,13 @@ def apply_progress_update(game_state_id: int, user, total_typed: int, total_erro
         player.finished_at = timezone.now()
         just_finished = True
 
-    # 3. Write back to this player
+        # ✅ Assign ranks + compute scores for all finishers
+        _assign_ranks_and_scores_for_finishers(state)
+        # ✅ Refresh this player from DB to get the updated rank & score
+        player.refresh_from_db(fields=["final_score", "rank"])
+
+
+    # === 💾 Save progress & accuracy ===
     player.progress = round(progress, 2)
     player.accuracy = round(accuracy, 2)
     player.save(update_fields=["progress", "accuracy", "is_completed", "finished_at"])
@@ -168,6 +174,7 @@ def apply_progress_update(game_state_id: int, user, total_typed: int, total_erro
     # ⚠️ Do NOT call _compute_leaderboard_snapshot(...) here
     # because it fetches all players, causing other players' progress to jump around on the frontend
 
+    # === 📤 Return this player's updated snapshot ===
     return {
         "progress": player.progress,
         "accuracy": player.accuracy,
