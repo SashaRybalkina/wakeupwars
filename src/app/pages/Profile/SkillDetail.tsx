@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, ImageBackground } from 'react-native';
 import type { NavigationProp, RouteProp, ParamListBase } from '@react-navigation/native';
 import { getAccessToken } from '../../auth';
 import { endpoints } from '../../api';
@@ -51,12 +51,13 @@ const SkillDetail: React.FC<Props> = ({ route }) => {
   const skillValue = useMemo(() => (detail?.skill != null ? Number(detail.skill) : 0), [detail]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{title}</Text>
+    <ImageBackground source={require('../../images/cgpt.png')} style={styles.bg} resizeMode="cover">
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <Text style={styles.title}>{title}</Text>
 
-      {loading && (
-        <View style={styles.center}><ActivityIndicator color="#FFD700" /></View>
-      )}
+        {loading && (
+          <View style={styles.center}><ActivityIndicator color="#FFF" /></View>
+        )}
       {!!error && <Text style={styles.error}>{error}</Text>}
 
       {!!detail && (
@@ -98,7 +99,9 @@ const SkillDetail: React.FC<Props> = ({ route }) => {
             <View key={`${it.date}-${idx}`} style={[styles.itemRow, idx > 0 && styles.itemRowDivider]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.itemDate}>{it.date}</Text>
-                <Text style={styles.itemDesc}>Score {it.raw_score} × weight {Number(it.weight).toFixed(3)}</Text>
+                <Text style={styles.itemDesc}>
+                  {(it.game_name || 'Game')} • Score {it.raw_score} × weight {Number(it.weight).toFixed(3)}
+                </Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.itemEarned}>{Number(it.earned).toFixed(2)} / {Number(it.possible).toFixed(2)}</Text>
@@ -108,28 +111,30 @@ const SkillDetail: React.FC<Props> = ({ route }) => {
           ))}
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f0f12' },
+  bg: { flex: 1 },
+  container: { flex: 1 },
   content: { padding: 16 },
-  title: { color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 12 },
+  title: { color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 12, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2 },
   error: { color: '#ff7070', marginVertical: 8 },
   center: { paddingVertical: 24, alignItems: 'center' },
-  card: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 12, marginBottom: 16, borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1 },
+  card: { backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 16, padding: 12, marginBottom: 16, borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 6 },
   metricLabel: { color: '#fff', fontSize: 16, fontWeight: '700' },
   metricValue: { color: '#FFD700', fontSize: 18, fontWeight: '800' },
   subLabel: { color: '#ddd', fontSize: 14 },
   subValue: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 8 },
+  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginVertical: 8 },
   sectionTitle: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 8 },
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 },
-  itemRowDivider: { borderTopColor: 'rgba(255,255,255,0.08)', borderTopWidth: 1 },
+  itemRowDivider: { borderTopColor: 'rgba(255,255,255,0.1)', borderTopWidth: 1 },
   itemDate: { color: '#fff', fontWeight: '700' },
-  itemDesc: { color: '#bbb', marginTop: 2 },
+  itemDesc: { color: '#ddd', marginTop: 2 },
   itemEarned: { color: '#FFD700', fontWeight: '700' },
   itemSkill: { color: '#ccc', marginTop: 2 },
 });
