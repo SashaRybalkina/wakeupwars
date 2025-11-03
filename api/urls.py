@@ -21,7 +21,10 @@ from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalCh
                     SkillLevelsView, SkillLevelDetailView, SkillLevelHistoryView, CreatePublicChallengeView, RewardSettingView, 
                     CreateSudokuGameView, ValidateSudokuMoveView, CreatePatternGameView, 
                     ValidatePatternMoveView, CreateWordleGameView, ValidateWordleMoveView, 
-                    SavePushTokenView, UserNotificationsView, DeleteNotificationView)
+                    SavePushTokenView, UserNotificationsView, DeleteNotificationView,
+                    GroupLeaderboardView,
+                    GroupDailyHistoryView,
+)
 
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -70,6 +73,8 @@ from .views import (
     GetUserAvailabilityView,
     GroupConversationView,
     GroupDetailsView,
+    GroupLeaderboardView,
+    GroupDailyHistoryView,
     GroupListView,
     HelloWorldView,
     JoinPublicChallengeView,
@@ -183,6 +188,8 @@ urlpatterns = [
     path('pattern/validate/', ValidatePatternMoveView.as_view(), name='pattern-validate'),
     path('challenge-leaderboard/<int:chall_id>/', ChallengeLeaderboardView.as_view(), name='challenge-leaderboard'),
     path("challenge-leaderboard/<int:chall_id>/history/", ChallengeDailyHistoryView.as_view(), name="challenge-leaderboard-history"),
+    path('group-leaderboard/<int:group_id>/', GroupLeaderboardView.as_view(), name='group-leaderboard'),
+    path('group-leaderboard/<int:group_id>/history/', GroupDailyHistoryView.as_view(), name='group-leaderboard-history'),
     path('get-performances/<int:chall_id>/', GetPerformancesView.as_view(), name='get-performances'),
     path('submit-game-scores/', SubmitGameScoresView.as_view(), name='submit-game-scores'),
     path('add-game-to-schedule/', AddGameToScheduleView.as_view(), name='add-game-to-schedule'),

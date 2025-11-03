@@ -19,6 +19,7 @@ import ChallSchedule from './pages/Challenges/ChallSchedule';
 import CreatePublicChall1 from './pages/Challenges/CreatePublicChall1';
 import CreatePublicChall2 from './pages/Challenges/CreatePublicChall2';
 import LeaderboardDetails from './pages/Challenges/LeaderboardDetails';
+import GroupLeaderboardDetails from './pages/Challenges/GroupLeaderboardDetails';
 import RewardSettleScreen from './pages/Challenges/RewardSettleScreen';
 import VerifyAvailability from './pages/Challenges/VerifyAvailability';
 import PublicChallSearch1 from './pages/Challenges/PublicChallSearch1';
@@ -442,6 +443,11 @@ function App() {
         <Stack.Screen
           name="LeaderboardDetails"
           component={LeaderboardDetails}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="GroupLeaderboardDetails"
+          component={GroupLeaderboardDetails}
           options={{ headerShown: false }}
         />
         <Stack.Screen

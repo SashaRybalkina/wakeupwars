@@ -2908,6 +2908,120 @@ class ChallengeDailyHistoryView(APIView):
             "history": history,
         }, status=status.HTTP_200_OK)
 
+class GroupLeaderboardView(APIView):
+    """
+    GET /group-leaderboard/<group_id>/
+      -> overall leaderboard across ALL challenges in the group
+    """
+    def get(self, request, group_id: int):
+        group = get_object_or_404(Group, id=group_id)
+
+        bounds = (
+            GamePerformance.objects
+            .filter(challenge__groupID=group)
+            .aggregate(min_d=Min('date'), max_d=Max('date'))
+        )
+        since = bounds['min_d'] or timezone.localdate()
+        until = bounds['max_d'] or timezone.localdate()
+
+        rows = (
+            GamePerformance.objects
+            .filter(challenge__groupID=group)
+            .values('user__username')
+            .annotate(points=Sum('score'))
+            .order_by('-points', 'user__username')
+        )
+
+        overall, last_pts, rank = [], None, 0
+        for r in rows:
+            if r['points'] != last_pts:
+                rank += 1
+                last_pts = r['points']
+            overall.append({
+                'name':   r['user__username'] or 'Anonymous',
+                'points': int(r['points'] or 0),
+                'rank':   rank,
+            })
+
+        return Response({
+            'since': str(since),
+            'until': str(until),
+            'leaderboard': overall,
+        }, status=status.HTTP_200_OK)
+
+
+class GroupDailyHistoryView(APIView):
+    """
+    GET /group-leaderboard/<group_id>/history/?start=YYYY-MM-DD&end=YYYY-MM-DD
+      -> daily leaderboard history across all group challenges in range
+    """
+    def get(self, request, group_id: int):
+        group = get_object_or_404(Group, id=group_id)
+
+        def parse(d: str) -> date:
+            try:
+                return datetime.strptime(d, '%Y-%m-%d').date()
+            except ValueError:
+                raise ValidationError(f"Bad date: {d!r} (YYYY-MM-DD expected)")
+
+        start_str = request.GET.get('start')
+        end_str   = request.GET.get('end')
+        if start_str and not end_str:
+            end_str = start_str
+        if end_str and not start_str:
+            start_str = end_str
+
+        bounds = (
+            GamePerformance.objects
+            .filter(challenge__groupID=group)
+            .aggregate(min_d=Min('date'), max_d=Max('date'))
+        )
+        base_start = bounds['min_d'] or timezone.localdate()
+        base_end   = bounds['max_d'] or timezone.localdate()
+
+        if start_str:
+            req_start = parse(start_str)
+            req_end   = parse(end_str)
+        else:
+            req_start = base_start
+            req_end   = base_end
+
+        start = max(req_start, base_start)
+        end   = min(req_end,   base_end)
+        if start > end:
+            return Response({'since': str(start), 'until': str(end), 'history': {}}, status=status.HTTP_200_OK)
+
+        qs = (
+            GamePerformance.objects
+            .filter(challenge__groupID=group, date__gte=start, date__lte=end)
+            .values('date', 'user__username')
+            .annotate(points=Sum('score'))
+            .order_by('date', '-points', 'user__username')
+        )
+
+        grouped = defaultdict(list)
+        for r in qs:
+            grouped[r['date']].append(r)
+
+        n_days = (end - start).days + 1
+        history = {}
+        for d in (start + timedelta(i) for i in range(n_days)):
+            rows_d, last_pts, rank = grouped.get(d, []), None, 0
+            out = []
+            for r in rows_d:
+                if r['points'] != last_pts:
+                    rank += 1
+                    last_pts = r['points']
+                out.append({
+                    'name':   r['user__username'] or 'Anonymous',
+                    'points': int(r['points'] or 0),
+                    'rank':   rank,
+                })
+            if out:
+                history[str(d)] = out
+
+        return Response({'since': str(start), 'until': str(end), 'history': history}, status=status.HTTP_200_OK)
+
 class RecomputeUserSkills(APIView):
     permission_classes = [IsAdminUser]
 

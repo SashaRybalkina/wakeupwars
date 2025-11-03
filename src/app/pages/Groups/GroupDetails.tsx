@@ -36,6 +36,8 @@ type PendingChallenge = {
   accepted: number
 }
 
+type LeaderRow = { name: string; points: number; rank: number }
+
 // type InviteStatus = {
 //   id: number;
 //   accepted: number;
@@ -58,6 +60,13 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(true)
 
   const [pendingChallenges, setPendingChallenges] = useState<PendingChallenge[]>([]);
+
+  // group leaderboard state
+  const [lbRows, setLbRows] = useState<LeaderRow[]>([])
+  const [lbSince, setLbSince] = useState<string | null>(null)
+  const [lbUntil, setLbUntil] = useState<string | null>(null)
+  const [lbLoading, setLbLoading] = useState(false)
+  const [lbError, setLbError] = useState<string | null>(null)
 
 
 
@@ -99,6 +108,25 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
           }
 
           setGroupData(data)
+
+          // ---- load group leaderboard (overall) ----
+          try {
+            setLbLoading(true)
+            setLbError(null)
+            const lbRes = await fetch(endpoints.groupLeaderboard(groupId), {
+              headers: { Authorization: `Bearer ${accessToken}` }
+            })
+            const lbText = await lbRes.text()
+            const d: any = lbText ? JSON.parse(lbText) : null
+            const rows: LeaderRow[] = Array.isArray(d) ? d : (d?.leaderboard ?? [])
+            setLbRows(rows)
+            setLbSince(d?.since ?? null)
+            setLbUntil(d?.until ?? null)
+          } catch (e) {
+            setLbError('Failed to load leaderboard')
+          } finally {
+            setLbLoading(false)
+          }
 
           // Check for pending invites
           const inviteResponse = await fetch(endpoints.getChallengeInvites(Number(user.id), groupId), {
@@ -152,6 +180,16 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
     return `hsl(${hue}, 70%, 80%)`
   }
 
+  const myName = user?.username || user?.name || ""
+  const getRankEmoji = (rank: number): string => (rank === 1 ? "👑" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `${rank}.`)
+  const displayRows = (): Array<LeaderRow | { ellipsis: true }> => {
+    if (!lbRows.length) return []
+    const top3 = lbRows.slice(0, 3)
+    const me = lbRows.find(r => r.name === myName)
+    if (!me || me.rank <= 3) return top3
+    return [...top3, { ellipsis: true } as const, me]
+  }
+
   return (
     <ImageBackground source={require("../../images/cgpt.png")} style={styles.background} resizeMode="cover">
       <View style={styles.container}>
@@ -179,7 +217,6 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.groupTitle}>{groupData.name}</Text>
               <View style={styles.decorativeLine} />
             </View>
-
 
             {/* {hasInvite && (
               <View style={{ backgroundColor: '#FFD700', padding: 10, borderRadius: 8, marginHorizontal: 20, marginBottom: 15 }}>
@@ -236,6 +273,53 @@ const GroupDetails: React.FC<Props> = ({ navigation }) => {
                   </View>
                   <Text style={styles.addMemberText}></Text>
                 </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Group Ranking (overall) */}
+            <View style={styles.challengesSection}>
+              <Text style={styles.sectionTitle}>Ranking</Text>
+              <View style={styles.leaderboardCard}>
+              {/* {lbSince && lbUntil && (
+                <Text style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", marginBottom: 8, fontSize: 12 }}>
+                  Window: {lbSince} – {lbUntil}
+                </Text>
+              )} */}
+              {lbLoading && <Text style={{ color: "#FFF", textAlign: "center" }}>Loading…</Text>}
+              {lbError && <Text style={{ color: "#F88", textAlign: "center" }}>{lbError}</Text>}
+              {!lbLoading && !lbError && displayRows().length === 0 && (
+                <Text style={{ color: "rgba(255,255,255,0.8)", textAlign: "center" }}>No scores yet — be the first!</Text>
+              )}
+              {!lbLoading && !lbError && displayRows().map((row, index) => (
+                'ellipsis' in (row as any) ? (
+                  <View key={`ellipsis-${index}`} style={styles.rankItem}>
+                    <Text style={styles.ellipsisText}>…</Text>
+                  </View>
+                ) : (
+                  <View key={`${(row as LeaderRow).name}-${index}`} style={styles.rankItem}>
+                    <View style={styles.rankPosition}>
+                      <Text style={styles.rankEmoji}>{getRankEmoji((row as LeaderRow).rank)}</Text>
+                    </View>
+                    <Text style={[styles.rankName, (row as LeaderRow).name === myName && { color: "#7E57C2" }]}>
+                      {(row as LeaderRow).name === myName ? "You" : (row as LeaderRow).name}
+                    </Text>
+                    <Text style={styles.rankPoints}>{(row as LeaderRow).points} pts</Text>
+                  </View>
+                )
+              ))}
+              <TouchableOpacity
+                style={styles.viewDetailsButton}
+                onPress={() => navigation.navigate("GroupLeaderboardDetails", { groupId: groupData.id, myName })}
+              >
+                <LinearGradient
+                  colors={["#D1C4E9", "#7E57C2"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.viewDetailsGradient}
+                >
+                  <Text style={styles.viewDetailsText}>View leaderboard details</Text>
+                </LinearGradient>
+              </TouchableOpacity>
               </View>
             </View>
 
@@ -468,6 +552,19 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     marginTop: 10,
   },
+  leaderboardButton: {
+    marginTop: 14,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  leaderboardButtonText: {
+    color: '#FFD700',
+    fontWeight: '700',
+  },
   groupImageContainer: {
     alignItems: "center",
     marginBottom: 20,
@@ -572,6 +669,47 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
+  /* Leaderboard styles (mirrors ChallDetails) */
+  leaderboardCard: {
+    width: "100%",
+    backgroundColor: "rgba(255, 255, 255, 1)",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  leaderboardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 15,
+  },
+  trophyIcon: { marginRight: 10 },
+  leaderboardTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#ffffffff",
+    textAlign: "center",
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  rankItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  },
+  rankPosition: { width: 40, alignItems: "center" },
+  rankEmoji: { fontSize: 20, color: "#FFD700" },
+  rankName: { flex: 1, fontSize: 18, fontWeight: "600", color: "#000000ff", marginLeft: 10 },
+  rankPoints: { fontSize: 18, fontWeight: "700", color: "#7E57C2" },
+  ellipsisText: { color: "#888", fontSize: 18, textAlign: "center", width: "100%" },
+  viewDetailsButton: { height: 45, borderRadius: 22.5, overflow: "hidden", marginTop: 20 },
+  viewDetailsGradient: { width: "100%", height: "100%", justifyContent: "center", alignItems: "center" },
+  viewDetailsText: { color: "#ffffffff", fontWeight: "700", fontSize: 16, textShadowColor: "rgba(0, 0, 0, 0.2)", textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2 },
   navBar: {
     backgroundColor: "#211F26",
     flexDirection: "row",

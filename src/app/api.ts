@@ -87,6 +87,7 @@ export const endpoints = {
 
   createPersonalChallenge: `${BASE_URL}/api/create-personal-challenge/`,
   leaderboard: (id: number) => `${BASE_URL}/api/challenge-leaderboard/${id}/`,
+  groupLeaderboard: (groupId: number) => `${BASE_URL}/api/group-leaderboard/${groupId}/`,
   getPerformances: (challId: number) =>
     `${BASE_URL}/api/get-performances/${challId}/`,
   submitGameScores: () => `${BASE_URL}/api/submit-game-scores/`,
@@ -116,6 +117,20 @@ export const endpoints = {
   challId
     ? `${BASE_URL}/api/share-challenge/${challId}/` 
     : `${BASE_URL}/api/share-challenge/`,          
+};
+
+export const groupLeaderboardHistory = (
+  groupId: number,
+  start?: string,
+  end?: string,
+) => {
+  const url = new URL(
+    `/api/group-leaderboard/${groupId}/history/`,
+    BASE_URL,
+  );
+  if (start) url.searchParams.set('start', start);
+  if (end) url.searchParams.set('end', end);
+  return url.toString();
 };
 
 export const leaderboardHistory = (
