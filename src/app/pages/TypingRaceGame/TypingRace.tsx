@@ -19,6 +19,7 @@ import { NavigationProp, useRoute } from '@react-navigation/native';
 import { BASE_URL, endpoints } from '../../api';
 import { useUser } from '../../context/UserContext';
 import { getAccessToken } from "../../auth";
+import  styles  from './styles';
 
 // ===============================
 // ⚙️ Game Config
@@ -37,6 +38,12 @@ const NAME_RATIO = 0.3;
 const TRACK_RATIO = 0.7;
 const NAME_WIDTH = remainingWidth * NAME_RATIO;
 const TRACK_WIDTH = remainingWidth * TRACK_RATIO;
+
+const COLOR_POOL = [
+  'hotpink', 'coral', 'orange', 'lawngreen', 'aqua',
+  'deepskyblue', 'mediumorchid', 'mediumvioletred',
+  'magenta', 'thistle', 'powderblue', 'plum', 'peachpuff', 'palegreen'
+];
 
 // ===============================
 // 🧱 Type definitions
@@ -167,13 +174,14 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
   const [errorCount, setErrorCount] = useState(0);
   const [passage, setPassage] = useState('');
   const [gameStateId, setGameStateId] = useState<number | null>(null);
+  const colorAssignmentsRef = useRef<Map<string, string>>(new Map());
 
   const totalChars = passage.length;
 
   const me = useMemo(() => playerProgress.find(p => p.isMe) || playerProgress[0], [playerProgress]);
 
   const accuracy = useMemo(() => {
-    if (typedCount === 0) return 100;
+    if (typedCount === 0) return 0;
     const correct = Math.max(0, typedCount - errorCount);
     return Math.round((correct / typedCount) * 100);
   }, [typedCount, errorCount]);
@@ -233,7 +241,43 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
           setExpectedCount(msg.expected_count);
           setJoinDeadlineISO(msg.join_deadline_at || null);
 
-          if (msg.members) setMembers(msg.members);
+          if (msg.members) {
+            type Member = { id: number; name?: string; username?: string };
+            const members: Member[] = msg.members || [];
+            setMembers(members);
+
+            setPlayerProgress(prev => {
+              const existingUsernames = prev.map(p => p.username);
+              const usedColors = new Set(prev.map(p => p.color));
+
+              const newEntries: PlayerProgress[] = members
+                .filter(m => !existingUsernames.includes(m.name ?? m.username ?? `Player${m.id}`))
+                .map(m => {
+                  const username = m.name ?? m.username ?? `Player${m.id}`;
+
+                  const availableColors = COLOR_POOL.filter(c => !usedColors.has(c));
+                  const assignedColor: string =
+                    availableColors.length > 0
+                      ? availableColors[Math.floor(Math.random() * availableColors.length)]
+                      : COLOR_POOL[Math.floor(Math.random() * COLOR_POOL.length)];
+
+                  usedColors.add(assignedColor);
+
+                  return {
+                    username,
+                    color: username === user?.username ? 'gold' : assignedColor,
+                    progress: 0,
+                    wpm: 0,
+                    isMe: username === user?.username,
+                  };
+                });
+
+              return [...prev, ...newEntries];
+            });
+          }
+
+
+
           if (msg.can_start_now !== undefined) setCanStartNow(msg.can_start_now);
           if (msg.online_ids) setOnlineIds(msg.online_ids);
 
@@ -277,6 +321,18 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
           }, 1000);
         }
 
+        // === 🚀 Player progress update ===
+        if (msg.type === 'player_progress_update') {
+          const p = msg.player;
+          setPlayerProgress(prev =>
+            prev.map(pp =>
+              pp.username === p.username
+                ? { ...pp, progress: p.progress, wpm: pp.isMe ? pp.wpm : 0 }
+                : pp
+            )
+          );
+        }
+
         // === 🏎️ Real-time leaderboard updates ===
         if (msg.type === 'leaderboard_update') {
           const newProgressList = msg.leaderboard.map((p: any) => ({
@@ -308,8 +364,19 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
   };
 
   /** Send progress updates to the server */
+  let lastSentProgress = useRef<number>(0);
   const sendProgressUpdate = (typed: number, errors: number) => {
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+
+    // Calculate current progress based on passage length
+    const textLen = passage.length;
+    const progress = textLen > 0 ? (typed / textLen) * 100 : 0;
+
+    // Skip sending if progress difference is too small (to prevent duplicate sends)
+    if (Math.abs(progress - lastSentProgress.current) < 0.3) return;
+
+    lastSentProgress.current = progress;
+
     socketRef.current.send(
       JSON.stringify({
         type: 'progress_update',
@@ -354,6 +421,17 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
         // 🧍 Wait for lobby_state to load members from WebSocket
         setWaitingActive(true);
         console.log('[TypingRace] Waiting for lobby members via WebSocket...');
+        // try {
+        //   const detailRes = await fetch(endpoints.challengeDetail(challId), {
+        //     headers: { 'Authorization': `Bearer ${accessToken}` },
+        //   });
+        //   const detail = await detailRes.json();
+        //   setMembers(detail?.members || []);
+        //   console.log('[TypingRace] Loaded challenge members:', detail?.members);
+        //   setWaitingActive(true);
+        // } catch (e) {
+        //   console.warn('[TypingRace] Failed to load challenge members', e);
+        // }
 
         // 👥 Multiplayer mode
         if (data.is_multiplayer) {
@@ -556,18 +634,24 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
     const elapsedSeconds = GAME_SECONDS - gameTime;
     const newWpm = elapsedSeconds > 0 ? Math.round((correctNow / 5) / (elapsedSeconds / 60)) : 0;
 
-    setPlayerProgress(prev =>
-      prev.map(p =>
-        p.isMe ? { ...p, progress: newProgress, wpm: newWpm } : p
-      )
-    );
+    if (!isMultiplayer) {
+      // single-player: update self only at frontend
+      setPlayerProgress(prev =>
+        prev.map(p =>
+          p.isMe ? { ...p, progress: newProgress, wpm: newWpm } : p
+        )
+      );
+    }
+
 
     setInput(limited);
     lastInputRef.current = limited;
 
     // send live progress to server
     if (isMultiplayer) {
-      sendProgressUpdate(typedCount + typedDelta, errorCount + errorDelta);
+      const totalTyped = typedCount + typedDelta;
+      const totalErrors = errorCount + errorDelta;
+      sendProgressUpdate(totalTyped, totalErrors);
     }
 
     // finish when done typing
@@ -815,95 +899,6 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
 
 
-const styles = StyleSheet.create({
-  background: { flex: 1 },
-  container: { flexGrow: 1, paddingTop: 60, paddingBottom: 40 },
-  exitButton: {
-    position: 'absolute',
-    top: 40,
-    left: 20,
-    padding: 8,
-    backgroundColor: 'white',
-    borderRadius: 5,
-    zIndex: 5,
-  },
-  exitText: { fontWeight: 'bold' },
-  title: { fontSize: 28, fontWeight: 'bold', color: 'white', textAlign: 'center', marginTop: 4 },
-  headerStats: { flexDirection: 'row', gap: 12, marginTop: 8, justifyContent: 'center' },
-  headerStatText: { color: 'white', fontWeight: '600' },
-  waitingOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', zIndex: 10,
-  },
-  waitingCard: {
-    width: '85%',
-    paddingVertical: 24, paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderColor: 'rgba(255,255,255,0.25)', borderWidth: 1,
-  },
-  waitingTitle: { color: 'white', fontSize: 22, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
-  waitingText: { color: 'white', fontSize: 14, textAlign: 'center', marginBottom: 6 },
-  countdownOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 20,
-  },
-  countdownText: {
-    fontSize: 72, color: '#FFD700', fontWeight: '900', textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 2, height: 2 }, textShadowRadius: 8,
-  },
-  progressBoard: { width: '100%', marginTop: 20 },
-  playerRow: {
-    flexDirection: 'row', alignItems: 'center',
-    marginBottom: 14, paddingHorizontal: SIDE_PADDING,
-  },
-  nameBox: {
-    width: NAME_WIDTH,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    paddingVertical: 4,
-    paddingHorizontal: 0,
-    borderRadius: 6,
-  },
-  playerName: { color: '#fff', fontWeight: 'bold', textAlign: 'left' },
-  trackWrapper: { width: TRACK_WIDTH, justifyContent: 'center', alignItems: 'center' },
-  track: { position: 'relative', height: 30, justifyContent: 'center' },
-  trackLine: { height: 6, backgroundColor: '#555', borderRadius: 3, width: '100%' },
-  car: {
-    position: 'absolute', top: -10,
-    width: CAR_SIZE, height: CAR_SIZE,
-    borderRadius: CAR_SIZE / 2, justifyContent: 'center', alignItems: 'center',
-  },
-  carIcon: { fontSize: 18 },
-  finishFlag: { width: FLAG_WIDTH, justifyContent: 'center', alignItems: 'center' },
-  flagIcon: { fontSize: 20 },
-  progressText: { width: PROGRESS_WIDTH, color: '#fff', textAlign: 'left', fontWeight: 'bold' },
-  typingArea: {
-    width: '100%', marginTop: 24, padding: 16,
-    backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12,
-  },
-  textLine: { fontSize: 18, lineHeight: 26, marginBottom: 12 },
-  correct: { color: '#7CFC00', fontWeight: '600' },
-  incorrect: { color: '#FF6B6B', fontWeight: '600' },
-  remaining: { color: '#eee' },
-  input: {
-    minHeight: 80, padding: 12,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 8, color: '#000',
-  },
-  startBtn: {
-    marginTop: 16,
-    backgroundColor: '#FFD700',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignSelf: 'center',
-  },
-  startBtnText: {
-    color: '#333',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-});
+
 
 export default TypingRace;

@@ -115,10 +115,11 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
 
     # Ensure player exists
     if allow_join:
+        initial_accuracy = 0.0 if getattr(typing_game, "isMultiplayer", False) else 100.0
         TypingRaceGamePlayer.objects.get_or_create(
             game_state=game_state,
             player=user,
-            defaults={"progress": 0.0, "accuracy": 100.0, "final_score": 0.0},
+            defaults={"progress": 0.0, "accuracy": initial_accuracy, "final_score": 0.0},
         )
 
     return {
@@ -132,16 +133,26 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
 @transaction.atomic
 def apply_progress_update(game_state_id: int, user, total_typed: int, total_errors: int) -> Dict[str, Any]:
     """
-    Multiplayer only — calculate progress and accuracy in real time.
+    Multiplayer — update ONLY THIS player's progress/accuracy.
     """
     state = TypingRaceGameState.objects.select_for_update().get(id=game_state_id)
     player, _ = TypingRaceGamePlayer.objects.select_for_update().get_or_create(
-        game_state=state, player=user
+        game_state=state,
+        player=user,
     )
 
     text_len = len(state.text)
-    progress = min((total_typed / text_len) * 100, 100.0) if text_len > 0 else 0.0
-    accuracy = ((total_typed - total_errors) / total_typed) * 100.0 if total_typed > 0 else 100.0
+    # calculate progress and accuracy for this player
+    if text_len > 0:
+        progress = min((total_typed / text_len) * 100.0, 100.0)
+    else:
+        progress = 0.0
+
+    # accuracy calculation
+    if total_typed > 0:
+        accuracy = ((total_typed - total_errors) / total_typed) * 100.0
+    else:
+        accuracy = 100.0
 
     just_finished = False
     if progress >= 100.0 and not player.is_completed:
@@ -149,24 +160,22 @@ def apply_progress_update(game_state_id: int, user, total_typed: int, total_erro
         player.finished_at = timezone.now()
         just_finished = True
 
-    player.progress = progress
-    player.accuracy = accuracy
-    player.save()
+    # 3. Write back to this player
+    player.progress = round(progress, 2)
+    player.accuracy = round(accuracy, 2)
+    player.save(update_fields=["progress", "accuracy", "is_completed", "finished_at"])
 
-    is_multiplayer = bool(getattr(state.game, "isMultiplayer", False))
-    scores = _compute_leaderboard_snapshot(state, is_multiplayer)
-
-    if is_multiplayer and just_finished:
-        _assign_ranks_and_scores_for_finishers(state)
-        scores = _compute_leaderboard_snapshot(state, is_multiplayer)
+    # ⚠️ Do NOT call _compute_leaderboard_snapshot(...) here
+    # because it fetches all players, causing other players' progress to jump around on the frontend
 
     return {
-        "progress": round(progress, 2),
-        "accuracy": round(accuracy, 2),
+        "progress": player.progress,
+        "accuracy": player.accuracy,
         "is_completed": player.is_completed,
         "final_score": round(player.final_score, 2),
-        "scores": scores,
+        "scores": [],
     }
+
 
 @transaction.atomic
 def finalize_single_result(game_state_id: int, user, accuracy: float):

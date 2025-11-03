@@ -145,7 +145,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             return
         cache.set(started_key, True, timeout=CACHE_TTL)
 
-        cache.delete(_deadline_key(self.game_id))
+        #cache.delete(_deadline_key(self.game_id))
         await self.channel_layer.group_send(
             self.room_group_name,
             {"type": "join_window_closed"}
@@ -155,15 +155,22 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         """Handle player's progress update event."""
         print(f"[Typing][PROGRESS] {self.user.username}: typed={total_typed}, errors={total_errors}")
 
-        # Apply progress update and get updated leaderboard
+        # Apply progress update and get player's updated data
         result = await apply_progress_update_async(self.game_id, self.user, total_typed, total_errors)
-        leaderboard = result.get("scores", [])
-        print(f"[Typing][LEADERBOARD] Updated leaderboard: {leaderboard}")
+        player_snapshot = {
+            "username": self.user.username,
+            "progress": result.get("progress", 0.0),
+            "accuracy": result.get("accuracy", 100.0),
+            "is_completed": result.get("is_completed", False),
+        }
 
-        # Broadcast updated leaderboard to all players
+        # ✅ Broadcast only this player's update to all connected clients
         await self.channel_layer.group_send(
             self.room_group_name,
-            {"type": "leaderboard_update", "leaderboard": leaderboard},
+            {
+                "type": "player_progress_update",
+                "player": player_snapshot,
+            },
         )
 
     async def _handle_game_finished(self):
@@ -221,6 +228,15 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             "leaderboard": event.get("leaderboard", []),
             "winner": event.get("winner"),
         })
+    
+    async def player_progress_update(self, event):
+        """Send a single player's progress update to all clients."""
+        print(f"[Typing][SEND] player_progress_update -> {self.user.username}")
+        await self.send_json({
+            "type": "player_progress_update",
+            "player": event["player"],
+        })
+
 
     async def game_complete(self, event):
         """Send final game completion message to clients."""
@@ -252,48 +268,61 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             game_state=gs, player=self.user,
         )
 
+    @sync_to_async
+    def _get_lobby_state_data(self):
+        """Run ORM queries in sync context to avoid async errors"""
+        try:
+            gs = TypingRaceGameState.objects.select_related("challenge").get(id=self.game_id)
+        except TypingRaceGameState.DoesNotExist:
+            return None, 0, []
+
+        # Expected members in this challenge
+        expected_count = ChallengeMembership.objects.filter(
+            challengeID=gs.challenge
+        ).count()
+
+        # All challenge members
+        members_qs = ChallengeMembership.objects.filter(
+            challengeID=gs.challenge
+        ).select_related("uID")
+        members = [{"id": m.uID.id, "name": m.uID.username} for m in members_qs]
+
+        return gs, expected_count, members
+
     async def _broadcast_lobby_state(self):
         """Broadcast current waiting room state to all connected clients."""
         conns = set(cache.get(_conns_key(self.game_id)) or [])
         ready_count = len(conns)
+        print(f"[Typing][DEBUG] _broadcast_lobby_state() triggered | conns={conns}, ready_count={ready_count}")
+
         try:
-            gs = await sync_to_async(TypingRaceGameState.objects.get)(id=self.game_id)
-            expected_count = await sync_to_async(
-                ChallengeMembership.objects.filter(challengeID=gs.challenge).count
-            )()
-             # 🧍 Fetch all members in this challenge for the front-end display
-            members_qs = await sync_to_async(
-                list
-            )(ChallengeMembership.objects.filter(challengeID=gs.challenge).select_related("user"))
-            members = [
-                {"id": m.user.id, "name": m.user.username}
-                for m in members_qs
-            ]
+            gs, expected_count, members = await self._get_lobby_state_data()
+
+            if not gs:
+                print(f"[Typing][WARN] GameState {self.game_id} not found.")
+                expected_count = ready_count
+                members = []
+
+            if not members:
+                print("[Typing][DEBUG] Members empty, fallback to connected users")
+                def get_online_users_sync():
+                    users = User.objects.filter(id__in=list(conns))
+                    return [{"id": u.id, "name": u.username} for u in users]
+                members = await sync_to_async(get_online_users_sync)()
+
         except Exception as e:
-            print(f"[Typing][WARN] Could not fetch members: {e}")
+            print(f"[Typing][WARN] Could not fetch members safely: {e}")
             expected_count = ready_count
             members = []
 
-        started_key = _started_key(self.game_id)
         join_deadline_at = cache.get(_deadline_key(self.game_id))
+        started_key = _started_key(self.game_id)
 
-        # ⏳ If game not started, set join deadline once
-        if not cache.get(started_key) and not join_deadline_at:
+        join_deadline_at = cache.get(_deadline_key(self.game_id))
+        if not join_deadline_at:
             join_deadline_at = (timezone.now() + timedelta(seconds=JOIN_TIMEOUT_SEC)).isoformat()
             cache.set(_deadline_key(self.game_id), join_deadline_at, timeout=CACHE_TTL)
 
-            async def delayed_close():
-                await asyncio.sleep(JOIN_TIMEOUT_SEC)
-                if not cache.get(started_key):  # double-check not already started
-                    print(f"[Typing][AUTO-CLOSE] Deadline reached for game {self.game_id}")
-                    cache.set(started_key, True, timeout=CACHE_TTL)
-                    await self.channel_layer.group_send(
-                        self.room_group_name,
-                        {"type": "join_window_closed", "server_now": timezone.now().isoformat()},
-                    )
-
-            
-            asyncio.create_task(delayed_close())
 
         message = {
             "type": "lobby_state",
@@ -309,6 +338,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
 
         print(f"[Typing][BROADCAST] lobby_state -> {message}")
         await self.channel_layer.group_send(self.room_group_name, message)
+
     
     @sync_to_async
     def _save_zero_score_if_needed(self):

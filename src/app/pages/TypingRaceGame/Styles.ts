@@ -1,0 +1,93 @@
+import { StyleSheet } from 'react-native';
+const styles = StyleSheet.create({
+  background: { flex: 1 },
+  container: { flexGrow: 1, paddingTop: 60, paddingBottom: 40 },
+  exitButton: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    padding: 8,
+    backgroundColor: 'white',
+    borderRadius: 5,
+    zIndex: 5,
+  },
+  exitText: { fontWeight: 'bold' },
+  title: { fontSize: 28, fontWeight: 'bold', color: 'white', textAlign: 'center', marginTop: 4 },
+  headerStats: { flexDirection: 'row', gap: 12, marginTop: 8, justifyContent: 'center' },
+  headerStatText: { color: 'white', fontWeight: '600' },
+  waitingOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', zIndex: 10,
+  },
+  waitingCard: {
+    width: '85%',
+    paddingVertical: 24, paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.25)', borderWidth: 1,
+  },
+  waitingTitle: { color: 'white', fontSize: 22, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
+  waitingText: { color: 'white', fontSize: 14, textAlign: 'center', marginBottom: 6 },
+  countdownOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 20,
+  },
+  countdownText: {
+    fontSize: 72, color: '#FFD700', fontWeight: '900', textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 2, height: 2 }, textShadowRadius: 8,
+  },
+  progressBoard: { width: '100%', marginTop: 20 },
+  playerRow: {
+    flexDirection: 'row', alignItems: 'center',
+    marginBottom: 14, paddingHorizontal: 10,
+  },
+  nameBox: {
+    width: 100,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 0,
+    borderRadius: 6,
+  },
+  playerName: { color: '#fff', fontWeight: 'bold', textAlign: 'left' },
+  trackWrapper: { justifyContent: 'center', alignItems: 'center' },
+  track: { position: 'relative', height: 30, justifyContent: 'center' },
+  trackLine: { height: 6, backgroundColor: '#555', borderRadius: 3, width: '100%' },
+  car: {
+    position: 'absolute', top: -10,
+    width: 24, height: 24,
+    borderRadius: 12, justifyContent: 'center', alignItems: 'center',
+  },
+  carIcon: { fontSize: 18 },
+  finishFlag: { justifyContent: 'center', alignItems: 'center' },
+  flagIcon: { fontSize: 20 },
+  progressText: { color: '#fff', textAlign: 'left', fontWeight: 'bold' },
+  typingArea: {
+    width: '100%', marginTop: 24, padding: 16,
+    backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12,
+  },
+  textLine: { fontSize: 18, lineHeight: 26, marginBottom: 12 },
+  correct: { color: '#7CFC00', fontWeight: '600' },
+  incorrect: { color: '#FF6B6B', fontWeight: '600' },
+  remaining: { color: '#eee' },
+  input: {
+    minHeight: 80, padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 8, color: '#000',
+  },
+  startBtn: {
+    marginTop: 16,
+    backgroundColor: '#FFD700',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignSelf: 'center',
+  },
+  startBtnText: {
+    color: '#333',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+});
+export default styles;
+
