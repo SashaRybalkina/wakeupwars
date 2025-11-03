@@ -131,3 +131,48 @@ export const leaderboardHistory = (
   if (end) url.searchParams.set('end', end);
   return url.toString();
 };
+
+type FetchOpts = RequestInit & { timeoutMs?: number };
+
+export async function fetchJSON<T = any>(url: string, opts: FetchOpts = {}): Promise<T> {
+  const { timeoutMs = 12000, headers, ...rest } = opts;
+  const h: Record<string, string> = {
+    Accept: 'application/json',
+    'ngrok-skip-browser-warning': 'true',
+    Connection: 'close',
+    ...((headers as any) || {}),
+  };
+
+  const attempt = async () => {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...rest, headers: h, signal: controller.signal } as any);
+      if (!res.ok) {
+        // retry server errors
+        if (res.status >= 500) throw new Error(`HTTP ${res.status}`);
+      }
+      const text = await res.text();
+      try {
+        return text ? (JSON.parse(text) as T) : (undefined as unknown as T);
+      } catch (e) {
+        // sometimes proxy returns partial frames; trigger retry
+        throw new Error('Bad JSON');
+      }
+    } finally {
+      clearTimeout(t);
+    }
+  };
+
+  const maxTries = 3;
+  let lastErr: any;
+  for (let i = 0; i < maxTries; i++) {
+    try {
+      return await attempt();
+    } catch (e) {
+      lastErr = e;
+      await new Promise(r => setTimeout(r, 400 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}

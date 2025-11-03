@@ -126,7 +126,7 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
 
       {/* Profile Section */}
       {profileData && (
-        <UserProfileCard name={profileData.name || profileData.username || ""} />
+        <UserProfileCard name={profileData.name || profileData.username || ""} isCurrentUser={false} />
       )}
 
       {/* Add to Group Button */}
@@ -248,8 +248,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   profileContainer: {
-    alignItems: "center",
-    marginTop: 50,
+    marginTop: 0,
   },
   avatar: {
     width: 120,
