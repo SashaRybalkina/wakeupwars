@@ -1901,6 +1901,74 @@ class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
                 # delete all invites
                 GroupChallengeInvite.objects.filter(chall=challenge).delete()
 
+                # Queue background jobs for all participants at finalized schedule times
+                try:
+                    initiator_id = (
+                        challenge.initiator_id
+                        or ChallengeMembership.objects.filter(challengeID=challenge)
+                            .values_list("uID_id", flat=True).first()
+                    )
+
+                    # Build unique set of (time, game_id) pairs based on the finalized challenge schedule
+                    slot_tasks = set()
+                    for cas in ChallengeAlarmSchedule.objects.filter(challenge=challenge).select_related("alarm_schedule"):
+                        day = cas.alarm_schedule.dayOfWeek
+                        t_obj = cas.alarm_schedule.alarmTime
+                        game_ids = (
+                            GameScheduleGameAssociation.objects
+                            .filter(
+                                game_schedule__challenge=challenge,
+                                game_schedule__dayOfWeek=day,
+                            )
+                            .values_list("game_id", flat=True)
+                        )
+                        for gid in game_ids:
+                            slot_tasks.add((t_obj, gid))
+
+                    def build_alarm_dt(ch_start, t_obj):
+                        from datetime import date as _date, datetime as _dt
+                        if isinstance(ch_start, _dt):
+                            base_date = ch_start.date()
+                        else:
+                            base_date = ch_start
+                        dt = _dt.combine(base_date, t_obj)
+                        if timezone.is_naive(dt):
+                            dt = timezone.make_aware(dt, timezone.get_current_timezone())
+                        return dt
+
+                    queued = 0
+                    for t_obj, game_id in slot_tasks:
+                        try:
+                            alarm_dt = build_alarm_dt(challenge.startDate, t_obj)
+
+                            g = Game.objects.get(id=game_id)
+                            g_name = (g.name or "").lower()
+                            if "sudoku" in g_name:
+                                code = "sudoku"
+                            elif "wordle" in g_name:
+                                code = "wordle"
+                            elif "pattern" in g_name:
+                                code = "pattern"
+                            else:
+                                logger.warning("Unknown game name=%r id=%s; skipping", g.name, g.id)
+                                continue
+
+                            logger.info(
+                                "[FinalizeCollab] Queue open_join_window chall=%s game_id=%s code=%s eta=%s initiator=%s",
+                                challenge.id, game_id, code, alarm_dt, initiator_id
+                            )
+                            open_join_window.apply_async(
+                                args=[challenge.id, game_id, code, initiator_id],
+                                eta=alarm_dt,
+                            )
+                            queued += 1
+                        except Exception:
+                            logger.exception("Failed to queue slot (t=%s, game_id=%s)", t_obj, game_id)
+                            raise
+                    logger.info("[FinalizeCollab] queued %d open_join_window tasks", queued)
+                except Exception:
+                    logger.exception("Failed scheduling background jobs after finalizing collaborative schedule")
+
 
             return Response(
                 {"message": "Challenge schedule finalized.", "schedule": created_schedules},
@@ -2731,8 +2799,8 @@ class GetPerformancesView(APIView):
         performances = (
             GamePerformance.objects
             .filter(challenge_id=chall_id)
-            .annotate(game_name=F('game__name'))   # ✅ give it a unique alias
-            .values('date', 'game_name', 'score')  # ✅ now use that alias in .values()
+            .annotate(game_name=F('game__name'))   # 
+            .values('date', 'game_name', 'score')  # 
             .order_by('-date')[:5]
         )
 
