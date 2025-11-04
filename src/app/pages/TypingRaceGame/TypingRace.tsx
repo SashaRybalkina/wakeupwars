@@ -379,6 +379,15 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
         // === 🚀 Player progress update ===
         if (msg.type === 'player_progress_update') {
+          // const recvTime = Date.now();
+          // const sentAt = msg?.player?.client_sent_at ?? null;
+          // const latency = sentAt ? recvTime - sentAt : null;
+
+          // console.debug(
+          //   `[CLIENT][RECV] ${msg.player.username} progress=${msg.player.progress.toFixed(2)}% recvAt=${recvTime}`
+          //   + (latency ? ` latency=${latency}ms` : '')
+          // );
+
           const p = msg.player;
           //if (p.username === user?.username) return;
           setPlayerProgress(prev =>
@@ -396,7 +405,18 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
             .map((p: any, i: number) => `${i + 1}. ${p.username} — ${p.score}`)
             .join('\n');
 
-          Alert.alert('🏁 Final Results', `🏆 Winner: ${msg.winner}\n\n${summary}`);
+          Alert.alert(
+            '🏁 Final Results',
+            `🏆 Winner: ${msg.winner}\n\n${summary}`,
+            [
+              {
+                text: 'Exit',
+                onPress: () => navigation.goBack(),
+                style: 'default',
+              },
+            ]
+          );
+
           setGameOver(true);
         }
 
@@ -448,11 +468,15 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
     lastSentProgress.current = progress;
 
+    // const sendTime = Date.now();
+    // console.debug(`[CLIENT][SEND] ${user?.username} progress=${progress.toFixed(2)}% sentAt=${sendTime}`);
+
     socketRef.current.send(
       JSON.stringify({
         type: 'progress_update',
         total_typed: typed,
         total_errors: errors,
+        //client_sent_at: sendTime, // ✅ 附上時間戳給後端（可在 consumers.py 打印）
       })
     );
   };
@@ -491,7 +515,7 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
         // 🧍 Wait for lobby_state to load members from WebSocket
         setWaitingActive(true);
-        console.log('[TypingRace] Waiting for lobby members via WebSocket...');
+        //console.log('[TypingRace] Waiting for lobby members via WebSocket...');
         // try {
         //   const detailRes = await fetch(endpoints.challengeDetail(challId), {
         //     headers: { 'Authorization': `Bearer ${accessToken}` },
@@ -528,7 +552,7 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
   // ===============================
   useEffect(() => {
     if (remainingSec === 0 && waitingActive) {
-      console.log("[TypingRace] Countdown ended, auto starting game!");
+      //console.log("[TypingRace] Countdown ended, auto starting game!");
       const ws = socketRef.current;
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "start_game" }));
@@ -546,6 +570,13 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     if (!passage || waitingActive || gameOver) return;
     if (gameTime <= 0) {
+      if (isMultiplayer) {
+        // multiplayer mode let server handle finish
+        if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+          socketRef.current.send(JSON.stringify({ type: "game_timeout" }));
+        }
+      }
+      // this is single-player
       finishGame();
       return;
     }
@@ -682,8 +713,8 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
     const now = Date.now();
     const deltaTime = now - lastUpdateTime.current;
 
-    // ✅ every 120ms at most to limit processing
-    if (deltaTime < 120) return;
+    // // ✅ every 120ms at most to limit processing
+    // if (deltaTime < 120) return;
     lastUpdateTime.current = now;
 
     // making sure is typing or deleting
@@ -728,9 +759,9 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
     // send live progress to server
     if (isMultiplayer) {
-      const totalTyped = typedCount + typedDelta;
+      const correctNow = limited.split('').filter((ch, i) => ch === passage[i]).length;
       const totalErrors = errorCount + errorDelta;
-      sendProgressUpdate(totalTyped, totalErrors);
+      sendProgressUpdate(correctNow, totalErrors);
     }
 
     // finish when done typing

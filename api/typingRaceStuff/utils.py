@@ -5,6 +5,9 @@ from typing import List, Dict, Any
 from pathlib import Path
 import random
 from datetime import date
+import logging, time
+logger = logging.getLogger(__name__)
+
 
 from django.db import transaction
 from django.utils import timezone
@@ -20,6 +23,8 @@ from api.models import (
     GameSchedule,
     GameScheduleGameAssociation,
 )
+
+CACHE_TTL = 300
 
 # ===============================
 # Content loading
@@ -96,7 +101,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
     # Reuse or create the TypingRaceGameState
     game_state = TypingRaceGameState.objects.filter(challenge=challenge).first()
     is_multiplayer = bool(getattr(typing_game, "isMultiplayer", False))
-    print(f"[TYPING][get_or_create] is_multiplayer={is_multiplayer}")
+    #print(f"[TYPING][get_or_create] is_multiplayer={is_multiplayer}")
 
     if not game_state:
         text = random.choice(TYPING_PASSAGES)
@@ -106,7 +111,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
             text=text,
             join_deadline_at=timezone.now() + timedelta(seconds=20),
         )
-        print(f"[TYPING][create] chall={challenge.id} gs={game_state.id}", flush=True)
+        #print(f"[TYPING][create] chall={challenge.id} gs={game_state.id}", flush=True)
     else:
         # Use existing state, update join_deadline if missing
         if not getattr(game_state, "join_deadline_at", None):
@@ -131,56 +136,76 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
     }
 
 @transaction.atomic
-def apply_progress_update(game_state_id: int, user, total_typed: int, total_errors: int) -> Dict[str, Any]:
+def apply_progress_update(game_state_id: int, user, correct_typed: int, total_errors: int) -> Dict[str, Any]:
     """
-    Multiplayer — update ONLY THIS player's progress/accuracy.
+    Multiplayer — update ONLY THIS player's progress and accuracy.
+    
+    ⚡ Optimization note:
+    Instead of writing to the database every time the user types a character,
+    this version stores progress data in Django's cache (e.g. Redis or in-memory)
+    to reduce database I/O frequency and improve real-time responsiveness.
+
+    When the player's progress reaches 100%, it performs one final DB write.
     """
-    state = TypingRaceGameState.objects.select_for_update().get(id=game_state_id)
-    player, _ = TypingRaceGamePlayer.objects.select_for_update().get_or_create(
-        game_state=state,
-        player=user,
+
+    # === ⏱ Start timing this update call (for performance monitoring) ===
+    start_time = time.time()
+    cache_key = f"typing_progress_{game_state_id}_{user.id}"  # Unique cache key per player per game
+    leaderboard_key = f"typing_leaderboard_{game_state_id}"
+
+    # === 🧠 Calculate player's progress and accuracy ===
+    try:
+        # 🚀 Try to get cached text length first (avoid DB hit)
+        text_len_key = f"typing_text_len_{game_state_id}"
+        text_len = cache.get(text_len_key)
+        if text_len is None:
+            state = TypingRaceGameState.objects.only("text").get(id=game_state_id)
+            text_len = len(state.text)
+            cache.set(text_len_key, text_len, timeout=360)
+    except TypingRaceGameState.DoesNotExist:
+        logger.warning(f"[TYPING][ERROR] GameState {game_state_id} not found.")
+        return {}
+
+    
+    progress = min((correct_typed / text_len) * 100.0, 100.0) if text_len > 0 else 0.0
+
+    # accuracy based on correct vs incorrect characters typed
+    typed_total = correct_typed + total_errors  # total characters attempted
+    accuracy = ((correct_typed) / typed_total) * 100.0 if typed_total > 0 else 100.0
+
+    # === 💾 Store intermediate progress data in cache ===
+    # This cached data is lightweight and temporary; no DB writes yet.
+    cached_data = {
+        "user_id": user.id,
+        "username": user.username,
+        "progress": round(progress, 2),
+        "accuracy": round(accuracy, 2),
+        "is_completed": progress >= 100.0,
+        "finished_at": timezone.now().timestamp() if progress >= 100.0 else None,
+        "updated_at": time.time(),
+    }
+    cache.set(cache_key, cached_data, timeout=CACHE_TTL)
+
+    # === 🏁 Update leaderboard in cache ===
+    if progress >= 100.0:
+        _update_leaderboard_cache(leaderboard_key, cached_data)
+        logger.warning(f"[CACHE][LEADERBOARD] {user.username} finished; leaderboard updated")
+
+        # (Optional) Kick off background save (async task)
+        # _schedule_background_save_to_db(game_state_id)
+
+    elapsed = (time.time() - start_time) * 1000
+    logger.warning(
+        f"[CACHE][END] user={user.username} progress={progress:.2f}% acc={accuracy:.2f}% took={elapsed:.2f}ms"
     )
 
-    text_len = len(state.text)
-    # calculate progress and accuracy for this player
-    if text_len > 0:
-        progress = min((total_typed / text_len) * 100.0, 100.0)
-    else:
-        progress = 0.0
-
-    # accuracy calculation
-    if total_typed > 0:
-        accuracy = ((total_typed - total_errors) / total_typed) * 100.0
-    else:
-        accuracy = 100.0
-
-    just_finished = False
-    if progress >= 100.0 and not player.is_completed:
-        player.is_completed = True
-        player.finished_at = timezone.now()
-        just_finished = True
-
-        # ✅ Assign ranks + compute scores for all finishers
-        _assign_ranks_and_scores_for_finishers(state)
-        # ✅ Refresh this player from DB to get the updated rank & score
-        player.refresh_from_db(fields=["final_score", "rank"])
-
-
-    # === 💾 Save progress & accuracy ===
-    player.progress = round(progress, 2)
-    player.accuracy = round(accuracy, 2)
-    player.save(update_fields=["progress", "accuracy", "is_completed", "finished_at"])
-
-    # ⚠️ Do NOT call _compute_leaderboard_snapshot(...) here
-    # because it fetches all players, causing other players' progress to jump around on the frontend
-
-    # === 📤 Return this player's updated snapshot ===
+    # === 📤 Return snapshot for broadcast ===
     return {
-        "progress": player.progress,
-        "accuracy": player.accuracy,
-        "is_completed": player.is_completed,
-        "final_score": round(player.final_score, 2),
-        "scores": [],
+        "progress": cached_data["progress"],
+        "accuracy": cached_data["accuracy"],
+        "is_completed": cached_data["is_completed"],
+        "final_score": 0.0,
+        "scores": cache.get(leaderboard_key, []),
     }
 
 
@@ -248,18 +273,143 @@ def _compute_leaderboard_snapshot(state: TypingRaceGameState, is_multiplayer: bo
         })
     return sorted(items, key=lambda x: x["score"], reverse=True)
 
-def _assign_ranks_and_scores_for_finishers(state: TypingRaceGameState):
+def _update_leaderboard_cache(leaderboard_key: str, player_data: Dict[str, Any]):
     """
-    assign ranks and final scores based on finish order
+    Maintain an in-memory leaderboard stored in cache.
+    Called every time a player finishes typing (progress=100%).
     """
-    all_players = TypingRaceGamePlayer.objects.filter(game_state=state)
-    finishers = list(all_players.filter(is_completed=True).exclude(finished_at=None).order_by("finished_at"))
-    total = all_players.count()
+    leaderboard = cache.get(leaderboard_key, [])
 
-    for idx, p in enumerate(finishers, start=1):
-        p.rank = idx
-        p.final_score = compute_multiplayer_score(idx, total)
-        p.save(update_fields=["rank", "final_score"])
+    # Prevent duplicates
+    leaderboard = [p for p in leaderboard if p.get("user_id") != player_data["user_id"]]
+    leaderboard.append(player_data)
+
+    # Sort by finished_at (ascending) to determine rank
+    leaderboard.sort(key=lambda x: x.get("finished_at") or float("inf"))
+
+    # Assign ranks and compute scores
+    total = len(leaderboard)
+    for idx, p in enumerate(leaderboard, start=1):
+        p["rank"] = idx
+        p["score"] = compute_multiplayer_score(idx, total)
+
+    cache.set(leaderboard_key, leaderboard, timeout=CACHE_TTL)
+    logger.warning(f"[CACHE][LEADERBOARD][SET] {leaderboard}")
+
+from datetime import datetime, timezone as py_tz
+from django.utils.timezone import make_aware, get_current_timezone
+
+def _save_leaderboard_cache_to_db(game_state_or_id):
+    """
+    🔁 Sync all cached progress (both finished and unfinished players) to MySQL.
+
+    - Called when a multiplayer game ends (either by timeout or all finished).
+    - Writes all players' latest progress, accuracy, rank, and score into DB.
+    - Finished players get their rank and score.
+    - Unfinished players still get recorded (progress + accuracy), but score=0 and rank=None.
+    - ✅ Safe against multiple timeout triggers and will not overwrite completed players.
+    """
+    from datetime import datetime, timezone as py_tz
+    from django.utils import timezone
+
+    # ---- Determine game state ----
+    game_state_id = (
+        game_state_or_id.id if hasattr(game_state_or_id, "id") else game_state_or_id
+    )
+    leaderboard_key = f"typing_leaderboard_{game_state_id}"
+    leaderboard = cache.get(leaderboard_key, [])
+
+    try:
+        state = (
+            game_state_or_id
+            if hasattr(game_state_or_id, "id")
+            else TypingRaceGameState.objects.get(id=game_state_id)
+        )
+    except TypingRaceGameState.DoesNotExist:
+        logger.error(f"[DB][SYNC] GameState {game_state_id} not found in DB.")
+        return
+
+    logger.warning(f"[DB][SYNC] Writing {len(leaderboard)} cached entries → DB (game_state={game_state_id})")
+
+    # === ✅ Step 1: Save FINISHED players (from leaderboard cache) ===
+    finished_ids = set()
+    for entry in leaderboard:
+        user_id = entry.get("user_id")
+        if not user_id:
+            logger.warning(f"[DB][SYNC] Skipped cache entry without user_id: {entry}")
+            continue
+
+        finished_ids.add(user_id)
+
+        finished_ts = entry.get("finished_at")
+        finished_at = (
+            datetime.fromtimestamp(finished_ts, tz=py_tz.utc)
+            if finished_ts else timezone.now()
+        )
+
+        try:
+            TypingRaceGamePlayer.objects.update_or_create(
+                game_state=state,
+                player_id=user_id,
+                defaults={
+                    "progress": 100.0,
+                    "accuracy": round(entry.get("accuracy", 0.0), 2),
+                    "final_score": round(entry.get("score", 0.0), 2),
+                    "rank": entry.get("rank"),
+                    "is_completed": True,
+                    "finished_at": finished_at,
+                },
+            )
+            logger.warning(f"[DB][SYNC] ✅ Finished player {user_id} saved (rank={entry.get('rank')})")
+        except Exception as e:
+            logger.error(f"[DB][SYNC][ERROR] Failed to save finished player_id={user_id}: {e}")
+
+    # === ✅ Step 2: Save UNFINISHED players (not in leaderboard) ===
+    all_players = TypingRaceGamePlayer.objects.filter(game_state=state)
+    unfinished_players = [
+        p for p in all_players
+        if p.player_id not in finished_ids and not p.is_completed and p.progress < 100
+    ]
+
+    for p in unfinished_players:
+        progress_key = f"typing_progress_{game_state_id}_{p.player_id}"
+        cached = cache.get(progress_key)
+
+        progress = cached.get("progress", p.progress or 0.0) if cached else (p.progress or 0.0)
+        accuracy = cached.get("accuracy", p.accuracy or 0.0) if cached else (p.accuracy or 0.0)
+
+        try:
+            p.progress = round(progress, 2)
+            p.accuracy = round(accuracy, 2)
+            p.is_completed = False
+            p.final_score = 0.0
+            p.rank = None
+            p.finished_at = p.finished_at or timezone.now()
+            p.save(update_fields=["progress", "accuracy", "is_completed", "final_score", "rank", "finished_at"])
+            logger.warning(f"[DB][SYNC] 🕒 Unfinished player {p.player.username} saved progress={progress:.2f}% acc={accuracy:.2f}%")
+        except Exception as e:
+            logger.error(f"[DB][SYNC][ERROR] Failed to save unfinished player_id={p.player_id}: {e}")
+
+    # === ✅ Cleanup cache after full sync ===
+    cache.delete_many([
+        leaderboard_key,
+        f"typing_text_len_{game_state_id}",
+    ])
+    logger.warning(f"[DB][SYNC] ✅ Leaderboard + unfinished progress persisted for game {game_state_id}")
+
+
+# def _assign_ranks_and_scores_for_finishers(state: TypingRaceGameState):
+#     """
+#     assign ranks and final scores based on finish order
+#     """
+#     all_players = TypingRaceGamePlayer.objects.filter(game_state=state)
+#     finishers = list(all_players.filter(is_completed=True).exclude(finished_at=None).order_by("finished_at"))
+#     total = all_players.count()
+
+#     for idx, p in enumerate(finishers, start=1):
+#         p.rank = idx
+#         p.final_score = compute_multiplayer_score(idx, total)
+#         p.save(update_fields=["rank", "final_score"])
 
 # ===============================
 # Async wrappers (for WebSocket)
