@@ -258,13 +258,13 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             leaderboard_key = f"typing_leaderboard_{self.game_id}"
             cached_leaderboard = cache.get(leaderboard_key, [])
 
-            # 若 cache 中有 leaderboard（代表使用 cache-based 模式）
+            # If cache has leaderboard (indicating cache-based mode)
             if cached_leaderboard:
-                # 確保排序（根據 rank）
+                # make sure the leaderboard is sorted by rank
                 sorted_lb = sorted(cached_leaderboard, key=lambda x: x.get("rank", 999))
                 winner = sorted_lb[0]["username"] if sorted_lb else None
 
-                # 廣播最終結果給前端
+                # Broadcast final results to frontend
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -274,14 +274,14 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
                     },
                 )
 
-                # # 在背景執行落盤（cache → MySQL）
+                
                 # await sync_to_async(_save_leaderboard_cache_to_db)(self.game_id)
                 # logger.warning(f"[Typing][FINISH] Cached leaderboard persisted to DB for game {self.game_id}")
 
                 # ✅ (Lazy save) Mark this player's finish in cache only — no DB yet
 
             else:
-                # ✅ fallback：若 cache 沒有，就從 DB 重新讀取
+                
                 leaderboard, all_done = await self._get_game_leaderboard()
                 sorted_lb = sorted(leaderboard, key=lambda x: x["score"], reverse=True)
                 winner = sorted_lb[0]["username"] if sorted_lb else None
@@ -308,7 +308,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         Called when game time runs out (from frontend).
         Syncs all players’ progress to DB, even if unfinished.
         """
-        # ✅ 防止多次 timeout 重複執行
+        # ✅ prevent duplicate timeout handling
         timeout_key = f"typing_timeout_done_{self.game_id}"
         if cache.get(timeout_key):
             logger.warning(f"[Typing][TIMEOUT] Ignored duplicate timeout for game {self.game_id}")
@@ -317,15 +317,15 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
 
         logger.warning(f"[Typing][TIMEOUT] Game {self.game_id} reached time limit — syncing all results")
 
-        # ✅ 把 cache + 所有未完成者同步到 DB
+        # ✅ Force-save all players' current progress to DB
         await sync_to_async(_save_leaderboard_cache_to_db)(self.game_id)
 
-        # ✅ 拿最新 leaderboard（從 DB）
+        # ✅ take the final leaderboard snapshot
         leaderboard, _ = await self._get_game_leaderboard()
         sorted_lb = sorted(leaderboard, key=lambda x: (x.get("rank") or 9999, -x["score"]))
         winner = sorted_lb[0]["username"] if sorted_lb else None
 
-        # ✅ 廣播給所有前端 — 最終結果
+        # ✅ broadcast to all clients
         await self.channel_layer.group_send(
             self.room_group_name,
             {
