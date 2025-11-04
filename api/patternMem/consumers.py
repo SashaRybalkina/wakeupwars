@@ -7,7 +7,7 @@ from datetime import date
 
 from api.models import PatternMemorizationGameState, User, ChallengeMembership, GamePerformance
 from api.patternMem.utils import validate_pattern_move
-from api.tasks import close_join_window
+from api.tasks import close_join_window, broadcast_leaderboard
 
 # ---- Cache keys ----
 def _ready_key(game_state_id: int) -> str:
@@ -209,6 +209,11 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
                 "type": "game.over",
                 "scores": scores
             })
+            # Immediately compute + broadcast finalized leaderboard for this game
+            try:
+                broadcast_leaderboard.delay('PatternMemorizationGameState', self.game_state_id)
+            except Exception:
+                pass
             return
 
         # If correct & not complete: freeze all players, do a 3-2-1 countdown, then start next round
