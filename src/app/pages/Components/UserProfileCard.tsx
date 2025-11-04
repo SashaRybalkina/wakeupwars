@@ -1,10 +1,11 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, Animated, Alert } from 'react-native';
 import { SkillLevel, useUser } from '../../context/UserContext';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
-import { BASE_URL } from '../../api';
+import { BASE_URL, endpoints } from '../../api';
 import { Svg, Circle } from 'react-native-svg';
+import { getAccessToken } from '../../auth';
 
 type Props = {
   name: string;
@@ -15,6 +16,7 @@ type Props = {
   currentMemoji: Memoji | null;
   bgColor: string;
   numCoins: number;
+  badgesGiven: Badge[]
 };
 
 type Memoji = {
@@ -22,13 +24,25 @@ type Memoji = {
   imageUrl: string;
 }
 
+type Badge = {
+  id: number;
+  imageUrl: string;
+  earned: boolean;
+  collected: boolean;
+  name?: string;
+};
 
-const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoins, isCurrentUser = true, skillLevelsOverride, disableSkillDetail }) => {
-  const { skillLevels } = useUser();
+
+const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoins, isCurrentUser = true, skillLevelsOverride, disableSkillDetail, badgesGiven }) => {
+  const { skillLevels, user } = useUser();
   const navigation = useNavigation<any>();
   const [tab, setTab] = React.useState<'skills' | 'badges'>('skills');
   const [infoVisible, setInfoVisible] = React.useState(false);
 
+  const [badges, setBadges] = useState<Badge[]>(badgesGiven);
+  const [selectedBadge, setSelectedBadge] = useState<null | any>(null);
+
+  console.log(skillLevelsOverride)
   const rows: any[][] = [];
   const effectiveSkills = Array.isArray(skillLevelsOverride) ? skillLevelsOverride : skillLevels;
   const list = Array.isArray(effectiveSkills) ? effectiveSkills : [];
@@ -50,25 +64,133 @@ const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoi
     'star-outline'
   );
 
+
+  // will only be called if is current user and they collect a badge, just for refresh purposes
+  const fetchBadges = async () => {
+    if (!user) return;
+    const access = await getAccessToken();
+    const res = await fetch(endpoints.badges(Number(user.id)), {
+      headers: { Authorization: `Bearer ${access}` },
+    });
+    const data = await res.json();
+    setBadges(data);
+  };
+
+
+const collectBadge = async (badgeId: number) => {
+      const payload = {
+        user_id: user?.id,
+        badge_id: badgeId,
+      }
+  
+      try {
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+  
+        const response = await fetch(endpoints.collectBadge(), {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+            "Authorization": `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(payload),
+        })
+  
+        if (!response.ok) throw new Error(`Server error: ${response.status}`)
+  
+        Alert.alert("Success", "Badge Collected!")
+
+        await fetchBadges();
+      } catch (err) {
+        console.error("Failed to collect badge:", err)
+        Alert.alert("Error", "Failed to collect badge.")
+      }
+}
+
+
+const PulsingBadge = ({ badge, onPress }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isCurrentUser && badge.earned && !badge.collected) {
+      // Start pulsing loop
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scale, {
+            toValue: 1.15,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      scale.setValue(1); // reset scale when no longer pulsing
+    }
+  }, [badge.earned, badge.collected]);
+
+  const borderColor = badge.collected
+    ? 'rgba(94, 204, 114, 1)'
+    : badge.earned
+      ? 'gold'
+      : 'transparent';
+
+  const opacity = badge.earned ? 1 : 0.3;
+
+  return (
+    <TouchableOpacity
+      key={badge.id}
+      onPress={onPress}
+      activeOpacity={0.9}
+    >
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          width: 60,
+          height: 60,
+          margin: 5,
+          borderRadius: 8,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: badge.earned ? 2 : 0,
+          borderColor,
+          backgroundColor: badge.collected
+            ? 'rgba(94, 204, 114, 0.2)'
+            : badge.earned
+              ? 'rgba(255, 215, 0, 0.15)'
+              : 'rgba(255,255,255,0.1)',
+          shadowColor: badge.earned && !badge.collected ? 'gold' : 'transparent',
+          shadowOpacity: badge.earned && !badge.collected ? 0.8 : 0,
+          shadowRadius: badge.earned && !badge.collected ? 8 : 0,
+          shadowOffset: { width: 0, height: 0 },
+        }}
+      >
+        <Image
+          source={{ uri: `${BASE_URL}${badge.imageUrl}` }}
+          style={{
+            width: 50,
+            height: 50,
+            opacity,
+          }}
+          resizeMode="contain"
+        />
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+
   return (
     <View style={styles.profileContainer}>
       {isCurrentUser ? (
         <View style={styles.headerWrap}>
           <View style={styles.headerCard}>
-            <Text style={styles.profileName}>{name}</Text>
-            <Text style={styles.coinText}>{numCoins} 🪙</Text>
-            <View style={styles.actionsRow}>
-              <TouchableOpacity style={[styles.actionItem, styles.actionItemLeft]} onPress={() => navigation.navigate('Friends1')}>
-                <Ionicons name="people" size={42} color="#9ed3ffff" style={styles.actionIcon} />
-                <Text style={[styles.actionLabel, styles.actionLabelLeft]}>Friends</Text>
-              </TouchableOpacity>
-              <View style={styles.actionDivider} />
-              <TouchableOpacity style={[styles.actionItem, styles.actionItemRight]} onPress={() => navigation.navigate('PersChall1')}>
-                <Ionicons name="trophy" size={42} color="#FFD700" style={styles.actionIcon} />
-                <Text style={[styles.actionLabel, styles.actionLabelRight]}>Personal{"\n"}Challenges</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
       <View style={styles.avatarWrapper}>
       {/* Inner avatar container (clipped circle) */}
       <View style={[styles.avatarContainer, { backgroundColor: bgColor }]}>
@@ -93,9 +215,30 @@ const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoi
           <Ionicons name="pencil" size={18} color="#fff" />
         </TouchableOpacity>
         </View>
+            <Text style={styles.profileName}>{name}</Text>
+            <Text style={styles.coinText}>{numCoins} 🪙</Text>
+            <View style={styles.actionsRow}>
+              <TouchableOpacity style={[styles.actionItem, styles.actionItemLeft]} onPress={() => navigation.navigate('Friends1')}>
+                <Ionicons name="people" size={42} color="#9ed3ffff" style={styles.actionIcon} />
+                <Text style={[styles.actionLabel, styles.actionLabelLeft]}>Friends</Text>
+              </TouchableOpacity>
+              <View style={styles.actionDivider} />
+              <TouchableOpacity style={[styles.actionItem, styles.actionItemRight]} onPress={() => navigation.navigate('PersChall1')}>
+                <Ionicons name="trophy" size={42} color="#FFD700" style={styles.actionIcon} />
+                <Text style={[styles.actionLabel, styles.actionLabelRight]}>Personal{"\n"}Challenges</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       ) : (
-        <>
+        <View style={styles.headerWrap}>
+          <View style={styles.headerCard}>
+            <Text style={styles.profileName}>{name}</Text>
+            <Text style={styles.coinText}>{numCoins} 🪙</Text>
+          </View>
+      <View style={styles.avatarWrapper}>
+      {/* Inner avatar container (clipped circle) */}
+      <View style={[styles.avatarContainer, { backgroundColor: bgColor }]}>
         <Image
           source={
             currentMemoji?.imageUrl
@@ -105,9 +248,12 @@ const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoi
           style={styles.avatar}
           resizeMode="contain"
         />
-          <Text style={styles.profileNameFriend}>{name}</Text>
-        </>
+        </View>
+        </View>
+        </View>
       )}
+
+
 
       <View style={styles.skillsCardWrap}>
         <View style={styles.skillsCard}>
@@ -180,10 +326,83 @@ const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoi
               ))}
             </View>
           ) : (
-            <View style={styles.badgesSection} />
+            <View style={styles.skillsSection}>
+              {badges && badges.length > 0 && (() => {
+                // Filter based on current user
+                const visibleBadges = isCurrentUser ? badges : badges.filter(b => b.earned);
+                const rows: Badge[][] = [];
+                for (let i = 0; i < visibleBadges.length; i += 3) {
+                  rows.push(visibleBadges.slice(i, i + 3));
+                }
+                return rows.map((row, idx) => (
+                  <View key={idx} style={[styles.skillsRow, row.length === 3 ? styles.row3 : styles.row2]}>
+                    {row.map((badge) => (
+                      <PulsingBadge
+                        key={badge.id}
+                        badge={badge}
+                        onPress={() => {
+                          if (isCurrentUser && badge.earned && !badge.collected) {
+                            collectBadge(badge.id);
+                          } else {
+                            setSelectedBadge(badge);
+                          }
+                        }}
+                      />
+                    ))}
+                  </View>
+                ));
+              })()}
+            </View>
           )}
         </View>
       </View>
+
+
+
+{selectedBadge && (
+  <Modal
+    transparent
+    animationType="fade"
+    visible={!!selectedBadge}
+    onRequestClose={() => setSelectedBadge(null)}
+  >
+    <View style={{
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    }}>
+      <View style={{
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 20,
+        width: '100%',
+        maxWidth: 300,
+        alignItems: 'center',
+      }}>
+        <Image
+          source={{ uri: `${BASE_URL}${selectedBadge.imageUrl}` }}
+          style={{ width: 80, height: 80 }}
+          resizeMode="contain"
+        />
+        <Text style={{ fontWeight: 'bold', fontSize: 18, marginTop: 10 }}>
+          {selectedBadge.name}
+        </Text>
+        <Text style={{ fontSize: 14, textAlign: 'center', marginTop: 5 }}>
+          {selectedBadge.description}
+        </Text>
+        <TouchableOpacity
+          onPress={() => setSelectedBadge(null)}
+          style={{ marginTop: 15, padding: 10 }}
+        >
+          <Text style={{ color: '#007BFF', fontWeight: 'bold' }}>Close</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </Modal>
+)}
+
 
       <Modal transparent visible={infoVisible} animationType="fade" onRequestClose={() => setInfoVisible(false)}>
         <View style={styles.infoBackdrop}>
@@ -207,52 +426,52 @@ const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoi
 const styles = StyleSheet.create({
   profileContainer: {
     alignItems: 'center',
-    marginTop: 50,
+    marginTop: 80,
   },
   headerWrap: {
     width: '100%',
     marginTop: 14,
     alignItems: 'center',
   },
-  headerCard: {
-    width: '103%',
-    backgroundColor: 'rgba(0, 0, 0, 0.13)',
-    borderRadius: 18,
-    paddingTop: 100,
-    paddingBottom: 23,
-    paddingHorizontal: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
-    textShadowColor: '#000',
-    textShadowOffset: { width: 0, height: 6 },
-    textShadowRadius: 8,
-  },
+headerCard: {
+  width: '90%',
+  backgroundColor: 'rgba(0, 0, 0, 0.13)',
+  borderRadius: 18,
+  paddingTop: 60, // half the avatar size
+  paddingBottom: 23,
+  paddingHorizontal: 18,
+  borderWidth: 1,
+  borderColor: 'rgba(255,255,255,0.28)',
+  alignItems: 'center', // center children horizontally
+},
+
   avatarOnCard: {
     position: 'absolute',
     top: -60,
     alignSelf: 'center',
   },
 
-  // Outer wrapper — allows overflow for buttons
-  avatarWrapper: {
-    position: 'relative',
-    width: 120,
-    height: 120,
-    marginBottom: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+avatarWrapper: {
+  position: 'absolute',
+  top: -60, // half the avatar height
+  alignSelf: 'center',
+  width: 120,
+  height: 120,
+  alignItems: 'center',
+  justifyContent: 'center',
+},
 
-  // Inner circular container — clips the image/background
-  avatarContainer: {
-    width: 120,
-    height: 120,
-    marginTop: 10,
-    borderRadius: 60,
-    overflow: 'hidden', // ensures bg + image stay inside the circle
-    borderWidth: 3,
-    borderColor: '#FFD700',
-  },
+avatarContainer: {
+  width: 120,
+  height: 120,
+  borderRadius: 60,
+  overflow: 'hidden',
+  borderWidth: 3,
+  borderColor: '#FFD700',
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+
 
   avatar: {
     width: '100%',
@@ -271,28 +490,6 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 1 },
-  },
-
-  profileName: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginTop: -15,
-    marginBottom: 30,
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
-  },
-  profileNameFriend: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: 12,
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
   },
   profileLink: {
     color: '#EEE',
@@ -520,12 +717,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
-    coinText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 6,
-  },
+
+profileName: {
+  fontSize: 26,
+  fontWeight: 'bold',
+  color: '#FFF',
+  marginTop: 12, // space below avatar
+  marginBottom: 6, // space above coins
+  textAlign: 'center',
+  textShadowColor: 'rgba(0, 0, 0, 0.75)',
+  textShadowOffset: { width: 1, height: 1 },
+  textShadowRadius: 3,
+},
+
+coinText: {
+  color: "#fff",
+  fontSize: 16,
+  fontWeight: "600",
+  marginTop: 4,
+  textAlign: 'center',
+},
+
 });
 
 
