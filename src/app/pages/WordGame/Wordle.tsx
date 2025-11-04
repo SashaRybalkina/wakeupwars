@@ -314,13 +314,18 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
               isWinner
             });
             console.log('[WebSocket] Game complete:', scoresArr);
+            // Auto-return after 2s so ChallDetails regains focus and refreshes
+            setTimeout(() => {
+              navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall });
+            }, 2000);
             Alert.alert(
               isWinner ? '🏆 You Win!' : '❌ Game Over',
               scoresArr.map((s: { username: string; score: number }) => `${s.username}: ${s.score}`).join('\n'),
               [
                 {
-                  text: 'OK',                 
-                  onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 
+                  text: 'OK', onPress: () => {
+                    navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall });
+                  }
                 },
               ],
             );
@@ -438,7 +443,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
             { text: 'Play Again', onPress: resetGame },
             { text: 'Exit', 
               onPress: () => 
-                navigation.goBack() 
+                navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) 
             },
           ]);
           return 0;
@@ -521,7 +526,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
             `Leaderboard:\n${leaderboard}`,
             [
               { text: 'Play Again', onPress: resetGame },
-              { text: 'Exit', onPress: () => navigation.goBack() },
+              { text: 'Exit', onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) },
             ],
           );
           hasShownResultRef.current = true;

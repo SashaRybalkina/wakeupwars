@@ -16,10 +16,13 @@ from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalCh
                     CreateGroupView, CreatePersonalChallengeView, GetChallengeInvitesView,
                     GetAvailabilitiesView, DeclineChallengeInviteView,
                     ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
-                    SkillLevelsView, CreatePublicChallengeView, RewardSettingView, 
+                    SkillLevelsView, SkillLevelDetailView, SkillLevelHistoryView, CreatePublicChallengeView, RewardSettingView, 
                     CreateSudokuGameView, UserRecentGroupMessagesView, UserRecentMessagesView, ValidateSudokuMoveView, CreatePatternGameView, 
                     ValidatePatternMoveView, CreateWordleGameView, ValidateWordleMoveView, 
-                    SavePushTokenView, UserNotificationsView, DeleteNotificationView)
+                    SavePushTokenView, UserNotificationsView, DeleteNotificationView,
+                    GroupLeaderboardView,
+                    GroupDailyHistoryView,
+)
 
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -68,6 +71,8 @@ from .views import (
     GetUserAvailabilityView,
     GroupConversationView,
     GroupDetailsView,
+    GroupLeaderboardView,
+    GroupDailyHistoryView,
     GroupListView,
     HelloWorldView,
     JoinPublicChallengeView,
@@ -86,6 +91,8 @@ from .views import (
     ShareChallengeView,
     SingOrMultGameListView,
     SkillLevelsView,
+    SkillLevelDetailView,
+    SkillLevelHistoryView,
     SomeCatsListView,
     SubmitGameScoresView,
     UserGroupConversationsView,
@@ -210,6 +217,8 @@ urlpatterns = [
     path('pattern/validate/', ValidatePatternMoveView.as_view(), name='pattern-validate'),
     path('challenge-leaderboard/<int:chall_id>/', ChallengeLeaderboardView.as_view(), name='challenge-leaderboard'),
     path("challenge-leaderboard/<int:chall_id>/history/", ChallengeDailyHistoryView.as_view(), name="challenge-leaderboard-history"),
+    path('group-leaderboard/<int:group_id>/', GroupLeaderboardView.as_view(), name='group-leaderboard'),
+    path('group-leaderboard/<int:group_id>/history/', GroupDailyHistoryView.as_view(), name='group-leaderboard-history'),
     path('get-performances/<int:chall_id>/', GetPerformancesView.as_view(), name='get-performances'),
     path('submit-game-scores/', SubmitGameScoresView.as_view(), name='submit-game-scores'),
     path('add-game-to-schedule/', AddGameToScheduleView.as_view(), name='add-game-to-schedule'),
@@ -222,6 +231,8 @@ urlpatterns = [
     path('set-current-memoji/<int:user_id>/', SetCurrentMemojiView.as_view(), name="set-current-memoji"),
 
     path('send-bet/', SendBetView.as_view(), name='send-bet'),
+    path('skill-levels/<int:category_id>/detail/', SkillLevelDetailView.as_view(), name="skill-level-detail"),
+    path('skill-levels/<int:category_id>/history/', SkillLevelHistoryView.as_view(), name="skill-level-history"),
 
     # sending challenge to friends
     path("share-challenge/<int:chall_id>/", ShareChallengeView.as_view()),

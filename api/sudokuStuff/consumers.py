@@ -3,13 +3,13 @@ import random
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
 from api.sudokuStuff.utils import validate_sudoku_move
-from api.models import SudokuGameState, SudokuGamePlayer, User
+from api.models import SudokuGameState, SudokuGamePlayer, User, ChallengeMembership
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from api.models import GamePerformance
 from asgiref.sync import sync_to_async
 from django.core.cache import cache
-from api.tasks import close_join_window
+from api.tasks import close_join_window, broadcast_leaderboard
 
 ALL_COLORS = [
     'hotpink', 'coral', 'orange', 'lawngreen', 'aqua',
@@ -280,6 +280,11 @@ class SudokuConsumer(AsyncWebsocketConsumer):
 
                 # If the game is complete, broadcast completion
                 if result.get('is_complete'):
+                    # Persist scores immediately so signals can advance progress today
+                    try:
+                        await self._persist_scores_now()
+                    except Exception:
+                        pass
                     await self.channel_layer.group_send(
                         self.group_name,
                         {
@@ -287,6 +292,16 @@ class SudokuConsumer(AsyncWebsocketConsumer):
                             'scores': result['scores'],
                         }
                     )
+                    # Trigger backend reconciliation now so GamePerformance rows
+                    # are persisted immediately and signals can advance progress.
+                    try:
+                        # Fill zero scores for non-submitters and mark joins closed
+                        close_join_window.delay('SudokuGameState', self.game_state_id)
+                        # Compute and broadcast the finalized leaderboard right away
+                        broadcast_leaderboard.delay('SudokuGameState', self.game_state_id)
+                    except Exception:
+                        # best-effort; do not break client flow
+                        pass
             else:
                 # ❌ Incorrect move → only broadcast to myself
                 await self.send(text_data=json.dumps({
@@ -456,6 +471,48 @@ class SudokuConsumer(AsyncWebsocketConsumer):
                 'server_now': timezone.now().isoformat(),
             }
         )
+
+    # Persist Sudoku scores immediately at end-of-game, and zero-fill missing
+    @sync_to_async
+    def _persist_scores_now(self):
+        from django.utils import timezone as dj_tz
+        gs = SudokuGameState.objects.select_related('challenge', 'game').get(id=self.game_state_id)
+        play_date = dj_tz.localdate()
+
+        # Compute scores from player accuracy
+        players = SudokuGamePlayer.objects.select_related('player').filter(gameState_id=self.game_state_id)
+        submitted_ids = set()
+        for p in players:
+            correct = int(getattr(p, 'accuracyCount', 0) or 0)
+            incorrect = int(getattr(p, 'inaccuracyCount', 0) or 0)
+            attempts = max(1, correct + incorrect)
+            score = round((correct / attempts) * 100, 2)
+            GamePerformance.objects.update_or_create(
+                challenge=gs.challenge,
+                game=gs.game,
+                user=p.player,
+                date=play_date,
+                defaults={"score": score},
+            )
+            submitted_ids.add(p.player_id)
+
+        # Zero-fill missing participants for the day
+        participant_ids = set(
+            ChallengeMembership.objects.filter(challengeID=gs.challenge).values_list('uID_id', flat=True)
+        )
+        for uid in participant_ids - submitted_ids:
+            GamePerformance.objects.update_or_create(
+                challenge=gs.challenge,
+                game=gs.game,
+                user_id=uid,
+                date=play_date,
+                defaults={"score": 0, "auto_generated": True},
+            )
+
+        # Mark joins closed
+        if not gs.joins_closed:
+            gs.joins_closed = True
+            gs.save(update_fields=["joins_closed"])
 
     # ─── Lock / unlock event handlers ─────────────────────────────
     async def cell_locked(self, event):

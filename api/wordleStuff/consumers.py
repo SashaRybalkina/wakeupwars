@@ -4,6 +4,7 @@ from django.utils import timezone
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
 from django.core.cache import cache
+from api.tasks import broadcast_leaderboard
 
 from api.wordleStuff.utils import validate_wordle_move_async
 from api.models import (
@@ -249,6 +250,11 @@ class WordleConsumer(AsyncWebsocketConsumer):
                 )
                 print(f"[WebSocket][GAME COMPLETE] game_state={self.game_state_id}, scores={result['scores']}")
                 await self._persist_scores_once(result['scores'])
+                # Immediately compute + broadcast finalized leaderboard for this game
+                try:
+                    broadcast_leaderboard.delay('WordleGameState', self.game_state_id)
+                except Exception:
+                    pass
 
         elif data.get('type') == 'start_game':
             # Close join window and notify all clients to dismiss lobby
@@ -328,6 +334,14 @@ class WordleConsumer(AsyncWebsocketConsumer):
         # Group event -> notify this client to close lobby
         await self.send(text_data=json.dumps({
             'type': 'join_window_closed'
+        }))
+
+    async def leaderboard_update(self, event):
+        # Forward leaderboard updates broadcast by Celery task
+        await self.send(text_data=json.dumps({
+            'type': 'leaderboard_update',
+            'leaderboard': event.get('leaderboard', []),
+            'server_now': event.get('server_now'),
         }))
 
 

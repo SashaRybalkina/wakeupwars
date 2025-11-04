@@ -20,6 +20,7 @@ import ChallSchedule from './pages/Challenges/ChallSchedule';
 import CreatePublicChall1 from './pages/Challenges/CreatePublicChall1';
 import CreatePublicChall2 from './pages/Challenges/CreatePublicChall2';
 import LeaderboardDetails from './pages/Challenges/LeaderboardDetails';
+import GroupLeaderboardDetails from './pages/Challenges/GroupLeaderboardDetails';
 import RewardSettleScreen from './pages/Challenges/RewardSettleScreen';
 import VerifyAvailability from './pages/Challenges/VerifyAvailability';
 import PublicChallSearch1 from './pages/Challenges/PublicChallSearch1';
@@ -49,6 +50,8 @@ import Conversation from './pages/Conversation';
 import PatternGameScreen from './pages/PatternGame/PatternGameScreen';
 import Profile from './pages/Profile';
 import NotificationsPage from './pages/Profile/Notifications';
+import MySkills from './pages/Profile/MySkills';
+import SkillDetail from './pages/Profile/SkillDetail';
 import AcceptFInvite from './pages/Profile/AcceptFInvite';
 import AcceptGInvite from './pages/Profile/AcceptGInvite';
 import FriendsRequests from './pages/Profile/FriendRequest';
@@ -353,6 +356,16 @@ function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
+          name="MySkills"
+          component={MySkills}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SkillDetail"
+          component={SkillDetail}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
           name="PersChall1"
           component={PersChall1}
           options={{ headerShown: false }}
@@ -450,6 +463,11 @@ function App() {
         <Stack.Screen
           name="LeaderboardDetails"
           component={LeaderboardDetails}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="GroupLeaderboardDetails"
+          component={GroupLeaderboardDetails}
           options={{ headerShown: false }}
         />
         <Stack.Screen

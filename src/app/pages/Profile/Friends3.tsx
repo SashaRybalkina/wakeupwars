@@ -163,9 +163,11 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
       {!dataLoading && (
         <UserProfileCard
           name={name}
+          isCurrentUser={false}
+          skillLevelsOverride={skillLevels}
+          disableSkillDetail={true}
           currentMemoji={currentMemoji}
           bgColor={backgroundColor}
-          skill_levels={skillLevels}
           numCoins={numCoins}
         />
       )}
@@ -377,8 +379,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   profileContainer: {
-    alignItems: "center",
-    marginTop: 50,
+    marginTop: 0,
   },
   avatar: {
     width: 120,

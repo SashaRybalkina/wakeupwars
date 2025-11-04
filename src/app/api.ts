@@ -112,6 +112,7 @@ export const endpoints = {
 
   createPersonalChallenge: `${BASE_URL}/api/create-personal-challenge/`,
   leaderboard: (id: number) => `${BASE_URL}/api/challenge-leaderboard/${id}/`,
+  groupLeaderboard: (groupId: number) => `${BASE_URL}/api/group-leaderboard/${groupId}/`,
   getPerformances: (challId: number) =>
     `${BASE_URL}/api/get-performances/${challId}/`,
   submitGameScores: () => `${BASE_URL}/api/submit-game-scores/`,
@@ -119,6 +120,8 @@ export const endpoints = {
   skillLevels: (userId: number) => `${BASE_URL}/api/skill-levels/${userId}/`,
   userData: (userId: number) => `${BASE_URL}/api/user-data/${userId}/`,
   badges: (userId: number) => `${BASE_URL}/api/badges/${userId}/`,
+  skillLevelDetail: (categoryId: number) => `${BASE_URL}/api/skill-levels/${categoryId}/detail/`,
+  skillLevelHistory: (categoryId: number, limit = 200) => `${BASE_URL}/api/skill-levels/${categoryId}/history/?limit=${limit}`,
   // Pattern (REST)
   patternCreate: `${BASE_URL}/api/pattern/create/`,
   patternValidate: `${BASE_URL}/api/pattern/validate/`,
@@ -145,6 +148,20 @@ export const endpoints = {
     : `${BASE_URL}/api/share-challenge/`,          
 };
 
+export const groupLeaderboardHistory = (
+  groupId: number,
+  start?: string,
+  end?: string,
+) => {
+  const url = new URL(
+    `/api/group-leaderboard/${groupId}/history/`,
+    BASE_URL,
+  );
+  if (start) url.searchParams.set('start', start);
+  if (end) url.searchParams.set('end', end);
+  return url.toString();
+};
+
 export const leaderboardHistory = (
   challId: number,
   start?: string,
@@ -158,3 +175,48 @@ export const leaderboardHistory = (
   if (end) url.searchParams.set('end', end);
   return url.toString();
 };
+
+type FetchOpts = RequestInit & { timeoutMs?: number };
+
+export async function fetchJSON<T = any>(url: string, opts: FetchOpts = {}): Promise<T> {
+  const { timeoutMs = 12000, headers, ...rest } = opts;
+  const h: Record<string, string> = {
+    Accept: 'application/json',
+    'ngrok-skip-browser-warning': 'true',
+    Connection: 'close',
+    ...((headers as any) || {}),
+  };
+
+  const attempt = async () => {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...rest, headers: h, signal: controller.signal } as any);
+      if (!res.ok) {
+        // retry server errors
+        if (res.status >= 500) throw new Error(`HTTP ${res.status}`);
+      }
+      const text = await res.text();
+      try {
+        return text ? (JSON.parse(text) as T) : (undefined as unknown as T);
+      } catch (e) {
+        // sometimes proxy returns partial frames; trigger retry
+        throw new Error('Bad JSON');
+      }
+    } finally {
+      clearTimeout(t);
+    }
+  };
+
+  const maxTries = 3;
+  let lastErr: any;
+  for (let i = 0; i < maxTries; i++) {
+    try {
+      return await attempt();
+    } catch (e) {
+      lastErr = e;
+      await new Promise(r => setTimeout(r, 400 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}

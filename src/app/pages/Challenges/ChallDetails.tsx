@@ -142,7 +142,7 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
               if (!accessToken) {
                 throw new Error("Not authenticated");
               }
-        const res = await axios.get(endpoints.challengeDetail(challId), {
+        const res = await axios.get(`${endpoints.challengeDetail(challId)}?t=${Date.now()}`, {
                 headers: {
                   Authorization: `Bearer ${accessToken}`
                 }
@@ -274,15 +274,15 @@ const loadPerformances = async () => {
         // Immediately refetch challenge details on focus
         (async () => {
           try {
-                  const accessToken = await getAccessToken();
-                  if (!accessToken) {
-                    throw new Error("Not authenticated");
-                  }
-            const res = await axios.get(endpoints.challengeDetail(challId), {
-                    headers: {
-                      Authorization: `Bearer ${accessToken}`
-                    }
-                  });
+            let accessToken = await getAccessToken();
+            if (!accessToken) {
+              await new Promise(r => setTimeout(r, 400));
+              accessToken = await getAccessToken();
+            }
+            if (!accessToken) return;
+            const res = await axios.get(`${endpoints.challengeDetail(challId)}?t=${Date.now()}`, {
+              headers: { Authorization: `Bearer ${accessToken}` }
+            });
             const data = res.data;
             const parsedDaysOfWeek = (data.daysOfWeek as string[])
               .filter((day): day is keyof typeof DayOfWeekReverseLabels => day in DayOfWeekReverseLabels)
@@ -292,42 +292,47 @@ const loadPerformances = async () => {
             setDaysComplete(data.daysCompleted);
             setTotalDays(data.totalDays ?? 30);
             setMembers(data.members);
-          } catch (err) {
-            console.error(err);
-          }
+          } catch {}
         })();
 
         if (whichChall === "Personal") {
           loadPerformances();
+          return () => {};
         } else {
           loadLeaderboard();
+          // Limited refresh burst to catch backend persistence slightly after navigation
+          const bursts = [1500, 3500, 6000];
+          const timeoutIds: number[] = [];
+          const refreshOnce = async () => {
+            try {
+              await loadLeaderboard();
+              const accessToken = await getAccessToken();
+              if (accessToken) {
+                const res = await axios.get(`${endpoints.challengeDetail(challId)}?t=${Date.now()}`, {
+                  headers: { Authorization: `Bearer ${accessToken}` }
+                });
+                const data = res.data;
+                const parsedDaysOfWeek = (data.daysOfWeek as string[])
+                  .filter((day): day is keyof typeof DayOfWeekReverseLabels => day in DayOfWeekReverseLabels)
+                  .sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+                  .map((day) => DayOfWeekReverseLabels[day]);
+                setDaysOfWeek(parsedDaysOfWeek.map(String));
+                setDaysComplete(data.daysCompleted);
+                setTotalDays(data.totalDays ?? 30);
+                setMembers(data.members);
+              }
+            } catch {}
+          };
+          // bursts.forEach(ms => {
+          //   const id = setTimeout(refreshOnce, ms) as unknown as number;
+          //   timeoutIds.push(id);
+          // });
+          // return () => {
+          //   timeoutIds.forEach(id => clearTimeout(id));
+          // };
         }
-        return () => {};
       }, [challId, whichChall])
     );
-
-    async function loadMyObligations() {
-
-      const accessToken = await getAccessToken();
-      if (!accessToken) {
-        throw new Error("Not authenticated");
-      }
-
-      const res = await fetch(endpoints.myObligations(), {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error('Failed to load obligations');
-      }
-
-      return data;
-    }
 
     // useEffect(() => {
     //   (async () => {

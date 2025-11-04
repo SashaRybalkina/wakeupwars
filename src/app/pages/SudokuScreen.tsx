@@ -475,18 +475,11 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
 
               (async () => {
                 try {
-                  await saveScores({
-                    challenge_id: challengeId,
-                    ...(gameId ? { game_id: gameId } : { game_name: 'Sudoku' }),
-                    date: new Date().toLocaleDateString('en-CA'), // to fetch today's game data
-                    scores: scores.map(s => ({
-                      username: s.username,
-                      score: s.score,
-                      accuracy: s.accuracy,
-                      inaccuracy: s.inaccuracy,
-                    })),
-                  });
                   await refreshSkills();
+                  // Auto-navigate to ChallDetails after 2s to allow backend to finalize
+                  setTimeout(() => {
+                    navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall });
+                  }, 2000);
                   Alert.alert(
                     "🎉 Puzzle Complete!",
                     `\n\nScores:\n` +
@@ -494,7 +487,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                         .sort((a, b) => b.score - a.score)
                         .map(s => `${s.username}: ${s.score} (✅ ${s.accuracy} / ❌ ${s.inaccuracy})`)
                         .join("\n"),
-                    [{ text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) }]
+                    [{ text: "OK" }]
                   );
                 } catch (err) {
                   console.error("submit score failed", err);
@@ -604,19 +597,17 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
               (async () => {
                 if (user?.username) {
                   try {
-                    await saveScores({
-                      challenge_id: challengeId,
-                      ...(gameId ? { game_id: gameId } : { game_name: 'Sudoku' }),
-                      date: new Date().toISOString().slice(0,10),
-                      scores: [{ username: user.username, score: 100 }],
-                    });
                     await refreshSkills();
                   } catch (e) {
                     console.error("submit score failed", e);
                   }
                 }
+                // Auto-return after 2s to allow backend to finalize
+                setTimeout(() => {
+                  navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall });
+                }, 2000);
                 Alert.alert("🎉 Puzzle Complete!", "", [
-                  { text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) },
+                  { text: "OK" },
                 ]);
               })();
             }
@@ -783,12 +774,13 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.header}>
           <TouchableOpacity style={styles.exitButton} onPress={() => {
             if (gameCompleted) navigation.navigate('ChallDetails', {
-              challId: challengeId,hallName: challName,
+              challId: challengeId, challName: challName,
               whichChall: whichChall,});
             else Alert.alert('Game in Progress', 'You cannot exit while a game is in progress.', [{ text: 'OK', style: 'cancel' }]);
           }}>
             <Text style={styles.exitText}>Exit</Text>
           </TouchableOpacity>
+
           <Text style={styles.title}>Sudoku</Text>
           {/* <Text style={styles.timer}>Timer: {formatTime(timeLeft)}</Text> */}
 

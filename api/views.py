@@ -57,6 +57,7 @@ from django.contrib.auth import login
 from asgiref.sync import async_to_sync
 import traceback
 from api.services.skill import recompute_skill_for_user
+from api.services.skill_config import SKILL_CONFIG
 from api.tasks import open_join_window
 
 ### Pattern Memorization###
@@ -2335,6 +2336,74 @@ class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
                 for user in users_in_challenge:
                     user.numCoins -= challenge.participationFee
                     user.save(update_fields=["numCoins"])
+                # Queue background jobs for all participants at finalized schedule times
+                try:
+                    initiator_id = (
+                        challenge.initiator_id
+                        or ChallengeMembership.objects.filter(challengeID=challenge)
+                            .values_list("uID_id", flat=True).first()
+                    )
+
+                    # Build unique set of (time, game_id) pairs based on the finalized challenge schedule
+                    slot_tasks = set()
+                    for cas in ChallengeAlarmSchedule.objects.filter(challenge=challenge).select_related("alarm_schedule"):
+                        day = cas.alarm_schedule.dayOfWeek
+                        t_obj = cas.alarm_schedule.alarmTime
+                        game_ids = (
+                            GameScheduleGameAssociation.objects
+                            .filter(
+                                game_schedule__challenge=challenge,
+                                game_schedule__dayOfWeek=day,
+                            )
+                            .values_list("game_id", flat=True)
+                        )
+                        for gid in game_ids:
+                            slot_tasks.add((t_obj, gid))
+
+                    def build_alarm_dt(ch_start, t_obj):
+                        from datetime import date as _date, datetime as _dt
+                        if isinstance(ch_start, _dt):
+                            base_date = ch_start.date()
+                        else:
+                            base_date = ch_start
+                        dt = _dt.combine(base_date, t_obj)
+                        if timezone.is_naive(dt):
+                            dt = timezone.make_aware(dt, timezone.get_current_timezone())
+                        return dt
+
+                    queued = 0
+                    for t_obj, game_id in slot_tasks:
+                        try:
+                            alarm_dt = build_alarm_dt(challenge.startDate, t_obj)
+
+                            g = Game.objects.get(id=game_id)
+                            g_name = (g.name or "").lower()
+                            if "sudoku" in g_name:
+                                code = "sudoku"
+                            elif "wordle" in g_name:
+                                code = "wordle"
+                            elif "pattern" in g_name:
+                                code = "pattern"
+                            else:
+                                logger.warning("Unknown game name=%r id=%s; skipping", g.name, g.id)
+                                continue
+
+                            logger.info(
+                                "[FinalizeCollab] Queue open_join_window chall=%s game_id=%s code=%s eta=%s initiator=%s",
+                                challenge.id, game_id, code, alarm_dt, initiator_id
+                            )
+                            open_join_window.apply_async(
+                                args=[challenge.id, game_id, code, initiator_id],
+                                eta=alarm_dt,
+                            )
+                            queued += 1
+                        except Exception:
+                            logger.exception("Failed to queue slot (t=%s, game_id=%s)", t_obj, game_id)
+                            raise
+                    logger.info("[FinalizeCollab] queued %d open_join_window tasks", queued)
+                except Exception:
+                    logger.exception("Failed scheduling background jobs after finalizing collaborative schedule")
+
 
             return Response(
                 {"message": "Challenge schedule finalized.", "schedule": created_schedules},
@@ -3170,8 +3239,8 @@ class GetPerformancesView(APIView):
         performances = (
             GamePerformance.objects
             .filter(challenge_id=chall_id)
-            .annotate(game_name=F('game__name'))   # ✅ give it a unique alias
-            .values('date', 'game_name', 'score')  # ✅ now use that alias in .values()
+            .annotate(game_name=F('game__name'))   # 
+            .values('date', 'game_name', 'score')  # 
             .order_by('-date')[:5]
         )
 
@@ -3347,6 +3416,120 @@ class ChallengeDailyHistoryView(APIView):
             "history": history,
         }, status=status.HTTP_200_OK)
 
+class GroupLeaderboardView(APIView):
+    """
+    GET /group-leaderboard/<group_id>/
+      -> overall leaderboard across ALL challenges in the group
+    """
+    def get(self, request, group_id: int):
+        group = get_object_or_404(Group, id=group_id)
+
+        bounds = (
+            GamePerformance.objects
+            .filter(challenge__groupID=group)
+            .aggregate(min_d=Min('date'), max_d=Max('date'))
+        )
+        since = bounds['min_d'] or timezone.localdate()
+        until = bounds['max_d'] or timezone.localdate()
+
+        rows = (
+            GamePerformance.objects
+            .filter(challenge__groupID=group)
+            .values('user__username')
+            .annotate(points=Sum('score'))
+            .order_by('-points', 'user__username')
+        )
+
+        overall, last_pts, rank = [], None, 0
+        for r in rows:
+            if r['points'] != last_pts:
+                rank += 1
+                last_pts = r['points']
+            overall.append({
+                'name':   r['user__username'] or 'Anonymous',
+                'points': int(r['points'] or 0),
+                'rank':   rank,
+            })
+
+        return Response({
+            'since': str(since),
+            'until': str(until),
+            'leaderboard': overall,
+        }, status=status.HTTP_200_OK)
+
+
+class GroupDailyHistoryView(APIView):
+    """
+    GET /group-leaderboard/<group_id>/history/?start=YYYY-MM-DD&end=YYYY-MM-DD
+      -> daily leaderboard history across all group challenges in range
+    """
+    def get(self, request, group_id: int):
+        group = get_object_or_404(Group, id=group_id)
+
+        def parse(d: str) -> date:
+            try:
+                return datetime.strptime(d, '%Y-%m-%d').date()
+            except ValueError:
+                raise ValidationError(f"Bad date: {d!r} (YYYY-MM-DD expected)")
+
+        start_str = request.GET.get('start')
+        end_str   = request.GET.get('end')
+        if start_str and not end_str:
+            end_str = start_str
+        if end_str and not start_str:
+            start_str = end_str
+
+        bounds = (
+            GamePerformance.objects
+            .filter(challenge__groupID=group)
+            .aggregate(min_d=Min('date'), max_d=Max('date'))
+        )
+        base_start = bounds['min_d'] or timezone.localdate()
+        base_end   = bounds['max_d'] or timezone.localdate()
+
+        if start_str:
+            req_start = parse(start_str)
+            req_end   = parse(end_str)
+        else:
+            req_start = base_start
+            req_end   = base_end
+
+        start = max(req_start, base_start)
+        end   = min(req_end,   base_end)
+        if start > end:
+            return Response({'since': str(start), 'until': str(end), 'history': {}}, status=status.HTTP_200_OK)
+
+        qs = (
+            GamePerformance.objects
+            .filter(challenge__groupID=group, date__gte=start, date__lte=end)
+            .values('date', 'user__username')
+            .annotate(points=Sum('score'))
+            .order_by('date', '-points', 'user__username')
+        )
+
+        grouped = defaultdict(list)
+        for r in qs:
+            grouped[r['date']].append(r)
+
+        n_days = (end - start).days + 1
+        history = {}
+        for d in (start + timedelta(i) for i in range(n_days)):
+            rows_d, last_pts, rank = grouped.get(d, []), None, 0
+            out = []
+            for r in rows_d:
+                if r['points'] != last_pts:
+                    rank += 1
+                    last_pts = r['points']
+                out.append({
+                    'name':   r['user__username'] or 'Anonymous',
+                    'points': int(r['points'] or 0),
+                    'rank':   rank,
+                })
+            if out:
+                history[str(d)] = out
+
+        return Response({'since': str(start), 'until': str(end), 'history': history}, status=status.HTTP_200_OK)
+
 class RecomputeUserSkills(APIView):
     permission_classes = [IsAdminUser]
 
@@ -3380,16 +3563,176 @@ class RewardSettingView(APIView):
 
 
 class SkillLevelsView(APIView):
-    def get(self, request, user_id):
-        qs = SkillLevel.objects.filter(user_id=user_id).select_related("category")
-        data = SkillLevelSerializer(qs, many=True).data
-        user = User.objects.get(id=user_id)
+    # permission_classes = [IsAuthenticated]
 
-        # return Response(data)
+    # def get(self, request, user_id):
+    #     qs = SkillLevel.objects.filter(user_id=user_id).select_related("category")
+    #     data = SkillLevelSerializer(qs, many=True).data
+    #     user = User.objects.get(id=user_id)
+
+    #     # return Response(data)
+    #     return Response({
+    #     "skillLevels": data,
+    #     "numCoins": user.numCoins,
+    # }, status=status.HTTP_200_OK)
+    def get(self, request):
+        qs = SkillLevel.objects.filter(user=request.user).select_related("category")
+
+        window_days = SKILL_CONFIG.WINDOW_DAYS
+        half_life_days = SKILL_CONFIG.HALF_LIFE_DAYS
+
+        def recency_weight(when):
+            if half_life_days is None or when is None:
+                return 1.0
+            base = datetime.combine(when, datetime.min.time())
+            aware = timezone.make_aware(base, timezone.get_current_timezone())
+            age_days = max(0.0, (timezone.now() - aware).total_seconds() / 86400.0)
+            return 0.5 ** (age_days / half_life_days)
+
+        out = []
+        for sl in qs:
+            cat = sl.category
+            gp_qs = GamePerformance.objects.filter(user=request.user, game__category=cat)
+            if window_days is not None:
+                cutoff = timezone.now().date() - timedelta(days=window_days)
+                gp_qs = gp_qs.filter(date__gte=cutoff)
+            total_earned = 0.0
+            total_possible = 0.0
+            for gp in gp_qs.only("score", "date"):
+                score = max(0, min(100, int(gp.score)))
+                w = recency_weight(gp.date)
+                total_earned += score * w
+                total_possible += 100.0 * w
+            skill = 0.0 if total_possible <= 0 else min(10.0, 10.0 * (total_earned / total_possible))
+            out.append({
+                "category": {"id": cat.id, "categoryName": cat.categoryName},
+                "totalEarned": sl.totalEarned,
+                "totalPossible": sl.totalPossible,
+                "skill": round(skill, 2),
+            })
+
+        return Response(out)
+
+
+class SkillLevelDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, category_id: int):
+        try:
+            category = GameCategory.objects.get(pk=category_id)
+        except GameCategory.DoesNotExist:
+            return Response({"detail": "Category not found"}, status=404)
+
+        # Pull performances in window
+        window_days = SKILL_CONFIG.WINDOW_DAYS
+        half_life_days = SKILL_CONFIG.HALF_LIFE_DAYS
+
+        qs = GamePerformance.objects.filter(user=request.user, game__category=category)
+        if window_days is not None:
+            cutoff = timezone.now().date() - timedelta(days=window_days)
+            qs = qs.filter(date__gte=cutoff)
+
+        def recency_weight(when):
+            if half_life_days is None or when is None:
+                return 1.0
+            # convert date to aware midnight
+            base = datetime.combine(when, datetime.min.time())
+            aware = timezone.make_aware(base, timezone.get_current_timezone())
+            age_days = max(0.0, (timezone.now() - aware).total_seconds() / 86400.0)
+            return 0.5 ** (age_days / half_life_days)
+
+        total_earned = 0.0
+        total_possible = 0.0
+        count = 0
+        last_played = None
+        for gp in qs.only("score", "date"):
+            count += 1
+            score = max(0, min(100, int(gp.score)))
+            w = recency_weight(gp.date)
+            total_earned += score * w
+            total_possible += 100.0 * w
+            if last_played is None or gp.date > last_played:
+                last_played = gp.date
+
+        if total_possible <= 0:
+            skill = 0.0
+        else:
+            skill = min(10.0, 10.0 * (total_earned / total_possible))
+
+        # Include stored SkillLevel totals if present
+        sl = SkillLevel.objects.filter(user=request.user, category=category).first()
+
         return Response({
-        "skillLevels": data,
-        "numCoins": user.numCoins,
-    }, status=status.HTTP_200_OK)
+            "category": {"id": category.id, "name": category.categoryName},
+            "totals": {
+                "computed": {"earned": round(total_earned, 2), "possible": round(total_possible, 2)},
+                "stored": (
+                    {"earned": float(sl.totalEarned or 0), "possible": float(sl.totalPossible or 0)} if sl else None
+                ),
+            },
+            "skill": round(skill, 2),
+            "config": {"window_days": window_days, "half_life_days": half_life_days},
+            "counts": {"games_considered": count, "last_played": str(last_played) if last_played else None},
+        })
+class SkillLevelHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, category_id: int):
+        try:
+            category = GameCategory.objects.get(pk=category_id)
+        except GameCategory.DoesNotExist:
+            return Response({"detail": "Category not found"}, status=404)
+
+        limit_param = request.query_params.get("limit")
+        try:
+            limit = int(limit_param) if limit_param else 200
+        except Exception:
+            limit = 200
+
+        window_days = SKILL_CONFIG.WINDOW_DAYS
+        half_life_days = SKILL_CONFIG.HALF_LIFE_DAYS
+
+        qs = GamePerformance.objects.filter(user=request.user, game__category=category).select_related("game")
+
+        if window_days is not None:
+            cutoff = timezone.now().date() - timedelta(days=window_days)
+            qs = qs.filter(date__gte=cutoff)
+
+        def recency_weight(when):
+            if half_life_days is None or when is None:
+                return 1.0
+            base = datetime.combine(when, datetime.min.time())
+            aware = timezone.make_aware(base, timezone.get_current_timezone())
+            age_days = max(0.0, (timezone.now() - aware).total_seconds() / 86400.0)
+            return 0.5 ** (age_days / half_life_days)
+
+        items = []
+        cum_earned = 0.0
+        cum_possible = 0.0
+        for gp in qs[:limit]:
+            score = max(0, min(100, int(gp.score)))
+            w = recency_weight(gp.date)
+            earned = score * w
+            possible = 100.0 * w
+            cum_earned += earned
+            cum_possible += possible
+            skill_now = 0.0 if cum_possible <= 0 else min(10.0, 10.0 * (cum_earned / cum_possible))
+            items.append({
+                "date": str(gp.date),
+                "raw_score": score,
+                "weight": round(w, 4),
+                "earned": round(earned, 2),
+                "possible": round(possible, 2),
+                "cumulative_skill": round(skill_now, 2),
+                "game_id": gp.game_id,
+                "game_name": gp.game.name,
+            })
+
+        return Response({
+            "category": {"id": category.id, "name": category.categoryName},
+            "config": {"window_days": window_days, "half_life_days": half_life_days},
+            "items": items,
+        })
 
 
 class UserDataView(APIView):

@@ -348,39 +348,10 @@ const PulsingBadge = ({ badge, onPress }) => {
           numCoins={numCoins}
         />
 
-        <View style={styles.profileButtons}>
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => navigation.navigate('Friends1')}
-          >
-            <View style={styles.iconShadowContainer}>
-              <Ionicons name="people" size={40} color={'#fff'} style={styles.iconWithShadow} />
-            </View>
-            <Text style={styles.profileButtonText}>Friends</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => navigation.navigate('PersChall1')}
-          >
-            <View style={styles.iconShadowContainer}>
-              <Ionicons name="trophy" size={40} color={'#FFD700'} style={styles.iconWithShadow} />
-            </View>
-            <Text style={[styles.profileButtonText, { color: '#FF0' }]}>
-              {"  "}Personal {"\n"}Challenges
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-
-        <View style={styles.menu}>
-          <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
+        {/* <View style={styles.menu}> */}
+          {/* <TouchableOpacity style={styles.menuItem} activeOpacity={0.7} onPress={() => navigation.navigate('MySkills')}>
             <View style={styles.menuItemContent}>
-              <Ionicons
-                name="star"
-                size={22}
-                color="#FFD700"
-                style={styles.menuIcon}
-              />
+              <Ionicons name="star" size={22} color="#FFD700" style={styles.menuIcon} />
               <Text style={styles.menuText}>My Skills</Text>
             </View>
             <Ionicons name="chevron-forward" size={22} color="#FFF" />
@@ -388,12 +359,7 @@ const PulsingBadge = ({ badge, onPress }) => {
 
           <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
             <View style={styles.menuItemContent}>
-              <Ionicons
-                name="podium"
-                size={22}
-                color="#FFD700"
-                style={styles.menuIcon}
-              />
+              <Ionicons name="podium" size={22} color="#FFD700" style={styles.menuIcon} />
               <Text style={styles.menuText}>Leaderboard</Text>
             </View>
             <Ionicons name="chevron-forward" size={22} color="#FFF" />
@@ -401,12 +367,7 @@ const PulsingBadge = ({ badge, onPress }) => {
 
           <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
             <View style={styles.menuItemContent}>
-              <Ionicons
-                name="alarm"
-                size={22}
-                color="#FFD700"
-                style={styles.menuIcon}
-              />
+              <Ionicons name="alarm" size={22} color="#FFD700" style={styles.menuIcon} />
               <Text style={styles.menuText}>Alarms</Text>
             </View>
             <Ionicons name="chevron-forward" size={22} color="#FFF" />
@@ -414,17 +375,12 @@ const PulsingBadge = ({ badge, onPress }) => {
 
           <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
             <View style={styles.menuItemContent}>
-              <Ionicons
-                name="help-circle"
-                size={22}
-                color="#FFD700"
-                style={styles.menuIcon}
-              />
+              <Ionicons name="help-circle" size={22} color="#FFD700" style={styles.menuIcon} />
               <Text style={styles.menuText}>Support</Text>
             </View>
             <Ionicons name="chevron-forward" size={22} color="#FFF" />
-          </TouchableOpacity>
-        </View>
+          </TouchableOpacity> */}
+        {/* </View> */}
 
 
 
@@ -790,10 +746,58 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  skillsSection: {
+    width: '100%',
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  skillsTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '800',
+    alignSelf: 'flex-start',
+    marginLeft: 30,
+    marginBottom: 8,
+  },
+  skillsGrid: {
+    width: '90%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  skillItem: {
+    width: '30%',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  skillBadge: {
+    position: 'absolute',
+    bottom: -4,
+    alignSelf: 'center',
+    backgroundColor: '#00B5D8',
+    borderRadius: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 2,
+    borderColor: '#0A1015',
+  },
+  skillBadgeText: {
+    color: '#FFF',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  skillLabel: {
+    color: '#FFF',
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 8,
+  },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(50, 50, 60, 0.45)',
+    backgroundColor: 'rgba(0, 0, 0, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     paddingVertical: 12,
     paddingHorizontal: 25,
     borderRadius: 12,
@@ -806,6 +810,9 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.35)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 3,
   },
   bottomPadding: {
     height: 100, // Ensure content isn't hidden behind the nav bar
