@@ -233,80 +233,80 @@ const collectBadge = async (badgeId: number) => {
 }
 
 
-const PulsingBadge = ({ badge, onPress }) => {
-  const scale = useRef(new Animated.Value(1)).current;
+// const PulsingBadge = ({ badge, onPress }) => {
+//   const scale = useRef(new Animated.Value(1)).current;
 
-  useEffect(() => {
-    if (badge.earned && !badge.collected) {
-      // Start pulsing loop
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(scale, {
-            toValue: 1.15,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scale, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    } else {
-      scale.setValue(1); // reset scale when no longer pulsing
-    }
-  }, [badge.earned, badge.collected]);
+//   useEffect(() => {
+//     if (badge.earned && !badge.collected) {
+//       // Start pulsing loop
+//       Animated.loop(
+//         Animated.sequence([
+//           Animated.timing(scale, {
+//             toValue: 1.15,
+//             duration: 800,
+//             useNativeDriver: true,
+//           }),
+//           Animated.timing(scale, {
+//             toValue: 1,
+//             duration: 800,
+//             useNativeDriver: true,
+//           }),
+//         ])
+//       ).start();
+//     } else {
+//       scale.setValue(1); // reset scale when no longer pulsing
+//     }
+//   }, [badge.earned, badge.collected]);
 
-  const borderColor = badge.collected
-    ? 'rgba(94, 204, 114, 1)'
-    : badge.earned
-      ? 'gold'
-      : 'transparent';
+//   const borderColor = badge.collected
+//     ? 'rgba(94, 204, 114, 1)'
+//     : badge.earned
+//       ? 'gold'
+//       : 'transparent';
 
-  const opacity = badge.earned ? 1 : 0.3;
+//   const opacity = badge.earned ? 1 : 0.3;
 
-  return (
-    <TouchableOpacity
-      key={badge.id}
-      onPress={onPress}
-      activeOpacity={0.9}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          width: 60,
-          height: 60,
-          margin: 5,
-          borderRadius: 8,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: badge.earned ? 2 : 0,
-          borderColor,
-          backgroundColor: badge.collected
-            ? 'rgba(94, 204, 114, 0.2)'
-            : badge.earned
-              ? 'rgba(255, 215, 0, 0.15)'
-              : 'rgba(255,255,255,0.1)',
-          shadowColor: badge.earned && !badge.collected ? 'gold' : 'transparent',
-          shadowOpacity: badge.earned && !badge.collected ? 0.8 : 0,
-          shadowRadius: badge.earned && !badge.collected ? 8 : 0,
-          shadowOffset: { width: 0, height: 0 },
-        }}
-      >
-        <Image
-          source={{ uri: `${BASE_URL}${badge.imageUrl}` }}
-          style={{
-            width: 50,
-            height: 50,
-            opacity,
-          }}
-          resizeMode="contain"
-        />
-      </Animated.View>
-    </TouchableOpacity>
-  );
-};
+//   return (
+//     <TouchableOpacity
+//       key={badge.id}
+//       onPress={onPress}
+//       activeOpacity={0.9}
+//     >
+//       <Animated.View
+//         style={{
+//           transform: [{ scale }],
+//           width: 60,
+//           height: 60,
+//           margin: 5,
+//           borderRadius: 8,
+//           alignItems: 'center',
+//           justifyContent: 'center',
+//           borderWidth: badge.earned ? 2 : 0,
+//           borderColor,
+//           backgroundColor: badge.collected
+//             ? 'rgba(94, 204, 114, 0.2)'
+//             : badge.earned
+//               ? 'rgba(255, 215, 0, 0.15)'
+//               : 'rgba(255,255,255,0.1)',
+//           shadowColor: badge.earned && !badge.collected ? 'gold' : 'transparent',
+//           shadowOpacity: badge.earned && !badge.collected ? 0.8 : 0,
+//           shadowRadius: badge.earned && !badge.collected ? 8 : 0,
+//           shadowOffset: { width: 0, height: 0 },
+//         }}
+//       >
+//         <Image
+//           source={{ uri: `${BASE_URL}${badge.imageUrl}` }}
+//           style={{
+//             width: 50,
+//             height: 50,
+//             opacity,
+//           }}
+//           resizeMode="contain"
+//         />
+//       </Animated.View>
+//     </TouchableOpacity>
+//   );
+// };
 
 
   return (
@@ -344,8 +344,9 @@ const PulsingBadge = ({ badge, onPress }) => {
           name={user?.name ?? 'Loading…'}
           currentMemoji={currentMemoji}
           bgColor={backgroundColor}
-          skill_levels={null}
+          // skill_levels={null}
           numCoins={numCoins}
+          badgesGiven={badges}
         />
 
         {/* <View style={styles.menu}> */}
@@ -434,7 +435,7 @@ const PulsingBadge = ({ badge, onPress }) => {
   })}
 </ScrollView> */}
 
-
+{/* 
 <ScrollView
   horizontal
   contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 5 }}
@@ -452,10 +453,10 @@ const PulsingBadge = ({ badge, onPress }) => {
       }}
     />
   ))}
-</ScrollView>
+</ScrollView> */}
 
 
-
+{/* 
 {selectedBadge && (
   <Modal
     transparent
@@ -498,7 +499,7 @@ const PulsingBadge = ({ badge, onPress }) => {
       </View>
     </View>
   </Modal>
-)}
+)} */}
 
 
 
