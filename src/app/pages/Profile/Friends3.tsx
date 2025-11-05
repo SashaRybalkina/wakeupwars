@@ -54,6 +54,7 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
           }
         });
           const data = await res.json();
+          console.log(JSON.stringify(data, null, 2))
           if (!cancelled) {
             setName(data.name)
             setSkillLevels(data.skillLevels);
@@ -169,10 +170,10 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
           currentMemoji={currentMemoji}
           bgColor={backgroundColor}
           numCoins={numCoins}
+          badgesGiven={badges}
         />
       )}
-
-
+{/* 
       <ScrollView horizontal contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 5 }}>
         {badges
           .filter((badge) => badge.earned)
@@ -204,7 +205,9 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
               </TouchableOpacity>
             );
           })}
-      </ScrollView>
+      </ScrollView> */}
+
+      
       </ScrollView>
 
 

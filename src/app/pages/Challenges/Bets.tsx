@@ -29,6 +29,8 @@ type Bet = {
   isPending: boolean;
   isCompleted: boolean;
   isCollected: boolean;
+  initiatorRefunded: boolean;
+  recipientRefunded: boolean;
 }
 
 type Member = {
@@ -87,6 +89,8 @@ const Bets: React.FC<Props> = ({ navigation }) => {
         isPending: item.isPending,
         isCompleted: item.isCompleted,
         isCollected: item.isCollected,
+        initiatorRefunded: item.initiatorRefunded,
+        recipientRefunded: item.recipientRefunded
         }));
 
         const allNonPending = formattedData.filter(bet => !bet.isPending);
@@ -609,11 +613,38 @@ const BetCard: React.FC<{ bet: Bet; user: any; challengeMembers: Member[]; onRef
       });
 
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      Alert.alert("🎉 Success", `You collected ${bet.betAmount * 2} 🪙!`);
+      Alert.alert("🎉 Success", `You collected ${amount} 🪙!`);
       await onRefresh();
     } catch (err) {
       console.error("Collect error:", err);
       Alert.alert("Error", "Failed to collect winnings.");
+    } finally {
+      setIsCollecting(false);
+    }
+  };
+
+
+  const collectRefund = async (amount: number, who: string) => {
+    try {
+      setIsCollecting(true);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("Not authenticated");
+
+      const res = await fetch(endpoints.collectBetRefund(), {  
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ user_id: user.id, bet_id: bet.id, amount, who }),
+      });
+
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      Alert.alert("Success", `You have been refunded ${amount} 🪙`);
+      await onRefresh();
+    } catch (err) {
+      console.error("Collect error:", err);
+      Alert.alert("Error", "Failed to collect refund.");
     } finally {
       setIsCollecting(false);
     }
@@ -636,11 +667,7 @@ const BetCard: React.FC<{ bet: Bet; user: any; challengeMembers: Member[]; onRef
         {isComplete && (
         <Text style={{ color: "#FFD700", fontWeight: "600", marginTop: 5 }}>
         {bet.winnerId === null
-            ? `It's a tie!${
-                bet.initiatorId === user.id || bet.recipientId === user.id
-                ? ` You have been refunded ${bet.betAmount} coins.`
-                : ""
-            }`
+            ? `It's a tie!`
             : bet.winnerId === user.id
             ? "Winner: You 🏆"
             : `Winner: ${bet.winnerId === bet.initiatorId ? bet.initiatorName : bet.recipientName} — You lose!`}
@@ -703,11 +730,29 @@ const BetCard: React.FC<{ bet: Bet; user: any; challengeMembers: Member[]; onRef
         </TouchableOpacity>
       )}
 
-      {/* {isTie && (bet.initiatorId === user.id || bet.recipientId === user.id) && ( // in case of tie, tell them their coins have been given back
+      {isTie && (bet.initiatorId === user.id || bet.recipientId === user.id) && ( 
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: "#4CAF50", marginTop: 10 }]}
+          onPress={() => collectRefund(bet.betAmount, 'Initiator')}
+          disabled={isCollecting || bet.initiatorRefunded}
+        >
           <Text style={styles.actionButtonText}>
-            You have been given back {bet.betAmount} coins.
+            {isCollecting ? "Collecting..." : `Collect refund: ${bet.betAmount} 🪙`}
           </Text>
-      )} */}
+        </TouchableOpacity>
+      )}
+
+      {isTie && (bet.recipientId === user.id) && ( 
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: "#4CAF50", marginTop: 10 }]}
+          onPress={() => collectRefund(bet.betAmount, 'Recipient')}
+          disabled={isCollecting || bet.recipientRefunded}
+        >
+          <Text style={styles.actionButtonText}>
+            {isCollecting ? "Collecting..." : `Collect refund: ${bet.betAmount} 🪙`}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };

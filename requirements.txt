@@ -20,3 +20,4 @@ daphne==4.2.1
 dj-database-url>=2.0.0
 pytz==2025.2
 requests==2.32.0
+firebase-admin==6.6.0

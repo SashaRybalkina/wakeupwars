@@ -3907,6 +3907,33 @@ class CollectBetCoinsView(APIView):
         bet.save()
 
         return Response({"message": "Coins Collected!"}, status=status.HTTP_200_OK)
+    
+
+
+class CollectBetRefundView(APIView):
+    @transaction.atomic
+    def post(self, request):
+        data = request.data
+        user_id = data['user_id']
+        bet_id = data['bet_id']
+        amount = data['amount']
+        who = data['who'] # will be 'Initiator' or 'Recipient'
+
+        user = get_object_or_404(User, id=user_id)
+        bet = get_object_or_404(ChallengeBet, id=bet_id)
+
+        user.numCoins += amount
+        user.save()
+
+        if who == 'Initiator':
+            bet.initiatorRefunded = True
+            bet.save()
+
+        elif who == 'Recipient':
+            bet.recipientRefunded = True
+            bet.save()
+
+        return Response({"message": "Coins Collected!"}, status=status.HTTP_200_OK)
 
 
 

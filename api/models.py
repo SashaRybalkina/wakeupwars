@@ -309,6 +309,10 @@ class ChallengeBet(models.Model):
     isCompleted = models.BooleanField(default=False)
     isCollected = models.BooleanField(default=False)
 
+    # in case of tie
+    initiatorRefunded = models.BooleanField(default=False)
+    recipientRefunded = models.BooleanField(default=False)
+
     class Meta:
         db_table = 'ChallengeBets'
 
@@ -835,4 +839,23 @@ class TypingRaceGamePlayer(models.Model):
 
     def __str__(self):
         return f"{self.player.username} in TypingRace Game {self.game_state.id}"
+    
+
+
+    
+    # class Meta:
+    #     constraints = [
+    #         # Singleplayer: unique per (challenge, game, alarm datetime, user)
+    #         models.UniqueConstraint(
+    #             fields=["challenge", "game", "alarmDateTime", "user"],
+    #             condition=Q(user__isnull=False),
+    #             name="unique_singleplayer_game_state_per_alarm_user",
+    #         ),
+    #         # Multiplayer: unique per (challenge, game, alarm datetime)
+    #         models.UniqueConstraint(
+    #             fields=["challenge", "game", "alarmDateTime"],
+    #             condition=Q(user__isnull=True),
+    #             name="unique_multiplayer_game_state_per_alarm",
+    #         ),
+    #     ]
 

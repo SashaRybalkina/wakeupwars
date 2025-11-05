@@ -117,16 +117,16 @@ from .views import (
     ExtraMemojiesView,
     SetCurrentMemojiView,
     PurchaseMemojiView,
-    SendNotificationView,
     SavePushTokenView,
     UserNotificationsView,
     DeleteNotificationView,
     CurrentChallengesView,
     SaveFCMTokenView,
     SendGroupInviteView,
-    RespondGroupInviteView
+    RespondGroupInviteView,
     CreateTypingRaceGameView,
-    FinalizeTypingRaceResultView
+    FinalizeTypingRaceResultView,
+    CollectBetRefundView,
 )
 
 
@@ -158,6 +158,7 @@ urlpatterns = [
     path('cats/', CatListView.as_view(), name='cat-list'),
     path('collect-badge/', CollectBadgeView.as_view(), name='collect-badge'),
     path('collect-bet-coins/', CollectBetCoinsView.as_view(), name='collect-bet-coins'),
+    path('collect-bet-refund/', CollectBetRefundView.as_view(), name='collect-bet-refund'),
     path('some-cats/', SomeCatsListView.as_view(), name='some-cats'),
     path('games/<int:cat_id>/<str:sing_or_mult>/', GameListView.as_view(), name='game-list'),
     path('games/<str:sing_or_mult>/', SingOrMultGameListView.as_view(), name='sing-or-mult-game-list'),
