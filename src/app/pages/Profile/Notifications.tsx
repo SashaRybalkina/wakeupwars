@@ -59,6 +59,11 @@ const NotificationsPage: React.FC<Props> = ({ navigation }) => {
         whichChall: n.whichChall,
       })
     } 
+    else if (n.screen === "Profile") {
+      navigation.navigate(n.screen as string, {
+        changeTab: true,
+      })
+    }
     else if (n.screen === "GroupDetails") {
       navigation.navigate(n.screen as string, {
         groupId: n.groupId,
@@ -72,6 +77,14 @@ const NotificationsPage: React.FC<Props> = ({ navigation }) => {
         pendingChallengeStartDate: n.startDate,
         pendingChallengeEndDate: n.endDate,
         accepted: n.accepted,
+      })
+    }
+    else if (n.screen === "Bets") {
+      navigation.navigate(n.screen as string, {
+        challId: n.challengeId, 
+        challName: n.challName,
+        challengeMembers: n.members,
+        isCompleted: n.isCompleted,
       })
     }
     else {

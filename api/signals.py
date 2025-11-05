@@ -4,7 +4,11 @@ import logging
 from django.db import transaction
 from django.db.models import Q, Count, F, Value, Sum
 from django.db.models.functions import Coalesce
+from django.shortcuts import get_object_or_404
+
+from api.utils.notifications import send_fcm_notification
 from .models import (
+    FCMDevice,
     GamePerformance,
     ChallengeMembership,
     GameSchedule,
@@ -14,6 +18,7 @@ from .models import (
     Badge,
     UserBadge,
     User,
+    UserNotification,
 )
 from .services.skill import recompute_skill_for_category
 
@@ -132,7 +137,7 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                     if ch.groupID == None and ch.isPublic == False:
                         lone_wolf_badge = Badge.objects.get(name="Lone Wolf")
                         UserBadge.objects.get_or_create(user=winner_user, badge=lone_wolf_badge)
-
+                        
                     else:
                         # for now just give reward here
                         reward_amount = ch.participationFee * ch.members.count()
@@ -166,12 +171,16 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                     user=bet.recipient
                                 ).aggregate(total_points=Sum("score"))["total_points"] or 0
                                 print(recipient_points)
+                                
+                                loser = None
 
                                 if initiator_points > recipient_points:
                                     bet.winner = bet.initiator
+                                    loser = bet.recipient
                                     # User.objects.filter(pk=bet.initiator.pk).update(numCoins=F('numCoins') + (2 * bet.betAmount))
                                 elif recipient_points > initiator_points:
                                     bet.winner = bet.recipient
+                                    loser = bet.initiator
                                     # User.objects.filter(pk=bet.recipient.pk).update(numCoins=F('numCoins') + (2 * bet.betAmount))
                                 else:
                                     bet.winner = None  # tie
@@ -180,6 +189,81 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                     # User.objects.filter(pk=bet.recipient.pk).update(numCoins=F('numCoins') + bet.betAmount)
                                 bet.save()
                                 print(bet.winner)
+                                
+                                if (bet.winner):
+                                    UserNotification.objects.create(
+                                        user=bet.winner,
+                                        title=f"Bet Won!",
+                                        body=f"You won {bet.betAmount} from {loser.name or loser.username}.",
+                                        type="bet_result",
+                                        screen="Bets",
+                                        challengeId=bet.challenge.id,
+                                        challName=bet.challenge.name,
+                                        isCompleted=bet.challenge.isCompleted,
+                                        challengeMembers=bet.challenge.members,
+                                    )
+                                        
+                                    device = FCMDevice.objects.filter(user=bet.winner.id).first()
+                                    recipient_id = bet.winner.id
+                                    if device:
+                                        title=f"Bet Won!",
+                                        body=f"You won {bet.betAmount} from {loser.name or loser.username}.",
+                                        data={
+                                            "screen": "Notifications",
+                                            "type": "bet_result",
+                                        }
+                                        send_fcm_notification(title, body, data, recipient_id)
+
+                                    UserNotification.objects.create(
+                                        user=loser,
+                                        title=f"Bet Lost.",
+                                        body=f"You lost {bet.betAmount} to {bet.winner.name or bet.winner.username}.",
+                                        type="bet_result",
+                                        screen="Bets",
+                                        challengeId=bet.challenge.id,
+                                        challName=bet.challenge.name,
+                                        isCompleted=bet.challenge.isCompleted,
+                                        challengeMembers=bet.challenge.members,
+                                    )
+                                        
+                                    device = FCMDevice.objects.filter(user=loser.id).first()
+                                    recipient_id = loser.id
+                                    if device:
+                                        title=f"Bet Lost.",
+                                        body=f"You lost {bet.betAmount} to {bet.winner.name or bet.winner.username}.",
+                                        data={
+                                            "screen": "Notifications",
+                                            "type": "bet_result",
+                                        }
+                                        send_fcm_notification(title, body, data, recipient_id)
+                            
+                                else:
+                                    for u in [bet.initiator, bet.recipient]:
+                                        other = bet.initiator
+                                        if u == bet.initiator: 
+                                            other = bet.recipient
+                                        UserNotification.objects.create(
+                                            user=u,
+                                            title=f"Bet Tie",
+                                            body=f"You tied with {other.name or other.username}.",
+                                            type="bet_result",
+                                            screen="Bets",
+                                            challengeId=bet.challenge.id,
+                                            challName=bet.challenge.name,
+                                            isCompleted=bet.challenge.isCompleted,
+                                            challengeMembers=bet.challenge.members,
+                                        )
+                                            
+                                        device = FCMDevice.objects.filter(user=u.id).first()
+                                        recipient_id = u.id
+                                        if device:
+                                            title=f"Bet Tie",
+                                            body=f"You tied with {other.name or other.username}.",
+                                            data={
+                                                "screen": "Notifications",
+                                                "type": "bet_result",
+                                            }
+                                            send_fcm_notification(title, body, data, recipient_id)
 
                             # mark first blood winners
                             first_blood_badge = Badge.objects.get(name="First Blood")
@@ -240,6 +324,26 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                 print(user_id)
                                 UserBadge.objects.get_or_create(user_id=user_id, badge=first_blood_badge)
 
+
+                user = get_object_or_404(User, id=winner_user.id)
+                UserNotification.objects.create(
+                    user=user,
+                    title="New Badge!",
+                    body="You unlocked a new badge. Check your Badges page!",
+                    type="badge_unlocked",
+                    screen="Profile",
+                )
+                            
+                device = FCMDevice.objects.filter(user_id=user.id).first()
+                recipient_id = user.id
+                if device:
+                    title="New Badge!",
+                    body="You unlocked a new badge. Check your Badges page!",
+                    data={
+                        "screen": "Notifications",
+                        "type": "badge_unlocked",
+                    }
+                    send_fcm_notification(title, body, data, recipient_id)
 
         except Exception:
             logging.exception("daily progress rollup (post_save) failed")

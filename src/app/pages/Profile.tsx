@@ -16,7 +16,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { NativeModules } from 'react-native';
 
@@ -28,7 +28,7 @@ const { AlarmModule } = NativeModules;
 import { scheduleAlarmsForUser } from '../alarmService';
 
 type Props = {
-  navigation: NavigationProp<any>;
+  changeTab?: boolean;
 };
 
 
@@ -37,11 +37,11 @@ type Memoji = {
   imageUrl: string;
 }
 
-const Profile: React.FC<Props> = ({ navigation }) => {
+const Profile: React.FC<Props> = ({ changeTab=false }) => {
   //--------------------------
   //const goToPatternGame = () => navigation.navigate("PatternGame")
   //-------------
-
+  const navigation = useNavigation<any>();
   const goToChallenges = () => navigation.navigate('Challenges');
   const goToGroups = () => navigation.navigate('Groups');
   const goToMessages = () => navigation.navigate('Messages');
@@ -347,6 +347,7 @@ const collectBadge = async (badgeId: number) => {
           // skill_levels={null}
           numCoins={numCoins}
           badgesGiven={badges}
+          changeTab={changeTab}
         />
 
         {/* <View style={styles.menu}> */}

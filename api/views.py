@@ -777,6 +777,14 @@ class SendBetView(APIView):
         #     bet_amount
         # };
         data = request.data
+        challengeId = data['chall_id'],
+        initiatorId = data['initiator_id'],
+        recipientId = data['recipient_id'],
+        betAmount = data['bet_amount'],
+        
+        initiator = get_object_or_404(User, id=initiatorId)
+        challenge = get_object_or_404(Challenge, id=challengeId)
+        recipient = get_object_or_404(User, id=recipientId)
 
         try:
             with transaction.atomic():
@@ -787,6 +795,30 @@ class SendBetView(APIView):
                     betAmount=data['bet_amount'],
                     isPending=True,
                 )
+                
+                UserNotification.objects.create(
+                    user=recipient,
+                    title="Invited to Bet",
+                    body=f"{initiator.name or initiator.username} has made a bet of {betAmount}.",
+                    type="send_bet",
+                    screen="Bets",
+                    challengeId=challengeId,
+                    challName=challenge.name,
+                    isCompleted=challenge.isCompleted,
+                    challengeMembers=challenge.members,
+                )
+            
+                device = FCMDevice.objects.filter(user_id=recipientId).first()
+                recipient_id = recipientId
+                if device:
+                    title = "Invited to Bet"
+                    body = f"{initiator.name or initiator.username} has made a bet of {betAmount}."
+                    data={
+                        "screen": "Notifications",
+                        "type": "send_bet",
+                    }
+                    send_fcm_notification(title, body, data, recipient_id)
+                
                 return Response(
                     {"message": "Bet sent successfully"},
                     status=status.HTTP_201_CREATED,
@@ -905,10 +937,7 @@ class AddGroupMemberView(APIView):
                 screen="Groups",
             )
             
-            device = FCMDevice.objects.filter(user=user.id).first()
-            print(device)
-            print(user)
-            print(user.id)
+            device = FCMDevice.objects.filter(user_id=user.id).first()
             recipient_id = user.id
             if device:
                 title = "Added to Group"
@@ -1702,8 +1731,10 @@ class RespondToBetInviteView(APIView):
     def post(self, request):
         data = request.data
         bet = get_object_or_404(ChallengeBet, id=data['bet_id'])
+        response = "Accepted"
 
         if not data.get('accept'):
+            response = "Declined"
             bet.delete()
             return Response({"message": "Bet declined and deleted."}, status=status.HTTP_200_OK)
 
@@ -1718,6 +1749,29 @@ class RespondToBetInviteView(APIView):
         # Check badges for both users
         self.check_bet_badges(bet.initiator)
         self.check_bet_badges(bet.recipient)
+        
+        UserNotification.objects.create(
+            user=bet.initiator,
+            title=f"Bet {response}",
+            body=f"{bet.recipient.name or bet.recipient.username} has {response.lower} the bet invite.",
+            type="bet_response",
+            screen="Bets",
+            challengeId=bet.challenge.id,
+            challName=bet.challenge.name,
+            isCompleted=bet.challenge.isCompleted,
+            challengeMembers=bet.challenge.members,
+        )
+            
+        device = FCMDevice.objects.filter(user_id=bet.initiator.id).first()
+        recipient_id = bet.initiator.id
+        if device:
+            title=f"Bet {response}",
+            body=f"{bet.recipient.name or bet.recipient.username} has {response.lower} the bet invite.",
+            data={
+                "screen": "Notifications",
+                "type": "bet_invite_response",
+            }
+            send_fcm_notification(title, body, data, recipient_id)
 
         return Response({"message": "Bet accepted successfully."}, status=status.HTTP_200_OK)
 
@@ -1729,7 +1783,6 @@ class RespondToBetInviteView(APIView):
         first_wager_badge = Badge.objects.get(name="First Wager")
         # UserBadge.objects.get_or_create(user=user, badge=first_wager_badge)
         UserBadge.objects.get_or_create(user=user, badge=first_wager_badge, defaults={'collected': False})
-
 
         # Only consider accepted (non-pending) bets for this user
         # total bets (count each bet once where user is initiator OR recipient)
@@ -1757,6 +1810,26 @@ class RespondToBetInviteView(APIView):
         if total_bets_count >= 2:
             riREDACTEDtaker_badge = Badge.objects.get(name="Risk Taker")
             UserBadge.objects.get_or_create(user=user, badge=riREDACTEDtaker_badge, defaults={'collected': False})
+    
+
+        UserNotification.objects.create(
+            user=user,
+            title="New Badge!",
+            body="You unlocked a new badge. Check your Badges page!",
+            type="badge_unlocked",
+            screen="Profile",
+        )
+            
+        device = FCMDevice.objects.filter(user_id=user.id).first()
+        recipient_id = user.id
+        if device:
+            title="New Badge!",
+            body="You unlocked a new badge. Check your Badges page!",
+            data={
+                "screen": "Notifications",
+                "type": "badge_unlocked",
+            }
+            send_fcm_notification(title, body, data, recipient_id)
 
 
 

@@ -16,7 +16,8 @@ type Props = {
   currentMemoji: Memoji | null;
   bgColor: string;
   numCoins: number;
-  badgesGiven: Badge[]
+  badgesGiven: Badge[];
+  changeTab?: boolean;
 };
 
 type Memoji = {
@@ -33,13 +34,13 @@ type Badge = {
 };
 
 
-const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoins, isCurrentUser = true, skillLevelsOverride, disableSkillDetail, badgesGiven }) => {
+const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoins, isCurrentUser = true, skillLevelsOverride, disableSkillDetail, badgesGiven, changeTab = false }) => {
   const { skillLevels, user } = useUser();
   const navigation = useNavigation<any>();
-  const [tab, setTab] = React.useState<'skills' | 'badges'>('skills');
+  const [tab, setTab] = React.useState<'skills' | 'badges'>(changeTab ? 'badges' : 'skills');
   const [infoVisible, setInfoVisible] = React.useState(false);
 
-  const [badges, setBadges] = useState<Badge[]>(badgesGiven);
+  const [badges, setBadges] = useState<Badge[]>(badgesGiven  []);
   const [selectedBadge, setSelectedBadge] = useState<null | any>(null);
 
   console.log(skillLevelsOverride)
@@ -47,6 +48,10 @@ const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoi
   const effectiveSkills = Array.isArray(skillLevelsOverride) ? skillLevelsOverride : skillLevels;
   const list = Array.isArray(effectiveSkills) ? effectiveSkills : [];
   for (let i = 0; i < list.length; i += 3) rows.push(list.slice(i, i + 3));
+
+  useEffect(() => {
+    setBadges(badgesGiven  []);
+  }, [badgesGiven]);
 
   const getVal = (sl: any) => {
     const serverVal = sl?.skill != null ? Number(sl.skill) : null;
