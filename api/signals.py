@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from api.utils.notifications import send_fcm_notification
 from .models import (
     FCMDevice,
+    Game,
     GamePerformance,
     ChallengeMembership,
     GameSchedule,
@@ -115,6 +116,128 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                 return
 
             Challenge.objects.filter(pk=ch.id, isCompleted=False).update(isCompleted=True)
+            
+            # --- Notifications for early finishers and non-participants (with multiplayer/singleplayer logic) ---
+
+            # --- 1️⃣ Early Finishers ---
+            # Find the last performance date overall for this challenge
+            last_perf_date = (
+                GamePerformance.objects
+                .filter(challenge=ch)
+                .aggregate(latest=Max("date"))
+                ["latest"]
+            )
+
+            early_finishers = set()
+            if last_perf_date:
+                # Each user's last recorded performance date
+                user_last_dates = (
+                    GamePerformance.objects
+                    .filter(challenge=ch)
+                    .values("user_id")
+                    .annotate(last_date=Max("date"))
+                )
+
+                for record in user_last_dates:
+                    if record["last_date"] < last_perf_date:
+                        early_finishers.add(record["user_id"])
+
+            # Notify early finishers
+            for user_id in early_finishers:
+                user = User.objects.get(id=user_id)
+                UserNotification.objects.create(
+                    user=user,
+                    title="Finished Early!",
+                    body=f"You completed the challenge '{ch.name}' before others — great job!",
+                    type="challenge_progress",
+                    screen="Challenges",
+                    challengeId=ch.id,
+                    challName=ch.name,
+                    isCompleted=True,
+                    challengeMembers=ch.members,
+                )
+                device = FCMDevice.objects.filter(user_id=user_id).first()
+                if device:
+                    send_fcm_notification(
+                        title="Finished Early!",
+                        body=f"You completed the challenge '{ch.name}' before others — great job!",
+                        data={
+                            "screen": "Notifications",
+                            "type": "challenge_progress",
+                            "challengeId": ch.id,
+                        },
+                        recipient_id=user_id
+                    )
+
+            # --- 2️⃣ Identify who didn't participate in the final scheduled day ---
+
+            # All challenge members
+            all_member_ids = set(ch.members.values_list("id", flat=True))
+
+            # Games scheduled for this weekday (same logic as above)
+            dow = play_date.weekday() + 1  # Monday = 1 .. Sunday = 7
+            sched_ids = GameSchedule.objects.filter(challenge=ch, dayOfWeek=dow).values_list("id", flat=True)
+            scheduled_game_ids = list(
+                GameScheduleGameAssociation.objects
+                .filter(game_schedule_id__in=sched_ids)
+                .values_list("game_id", flat=True)
+            )
+
+            # Determine if any of these scheduled games are multiplayer
+            multiplayer_games = Game.objects.filter(id__in=scheduled_game_ids, isMultiplayer=True)
+            is_multiplayer_day = multiplayer_games.exists()
+
+            # Users who played (submitted performances) on final day
+            participants_final_day_ids = set(
+                GamePerformance.objects
+                .filter(challenge=ch, date=play_date)
+                .values_list("user_id", flat=True)
+            )
+
+            # --- Multiplayer logic ---
+            if is_multiplayer_day:
+                # Notify members who didn't join multiplayer game(s)
+                non_participants_ids = all_member_ids - participants_final_day_ids
+
+            # --- Singleplayer logic ---
+            else:
+                # Even if all games are singleplayer, still notify those who missed the day
+                non_participants_ids = all_member_ids - participants_final_day_ids
+
+            # Notify non-participants if any
+            for user_id in non_participants_ids:
+                user = User.objects.get(id=user_id)
+                UserNotification.objects.create(
+                    user=user,
+                    title="Challenge Completed!",
+                    body=(
+                        f"The challenge '{ch.name}' has ended — you missed the final "
+                        f"{'multiplayer' if is_multiplayer_day else 'singleplayer'} game!"
+                    ),
+                    type="challenge_completed",
+                    screen="Challenges",
+                    challengeId=ch.id,
+                    challName=ch.name,
+                    isCompleted=True,
+                    challengeMembers=ch.members,
+                )
+
+                device = FCMDevice.objects.filter(user_id=user_id).first()
+                if device:
+                    send_fcm_notification(
+                        title="Challenge Completed!",
+                        body=(
+                            f"The challenge '{ch.name}' has ended — you missed the final "
+                            f"{'multiplayer' if is_multiplayer_day else 'singleplayer'} game!"
+                        ),
+                        data={
+                            "screen": "Notifications",
+                            "type": "challenge_completed",
+                            "challengeId": ch.id,
+                        },
+                        recipient_id=user_id
+                    )
+
 
             # --- Begin reward + badge logic ---
             users_with_new_badges = set()  # collect all users who earn a badge
