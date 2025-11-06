@@ -777,22 +777,23 @@ class SendBetView(APIView):
         #     bet_amount
         # };
         data = request.data
-        challengeId = data['chall_id'],
-        initiatorId = data['initiator_id'],
-        recipientId = data['recipient_id'],
-        betAmount = data['bet_amount'],
+        challengeId = data['chall_id']
+        initiatorId = data['initiator_id']
+        recipientId = data['recipient_id']
+        betAmount = data['bet_amount']
         
         initiator = get_object_or_404(User, id=initiatorId)
         challenge = get_object_or_404(Challenge, id=challengeId)
         recipient = get_object_or_404(User, id=recipientId)
 
+
         try:
             with transaction.atomic():
                 ChallengeBet.objects.create(
-                    challenge_id=data['chall_id'],
-                    initiator_id=data['initiator_id'],
-                    recipient_id=data['recipient_id'],
-                    betAmount=data['bet_amount'],
+                    challenge_id=challengeId,
+                    initiator_id=initiatorId,
+                    recipient_id=recipientId,
+                    betAmount=betAmount,
                     isPending=True,
                 )
                 
@@ -805,7 +806,6 @@ class SendBetView(APIView):
                     challengeId=challengeId,
                     challName=challenge.name,
                     isCompleted=challenge.isCompleted,
-                    challengeMembers=challenge.members,
                 )
             
                 device = FCMDevice.objects.filter(user_id=recipientId).first()
@@ -1759,7 +1759,6 @@ class RespondToBetInviteView(APIView):
             challengeId=bet.challenge.id,
             challName=bet.challenge.name,
             isCompleted=bet.challenge.isCompleted,
-            challengeMembers=bet.challenge.members,
         )
             
         device = FCMDevice.objects.filter(user_id=bet.initiator.id).first()

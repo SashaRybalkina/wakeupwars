@@ -124,7 +124,7 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
             last_perf_date = (
                 GamePerformance.objects
                 .filter(challenge=ch)
-                .aggregate(latest=Max("date"))
+                .aggregate(latest=max("date"))
                 ["latest"]
             )
 
@@ -135,7 +135,7 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                     GamePerformance.objects
                     .filter(challenge=ch)
                     .values("user_id")
-                    .annotate(last_date=Max("date"))
+                    .annotate(last_date=max("date"))
                 )
 
                 for record in user_last_dates:
