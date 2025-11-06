@@ -92,6 +92,7 @@ const Bets: React.FC<Props> = ({ navigation }) => {
         initiatorRefunded: item.initiatorRefunded,
         recipientRefunded: item.recipientRefunded
         }));
+        console.log(formattedData)
 
         const allNonPending = formattedData.filter(bet => !bet.isPending);
         const myNonPending = formattedData.filter(
@@ -104,6 +105,7 @@ const Bets: React.FC<Props> = ({ navigation }) => {
         setBets(allNonPending);
         setMyBets(myNonPending);
         setPendingMyBets(myPending);
+
     } catch (error) {
         console.error("Failed to fetch bets:", error);
     } finally {
@@ -730,7 +732,7 @@ const BetCard: React.FC<{ bet: Bet; user: any; challengeMembers: Member[]; onRef
         </TouchableOpacity>
       )}
 
-      {isTie && (bet.initiatorId === user.id || bet.recipientId === user.id) && ( 
+      {isTie && (bet.initiatorId === user.id) && !bet.initiatorRefunded && ( 
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: "#4CAF50", marginTop: 10 }]}
           onPress={() => collectRefund(bet.betAmount, 'Initiator')}
@@ -742,7 +744,7 @@ const BetCard: React.FC<{ bet: Bet; user: any; challengeMembers: Member[]; onRef
         </TouchableOpacity>
       )}
 
-      {isTie && (bet.recipientId === user.id) && ( 
+      {isTie && (bet.recipientId === user.id) && !bet.recipientRefunded && ( 
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: "#4CAF50", marginTop: 10 }]}
           onPress={() => collectRefund(bet.betAmount, 'Recipient')}

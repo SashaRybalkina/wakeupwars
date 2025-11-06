@@ -60,6 +60,7 @@ class ChallengeBetSerializer(serializers.ModelSerializer):
             'initiator_name', 'recipient_name',
             'initiator_points', 'recipient_points',
             'betAmount', 'isPending', 'isCompleted', 'isCollected',
+            'initiatorRefunded', 'recipientRefunded',
         ]
 
     def get_initiator_points(self, obj):

@@ -3755,24 +3755,61 @@ class UserDataView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+
 class BadgesView(APIView):
     def get(self, request, user_id):
         badges = Badge.objects.all()
         user_badges = UserBadge.objects.filter(user_id=user_id)
         earned_map = {ub.badge_id: ub.collected for ub in user_badges}
 
-        data = [
-            {
+        # Compute progress info for badges that need it
+        user = get_object_or_404(User, id=user_id)
+
+        # All bets (non-pending)
+        bets = ChallengeBet.objects.filter(isPending=False).filter(
+            Q(initiator=user) | Q(recipient=user)
+        )
+
+        total_bets_count = bets.count()
+
+        partners_as_initiator = ChallengeBet.objects.filter(isPending=False, initiator=user).values_list('recipient_id', flat=True)
+        partners_as_recipient = ChallengeBet.objects.filter(isPending=False, recipient=user).values_list('initiator_id', flat=True)
+        unique_partners_count = len(set(partners_as_initiator) | set(partners_as_recipient))
+
+        # progress goals
+        social_butterfly_goal = 5
+        riREDACTEDtaker_goal = 5
+
+        data = []
+        for badge in badges:
+            badge_data = {
                 "id": badge.id,
                 "name": badge.name,
                 "description": badge.description,
                 "imageUrl": badge.imageUrl,
                 "earned": badge.id in earned_map,
-                "collected": earned_map.get(badge.id, False)
+                "collected": earned_map.get(badge.id, False),
             }
-            for badge in badges
-        ]
+
+            # Add custom progress fields for certain badges
+            if badge.name == "Social Butterfly":
+                badge_data["progress"] = {
+                    "current": unique_partners_count,
+                    "goal": social_butterfly_goal,
+                    "percentage": min(unique_partners_count / social_butterfly_goal, 1.0)
+                }
+
+            elif badge.name == "Risk Taker":
+                badge_data["progress"] = {
+                    "current": total_bets_count,
+                    "goal": riREDACTEDtaker_goal,
+                    "percentage": min(total_bets_count / riREDACTEDtaker_goal, 1.0)
+                }
+
+            data.append(badge_data)
+
         return Response(data, status=status.HTTP_200_OK)
+
     
 
 

@@ -30,6 +30,12 @@ type Badge = {
   earned: boolean;
   collected: boolean;
   name?: string;
+  description?: string;
+  progress?: {
+    current: number;
+    goal: number;
+    percentage: number;
+  };
 };
 
 
@@ -373,7 +379,6 @@ const PulsingBadge = ({ badge, onPress }) => {
       </View>
 
 
-
 {selectedBadge && (
   <Modal
     transparent
@@ -381,21 +386,25 @@ const PulsingBadge = ({ badge, onPress }) => {
     visible={!!selectedBadge}
     onRequestClose={() => setSelectedBadge(null)}
   >
-    <View style={{
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 20,
-    }}>
-      <View style={{
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 20,
-        width: '100%',
-        maxWidth: 300,
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
         alignItems: 'center',
-      }}>
+        padding: 20,
+      }}
+    >
+      <View
+        style={{
+          backgroundColor: '#fff',
+          borderRadius: 12,
+          padding: 20,
+          width: '100%',
+          maxWidth: 300,
+          alignItems: 'center',
+        }}
+      >
         <Image
           source={{ uri: `${BASE_URL}${selectedBadge.imageUrl}` }}
           style={{ width: 80, height: 80 }}
@@ -404,12 +413,45 @@ const PulsingBadge = ({ badge, onPress }) => {
         <Text style={{ fontWeight: 'bold', fontSize: 18, marginTop: 10 }}>
           {selectedBadge.name}
         </Text>
-        <Text style={{ fontSize: 14, textAlign: 'center', marginTop: 5 }}>
+        <Text
+          style={{
+            fontSize: 14,
+            textAlign: 'center',
+            marginTop: 5,
+            color: '#333',
+          }}
+        >
           {selectedBadge.description}
         </Text>
+
+        {/* ✅ Progress dots if badge has progress info */}
+        {selectedBadge.progress && (
+          <View style={{ marginTop: 15, alignItems: 'center' }}>
+            <Text style={{ fontWeight: '600', marginBottom: 8 }}>
+              Progress: {selectedBadge.progress.current}/{selectedBadge.progress.goal}
+            </Text>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+              {Array.from({ length: selectedBadge.progress.goal }).map((_, i) => (
+                <View
+                  key={i}
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: 7,
+                    marginHorizontal: 4,
+                    backgroundColor:
+                      i < selectedBadge.progress.current ? '#4CAF50' : '#ccc',
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
         <TouchableOpacity
           onPress={() => setSelectedBadge(null)}
-          style={{ marginTop: 15, padding: 10 }}
+          style={{ marginTop: 20, paddingVertical: 8, paddingHorizontal: 20 }}
         >
           <Text style={{ color: '#007BFF', fontWeight: 'bold' }}>Close</Text>
         </TouchableOpacity>

@@ -37,6 +37,20 @@ type Memoji = {
   imageUrl: string;
 }
 
+type Badge = {
+  id: number;
+  imageUrl: string;
+  earned: boolean;
+  collected: boolean;
+  name?: string;
+  description?: string;
+  progress?: {
+    current: number;
+    goal: number;
+    percentage: number;
+  };
+};
+
 const Profile: React.FC<Props> = ({ navigation }) => {
   //--------------------------
   //const goToPatternGame = () => navigation.navigate("PatternGame")
@@ -53,7 +67,7 @@ const Profile: React.FC<Props> = ({ navigation }) => {
   const [numCoins, setNumCoins] = useState<number>(0);
   const [backgroundColor, setBackgroundColor] = useState<string>('#FFB3BA');
   const { user, setUser, setSkillLevels } = useUser();
-  const [badges, setBadges] = useState<any[]>([]);
+  const [badges, setBadges] = useState<Badge[]>([]);
   const [selectedBadge, setSelectedBadge] = useState<null | any>(null);
   const [notifCount, setNotifCount] = useState(0);
 
@@ -108,9 +122,9 @@ const handleLogout = async () => {
 
     fetchNotificationsCount();
 
-    // Optional: refresh count every 30s while on profile
-    const interval = setInterval(fetchNotificationsCount, 30000);
-    return () => clearInterval(interval);
+    // // Optional: refresh count every 30s while on profile
+    // const interval = setInterval(fetchNotificationsCount, 30000);
+    // return () => clearInterval(interval);
   }, [user]);
 
     // useEffect(() => {
