@@ -314,10 +314,6 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
               isWinner
             });
             console.log('[WebSocket] Game complete:', scoresArr);
-            // Auto-return after 2s so ChallDetails regains focus and refreshes
-            setTimeout(() => {
-              navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall });
-            }, 2000);
             Alert.alert(
               isWinner ? '🏆 You Win!' : '❌ Game Over',
               scoresArr.map((s: { username: string; score: number }) => `${s.username}: ${s.score}`).join('\n'),

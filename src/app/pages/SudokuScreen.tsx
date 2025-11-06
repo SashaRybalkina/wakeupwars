@@ -477,9 +477,6 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                 try {
                   await refreshSkills();
                   // Auto-navigate to ChallDetails after 2s to allow backend to finalize
-                  setTimeout(() => {
-                    navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall });
-                  }, 2000);
                   Alert.alert(
                     "🎉 Puzzle Complete!",
                     `\n\nScores:\n` +
@@ -487,7 +484,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                         .sort((a, b) => b.score - a.score)
                         .map(s => `${s.username}: ${s.score} (✅ ${s.accuracy} / ❌ ${s.inaccuracy})`)
                         .join("\n"),
-                    [{ text: "OK" }]
+                    [{ text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) }]
                   );
                 } catch (err) {
                   console.error("submit score failed", err);
@@ -602,12 +599,8 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                     console.error("submit score failed", e);
                   }
                 }
-                // Auto-return after 2s to allow backend to finalize
-                setTimeout(() => {
-                  navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall });
-                }, 2000);
                 Alert.alert("🎉 Puzzle Complete!", "", [
-                  { text: "OK" },
+                  { text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) },
                 ]);
               })();
             }

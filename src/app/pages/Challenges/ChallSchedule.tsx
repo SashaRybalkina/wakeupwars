@@ -53,13 +53,14 @@ const DayOfWeekLabels: Record<number, string> = { 1: "M", 2: "T", 3: "W", 4: "TH
 
 const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const route = useRoute()
-  const { challId, challName, fromSearch, userAverageSkillLevel, isInitiator, fromInvite } = route.params as { 
+  const { challId, challName, fromSearch, userAverageSkillLevel, isInitiator, fromInvite, whichChall } = route.params as { 
     challId: number; 
     challName: string, 
     fromSearch: boolean,
     userAverageSkillLevel: number,
     isInitiator: boolean,
     fromInvite: boolean,
+    whichChall?: string,
   }
 
   const [startDate, setStartDate] = useState<string>()
@@ -265,7 +266,7 @@ const addGameToDay = async (game: { id: number; name: string }) => {
   const goToProfile = () => navigation.navigate("Profile")
 
   const goToSudoku = () => {
-    navigation.navigate('Sudoku', { challengeId: challId });
+    navigation.navigate('Sudoku', { challengeId: challId, challName, whichChall: whichChall ?? 'Group' });
   };
 
   const goToWordle = () => {

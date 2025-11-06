@@ -111,6 +111,8 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
   const [perfLoading, setPerfLoading] = useState(false);
   const [perfError, setPerfError] = useState<string | null>(null);
 
+  const [isPublicChallenge, setIsPublicChallenge] = useState<boolean | null>(null);
+  const [groupIdVal, setGroupIdVal] = useState<number | null>(null);
 
   // reward editor
   const [reward, setReward] = useState<any|null>(null);   // fetched reward_setting
@@ -161,6 +163,13 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
         setTotalDays(data.totalDays ?? 30)
         console.log('total days??', data.totalDays)
         setMembers(data.members);
+        try {
+          const schedRes = await axios.get(endpoints.getChallengeSchedule(challId), {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          });
+          setIsPublicChallenge(!!schedRes.data?.isPublic);
+          setGroupIdVal(schedRes.data?.groupId ?? null);
+        } catch {}
         // setCanEditReward(!!data.initiator_id);
         // setReward(data.reward_setting);
         // console.log('reward setting??',!!data.reward_setting)
@@ -234,7 +243,7 @@ const loadPerformances = async () => {
     const accessToken = await getAccessToken();
     if (!accessToken) throw new Error("Not authenticated");
 
-    const res = await fetch(endpoints.getPerformances(challId), {
+    const res = await fetch(`${endpoints.getPerformances(challId)}?t=${Date.now()}`, {
                 headers: {
                   Authorization: `Bearer ${accessToken}`
                 }
@@ -292,10 +301,20 @@ const loadPerformances = async () => {
             setDaysComplete(data.daysCompleted);
             setTotalDays(data.totalDays ?? 30);
             setMembers(data.members);
+            try {
+              const schedRes = await axios.get(endpoints.getChallengeSchedule(challId), {
+                headers: { Authorization: `Bearer ${accessToken}` }
+              });
+              setIsPublicChallenge(!!schedRes.data?.isPublic);
+              setGroupIdVal(schedRes.data?.groupId ?? null);
+            } catch {}
           } catch {}
         })();
 
-        if (whichChall === "Personal") {
+        if (isPublicChallenge === null && groupIdVal === null) {
+          return () => {};
+        }
+        if (isPublicChallenge === false && !groupIdVal) {
           loadPerformances();
           return () => {};
         } else {
@@ -331,7 +350,7 @@ const loadPerformances = async () => {
           //   timeoutIds.forEach(id => clearTimeout(id));
           // };
         }
-      }, [challId, whichChall])
+      }, [challId, isPublicChallenge, groupIdVal])
     );
 
     // useEffect(() => {
@@ -424,6 +443,9 @@ const loadPerformances = async () => {
     return [...top3, { ellipsis: true }, me]
   }
   const displayRows = buildDisplayRows()
+  const typeKnown = (isPublicChallenge !== null || groupIdVal !== null)
+  const isPersonal = typeKnown ? (isPublicChallenge === false && !groupIdVal) : null as null | boolean
+  console.log("is personal: ", isPersonal)
 
   return (
     <ImageBackground source={require("../../images/cgpt.png")} style={styles.background} resizeMode="cover">
@@ -512,7 +534,7 @@ const loadPerformances = async () => {
           </View>
 
 {/* Leaderboard or Performance Section */}
-{(whichChall === "Group" || whichChall === "Public") && (
+{(isPersonal === false) && (
   <View style={styles.leaderboardCard}>
     <View style={styles.leaderboardHeader}>
       <Ionicons name="trophy" size={24} color="#FFD700" style={styles.trophyIcon} />
@@ -577,7 +599,7 @@ const loadPerformances = async () => {
   </View>
 )}
 
-{whichChall === "Personal" && (
+{(isPersonal === true) && (
   <View style={styles.leaderboardCard}>
     <View style={styles.leaderboardHeader}>
       <Ionicons name="time-outline" size={24} color="#FFD700" style={styles.trophyIcon} />
@@ -610,7 +632,7 @@ const loadPerformances = async () => {
 )}
 
 
-{(whichChall === "Group" || whichChall === "Public") && (
+{(isPersonal === false) && (
     <TouchableOpacity
       style={styles.viewDetailsButton}
       onPress={() =>

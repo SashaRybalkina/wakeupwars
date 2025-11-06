@@ -257,12 +257,8 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
               .sort((a, b) => b.score - a.score)
               .map((s) => `${s.username}: ${s.score} (R${s.rounds_completed})`)
               .join('\n');
-            // Auto-navigate back after 2s to let backend finalize GP and refresh details
-            setTimeout(() => {
-              navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall });
-            }, 2000);
             Alert.alert('🏁 Game Completed', lines || 'No scores', [
-              { text: 'OK' },
+              { text: 'OK', onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) },
             ]);
             break;
           }

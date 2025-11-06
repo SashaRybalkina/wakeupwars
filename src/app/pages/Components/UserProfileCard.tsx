@@ -39,8 +39,11 @@ const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoi
   const [tab, setTab] = React.useState<'skills' | 'badges'>('skills');
   const [infoVisible, setInfoVisible] = React.useState(false);
 
-  const [badges, setBadges] = useState<Badge[]>(badgesGiven);
+  const [badges, setBadges] = useState<Badge[]>(badgesGiven || []);
   const [selectedBadge, setSelectedBadge] = useState<null | any>(null);
+  useEffect(() => {
+    setBadges(badgesGiven || []);
+  }, [badgesGiven]);
 
   console.log(skillLevelsOverride)
   const rows: any[][] = [];
