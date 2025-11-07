@@ -18,9 +18,23 @@ type Props = {
   navigation: NavigationProp<any>
 }
 
+
+type Challenge = {
+  id: number
+  name: string
+  startDate: string
+  endDate: string
+  daysOfWeek: string[]
+  daysCompleted: number
+  totalDays: number
+  isCompleted: boolean
+  isGroupChallenge: boolean
+}
+
+
 const PersChall1: React.FC<Props> = ({ navigation }) => {
   const { user } = useUser()
-  const [challenges, setChallenges] = useState<any[]>([])
+  const [challenges, setChallenges] = useState<Challenge[]>([])
   const [pendingChallenges, setPendingChallenges] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -34,54 +48,78 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
       if (!accessToken) {
         throw new Error("Not authenticated");
       }
+    
+          const response = await fetch(endpoints.getPersonalChallenges(Number(user?.id)), {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              });
+          const data = await response.json();
 
-      const response = await axios.get(endpoints.challengeList(Number(user!.id), "Personal"), {
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-        },
-      });
+          const formattedData = data.map(
+            (item: Challenge) => ({
+                id: item.id,
+                name: item.name,
+                startDate: item.startDate,
+                endDate: item.endDate,
+                daysOfWeek: item.daysOfWeek,
+                daysCompleted: item.daysCompleted,
+                totalDays: item.totalDays,
+                isCompleted: item.isCompleted,
+                isGroupChallenge: item.isGroupChallenge,
+            })
+          );
+          setChallenges(formattedData);
 
-      // attach alarm schedule for each challenge
-      const challengesWithAlarms = await Promise.all(
-        response.data.map(async (c: any) => {
-          try {
-            const scheduleRes = await axios.get(endpoints.challengeSchedule(c.id), {
-              headers: {
-                "Authorization": `Bearer ${accessToken}`,
-              },
-            });
-            const alarmSchedule = scheduleRes.data.map((day: any) => ({
-              dayOfWeek: day.dayOfWeek,
-              alarmTime: day.alarmTime,
-              userName: "",
-            }))
-            return {
-              id: c.id,
-              name: c.name,
-              daysCompleted: c.daysCompleted || 0,
-              startDate: c.startDate,
-              endDate: c.endDate || null,
-              totalDays: c.totalDays,
-              daysOfWeek: c.daysOfWeek ?? [],
-              alarmSchedule,
-              isCompleted: c.isCompleted,
-            }
-          } catch {
-            return {
-              id: c.id,
-              name: c.name,
-              daysCompleted: c.daysCompleted || 0,
-              startDate: c.startDate,
-              endDate: c.endDate || null,
-              totalDays: c.totalDays ?? 30, // TODO: fix this
-              daysOfWeek: c.daysOfWeek ?? [],
-              alarmSchedule: [],
-              isCompleted: c.isCompleted,
-            }
-          }
-        })
-      )
-      setChallenges(challengesWithAlarms)
+
+
+      // const response = await axios.get(endpoints.challengeList(Number(user!.id), "Personal"), {
+      //   headers: {
+      //     "Authorization": `Bearer ${accessToken}`,
+      //   },
+      // });
+
+      // // attach alarm schedule for each challenge
+      // const challengesWithAlarms = await Promise.all(
+      //   response.data.map(async (c: any) => {
+      //     try {
+      //       const scheduleRes = await axios.get(endpoints.challengeSchedule(c.id), {
+      //         headers: {
+      //           "Authorization": `Bearer ${accessToken}`,
+      //         },
+      //       });
+      //       const alarmSchedule = scheduleRes.data.map((day: any) => ({
+      //         dayOfWeek: day.dayOfWeek,
+      //         alarmTime: day.alarmTime,
+      //         userName: "",
+      //       }))
+      //       return {
+      //         id: c.id,
+      //         name: c.name,
+      //         daysCompleted: c.daysCompleted || 0,
+      //         startDate: c.startDate,
+      //         endDate: c.endDate || null,
+      //         totalDays: c.totalDays,
+      //         daysOfWeek: c.daysOfWeek ?? [],
+      //         alarmSchedule,
+      //         isCompleted: c.isCompleted,
+      //       }
+      //     } catch {
+      //       return {
+      //         id: c.id,
+      //         name: c.name,
+      //         daysCompleted: c.daysCompleted || 0,
+      //         startDate: c.startDate,
+      //         endDate: c.endDate || null,
+      //         totalDays: c.totalDays ?? 30, // TODO: fix this
+      //         daysOfWeek: c.daysOfWeek ?? [],
+      //         alarmSchedule: [],
+      //         isCompleted: c.isCompleted,
+      //       }
+      //     }
+      //   })
+      // )
+      // setChallenges(challengesWithAlarms)
 
       // fetch pending invites
       const pendingRes = await axios.get(endpoints.getPersonalChallengeInvites(Number(user!.id)), {
@@ -114,7 +152,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
         throw new Error("Not authenticated");
       }
 
-      //await scheduleAlarmsForUser(challId, challName, Number(user?.id));
+      // await scheduleAlarmsForUser(challId, challName, Number(user?.id));
 
       const res = await fetch(endpoints.acceptPersonalChallenge(Number(user!.id), challId), {
         method: 'POST',
@@ -124,7 +162,13 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
         },
       });
 
-      Alert.alert("Challenge Accepted", `You accepted challenge ${challId}`)
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || "Failed to accept challenge");
+            }
+
+            const data = await res.json();
+            console.log('Challenge accepted:', data);
 
       // refresh after accepting
       await fetchChallenges()
@@ -228,7 +272,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
             </View>
 
             {/* -------- CURRENT -------- */}
-            <View style={[styles.challengesSection, styles.currentSection]}>
+            <View style={styles.challengesSection}>
               <Text style={styles.sectionTitle}>Current Challenges</Text>
               {currentChallenges.length === 0 ? (
                 <View style={styles.emptyStateContainer}>
@@ -255,7 +299,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
                           startDate={c.startDate}
                           endDate={c.endDate}
                           daysCompleted={c.daysCompleted}
-                          totalDays={c.totalDays === null ? "?" : c.totalDays}
+                          totalDays={c.totalDays === null ? 30 : c.totalDays}
                           daysOfWeek={c.daysOfWeek}
                           isCompleted={c.isCompleted}
                         />
@@ -312,7 +356,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
                         startDate={c.startDate}
                         endDate={c.endDate}
                         daysCompleted={c.daysCompleted}
-                        totalDays={c.totalDays === null ? "?" : c.totalDays}
+                        totalDays={c.totalDays === null ? 30 : c.totalDays}
                         daysOfWeek={c.daysOfWeek}
                         isCompleted={c.isCompleted}
                       />

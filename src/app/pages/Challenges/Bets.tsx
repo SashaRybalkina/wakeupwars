@@ -62,6 +62,7 @@ const Bets: React.FC<Props> = ({ navigation }) => {
   const [myBets, setMyBets] = useState<Bet[]>([]);
   const [myPendingBets, setPendingMyBets] = useState<Bet[]>([]);
   const [selectedTab, setSelectedTab] = useState<"all" | "mine">("mine");
+  const [existingOpponents, setExistingOpponents] = useState<number[]>([]);
 
 
   const fetchData = async () => {
@@ -105,6 +106,21 @@ const Bets: React.FC<Props> = ({ navigation }) => {
         setBets(allNonPending);
         setMyBets(myNonPending);
         setPendingMyBets(myPending);
+
+
+        const myBets = formattedData.filter(
+          bet => bet.initiatorId === user.id || bet.recipientId === user.id
+        );
+
+        // Extract the other person's ID from each bet
+        const otherUserIds = myBets.map(bet =>
+          bet.initiatorId === user.id ? bet.recipientId : bet.initiatorId
+        );
+
+        // Remove duplicates
+        const uniqueOtherUserIds = [...new Set(otherUserIds)];
+        setExistingOpponents(uniqueOtherUserIds)
+
 
     } catch (error) {
         console.error("Failed to fetch bets:", error);
@@ -229,7 +245,8 @@ return (
                 challId,
                 challName,
                 challengeMembers,
-                isCompleted
+                existingOpponents,
+                isCompleted,
                 })
             }}
             >

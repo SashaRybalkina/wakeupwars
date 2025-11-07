@@ -27,10 +27,11 @@ type Member = {
 
 const MakeBet: React.FC<Props> = ({ navigation }) => {
   const route = useRoute()
-  const { challId, challName, challengeMembers, isCompleted } = route.params as { 
+  const { challId, challName, challengeMembers, existingOpponents, isCompleted } = route.params as { 
     challId: number,
     challName: string,
     challengeMembers: Member[],
+    existingOpponents: number[],
     isCompleted: boolean }
 
   const { user } = useUser()
@@ -140,7 +141,9 @@ return (
           >
             <Picker.Item label="Select member..." value={undefined} />
             {challengeMembers
-              .filter(m => m.id !== user?.id) // exclude self
+            .filter(
+              m => m.id !== user?.id && !existingOpponents.includes(m.id) // exclude self and users with bets
+            )
               .map(m => (
                 <Picker.Item
                   key={m.id}

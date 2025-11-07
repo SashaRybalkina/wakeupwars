@@ -1112,6 +1112,24 @@ class GetPublicChallengesView(APIView):
             response_data.append(serialized)
 
         return Response(response_data)
+    
+
+class GetPersonalChallengesView(APIView):
+    def get(self, request, user_id):
+        challenges = Challenge.objects.filter(
+            id__in=ChallengeMembership.objects.filter(uID=user_id).values_list('challengeID', flat=True),
+            groupID=None,
+            isPublic=False,
+            isPending=False,
+        )
+
+        response_data = []
+        for challenge in challenges:
+            serialized = ChallengeSummarySerializer(challenge, context={'user': request.user}).data
+
+            response_data.append(serialized)
+
+        return Response(response_data)
 
 
 
@@ -4256,8 +4274,8 @@ class ShareChallengeView(APIView):
                         isPending=True
                     )
 
-                    # copy membership
-                    ChallengeMembership.objects.create(challengeID=new_challenge, uID=friend)
+                    # # copy membership
+                    # ChallengeMembership.objects.create(challengeID=new_challenge, uID=friend)
 
                     # copy alarm schedules
                     for cas in ChallengeAlarmSchedule.objects.filter(challenge=original):
@@ -4284,30 +4302,36 @@ class ShareChallengeView(APIView):
                     if not challenge_name:
                         return Response({"error": "Challenge name required"}, status=400)
                     
-                    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
-                    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
+                    # start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
+                    # end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
 
                     # TODO: fix with new dates/total days
+                    print("here")
                     new_challenge = Challenge.objects.create(
                         name=challenge_name,
+                        groupID=None,
                         initiator=friend,
-                        startDate=start_date_obj,
-                        endDate=end_date_obj,
+                        startDate=start_date,
+                        endDate=end_date,
+                        totalDays=total_days,
                         isPublic=False,
                         isPending=True
                     )
 
-                    # membership
-                    ChallengeMembership.objects.create(challengeID=new_challenge, uID=friend)
+                    # # membership
+                    # ChallengeMembership.objects.create(challengeID=new_challenge, uID=friend)
 
                     # schedule from payload
                     for s in schedule:
-                        alarm_time_obj = datetime.strptime(s["time"], "%I:%M %p").time()
+                        # alarm_time_obj = datetime.strptime(s["time"], "%I:%M %p").time()
+                        alarm_time_obj = datetime.strptime(s["time"], "%H:%M").time()
+                        print(alarm_time_obj)
                         alarm = AlarmSchedule.objects.create(
                             uID=friend,
                             dayOfWeek=s["dayOfWeek"],
                             alarmTime=alarm_time_obj
                         )
+                        print(alarm)
                         ChallengeAlarmSchedule.objects.create(challenge=new_challenge, alarm_schedule=alarm)
 
                         gs = GameSchedule.objects.create(
@@ -4373,6 +4397,8 @@ class GetPersonalChallengeInvites(APIView):
 class AcceptPersonalChallenge(APIView):
     @transaction.atomic
     def post(self, request, user_id, chall_id):
+        print(chall_id)
+
         inv = get_object_or_404(PersonalChallengeInvite,
                                 recipient_id=user_id,
                                 chall_id=chall_id,
@@ -4380,14 +4406,19 @@ class AcceptPersonalChallenge(APIView):
         chall = inv.chall
         chall.isPending = False
         chall.save(update_fields=['isPending'])
-
-        membership = get_object_or_404(
-            ChallengeMembership,
+        
+        ChallengeMembership.objects.create(
             challengeID_id=chall_id,
-            uID_id=user_id
+            uID_id=user_id,
+            hasSetAlarms=True,
         )
-        membership.hasSetAlarms = True
-        membership.save()
+        # membership = get_object_or_404(
+        #     ChallengeMembership,
+        #     challengeID_id=chall_id,
+        #     uID_id=user_id
+        # )
+        # membership.hasSetAlarms = True
+        # membership.save()
 
         inv.status = 1  # accepted
         inv.save(update_fields=['status'])
@@ -4424,6 +4455,10 @@ class DeclinePersonalChallenge(APIView):
        
         inv.status = 0  # declined
         inv.save(update_fields=['status'])
+
+        # Delete the challenge (and cascades)
+        # NOTE THAT AlarmSchedules for the user will still persist, should probably delete these
+        inv.chall.delete()
 
         sender = inv.sender
         status_str = "accepted" if isinstance(self, AcceptPersonalChallenge) else "declined"

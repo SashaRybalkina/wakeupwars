@@ -127,6 +127,7 @@ from .views import (
     CreateTypingRaceGameView,
     FinalizeTypingRaceResultView,
     CollectBetRefundView,
+    GetPersonalChallengesView,
 )
 
 
@@ -146,6 +147,7 @@ urlpatterns = [
     path('current-challenges/<int:user_id>/<str:which_chall>/', CurrentChallengesView.as_view(), name='current-challenges'),
     path('get-pending-public-challenges/<int:user_id>/', GetPendingPublicChallengesView.as_view(), name='get-pending-public-challenges'),
     path('get-public-challenges/<int:user_id>/', GetPublicChallengesView.as_view(), name='get-public-challenges'),
+    path('get-personal-challenges/<int:user_id>/', GetPersonalChallengesView.as_view(), name='get-personal-challenges'),
     path(
     'get-matching-challenges/<int:user_id>/<str:category_ids>/<str:sing_or_mult>/',
     GetMatchingChallengesView.as_view(),

@@ -12,7 +12,7 @@ import {
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
-import { NavigationProp, useRoute } from "@react-navigation/native"
+import { NavigationProp, StackActions, useRoute } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import { BASE_URL, endpoints } from "../../api"
 import { Platform } from "react-native"
@@ -39,7 +39,7 @@ type GameSchedule = {
 
 const PersChall3: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
-  const { first_possible_start_date, name, alarm_schedule, game_schedule, chall_type, group_id, members, sing_or_mult, category_ids, chall_id, participation_fee } =    route.params as {
+  const { first_possible_start_date, name, alarm_schedule, game_schedule, chall_type, group_id, members, sing_or_mult, category_ids, chall_id, participation_fee, friendId, schedule } =    route.params as {
       first_possible_start_date: string;
       name: string;
       alarm_schedule: { dayOfWeek: number; time: string }[];
@@ -51,6 +51,8 @@ const PersChall3: React.FC<Props> = ({ navigation }) => {
       category_ids: number[];
       chall_id: number;
       participation_fee: number;
+      friendId: number;
+      schedule: any[] | null; // only exisits if creating this challenge for friend
     };
 
     console.log("PersChall3 route params:", route.params);
@@ -216,6 +218,65 @@ function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number
             }
             Alert.alert('Success', 'Challenge created successfully', [
                 { text: 'OK', onPress: () => navigation.navigate('PersChall1') },
+            ]);
+        }
+
+        if (chall_type == 'Friend') {
+    // const payload = {
+    //   userId: user?.id,
+    //   name,
+    //   startDate: start_date,
+    //   endDate: end_date,
+    //   totalDays: total_days,
+    //   schedule: selectedDays.map(day => ({
+    //     day,
+    //     dayOfWeek: dayToInt[day],
+    //     time: dayTimeMapping[day],
+    //     games: (gamesByDay[day] || []).map(([id, name]) => ({ id: Number(id), name })),
+    //   })),
+    //   members: [friendId], 
+    // }
+
+      // const response = await fetch(endpoints.shareChallenge(), {
+      //   method: "POST",
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     "Authorization": `Bearer ${accessToken}`,
+      //   },
+      //   body: JSON.stringify(payload),
+      // })
+
+            const payload = {
+              userId: user?.id,
+              name,
+              startDate: start_date,
+              endDate: end_date,
+              totalDays: total_days,
+              schedule,
+              members: [friendId], 
+            }
+            console.log(JSON.stringify(payload))
+
+            const res = await fetch(endpoints.shareChallenge(), {
+              method: "POST",
+              headers: {
+                'Content-Type': 'application/json',
+                "Authorization": `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify(payload),
+            })
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || "Failed to create challenge for friend");
+            }
+
+            const data = await res.json();
+            console.log('Challenge created for friend:', data);
+
+            Alert.alert('Success', 'Challenge created for friend successfully', [
+                // { text: 'OK', onPress: () => navigation.navigate('PersChall1') }
+                { text: 'OK', onPress: () => navigation.dispatch(StackActions.pop(2)) }
             ]);
         }
         

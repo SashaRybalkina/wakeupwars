@@ -1,6 +1,6 @@
 // export const BASE_URL = 'http://192.168.50.3:8000';
 // blah
-export const BASE_URL = 'https://24feac260deb.ngrok-free.app';
+export const BASE_URL = 'https://cf95d0885409.ngrok-free.app';
 
 export const endpoints = {
   // getToken
@@ -57,6 +57,7 @@ export const endpoints = {
   joinPublicChallenge: (userId: number) => `${BASE_URL}/api/join-public-challenge/${userId}/`,
   finalizePublicChallenge: () => `${BASE_URL}/api/finalize-public-challenge/`,
   // getCurrentPublicChallenges: (userId: number) => `${BASE_URL}/api/challenges/${userId}/`,
+  getPersonalChallenges: (userId: number) => `${BASE_URL}/api/get-personal-challenges/${userId}/`,
   challengeSchedule: (challId: number) =>
     `${BASE_URL}/api/challenge-schedule/${challId}/`,
   getChallengeSchedule: (challId: number) =>

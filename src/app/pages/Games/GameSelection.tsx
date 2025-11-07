@@ -97,22 +97,29 @@ const GameSelection: React.FC<Props> = ({ navigation }) => {
   return (
 <ImageBackground
   source={require('../../images/tertiary.png')}
-  style={{ flex: 1 }}
+  style={styles.background}
   resizeMode="cover"
 >
-  {/* Tabs */}
-    <ScrollView
+        <View style={styles.container}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={28} color="#FFF" />
+          </TouchableOpacity>
+
+          <Text style={styles.pageTitle}>Select Game</Text>
+
+{/* Tabs */}
+<View style={styles.tabsWrapper}>
+  <ScrollView
     horizontal
     showsHorizontalScrollIndicator={false}
-    style={styles.tabsContainer}
-    contentContainerStyle={{ alignItems: 'center' }}
-    >
+    contentContainerStyle={styles.categoriesScroll}
+  >
     {cats.map((cat) => (
       <TouchableOpacity
         key={cat.id}
         style={[
-          styles.tabButton,
-          selectedCat === cat.id && styles.tabButtonActive,
+          styles.choiceButton,
+          selectedCat === cat.id && styles.choiceButtonSelected,
         ]}
         onPress={() => setSelectedCat(cat.id)}
       >
@@ -127,38 +134,45 @@ const GameSelection: React.FC<Props> = ({ navigation }) => {
       </TouchableOpacity>
     ))}
   </ScrollView>
+</View>
 
-  {/* Game list */}
-  <View style={{ flex: 1, paddingHorizontal: 15, marginTop: 10 }}>
-{selectedCategory?.games.map((game) => {
-  const meta = getGameMeta(game.id, game.name);
 
-  return (
-    <View key={game.id} style={styles.gameItemContainer}>
-      {/* Pressable container to open modal */}
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() => setModalGame(game)}
-        style={styles.gameContainer}
-      >
-        <ImageBackground
-          source={meta.image}
-          style={styles.gameImg}
-          imageStyle={styles.gameImgStyle}
-        />
-        <Text style={styles.gameName}>{game.name}</Text>
-      </TouchableOpacity>
+{/* Game list */}
+<View style={styles.gameListContainer}>
+  {selectedCategory?.games.map((game) => {
+    const meta = getGameMeta(game.id, game.name);
 
-      {/* Select button stays independent */}
-      <TouchableOpacity
-        style={styles.selectButton}
-        onPress={() => handleSelect(game.id, game.name)}
-      >
-        <Text style={styles.selectButtonText}>Select</Text>
-      </TouchableOpacity>
-    </View>
-  );
-})}
+    return (
+      <View key={game.id} style={styles.gameItemContainer}>
+        {/* Pressable container to open modal */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => setModalGame(game)}
+          style={styles.gameContainer}
+        >
+<View style={styles.imageWrapper}>
+  <ImageBackground
+    source={meta.image}
+    style={styles.gameImg}
+    imageStyle={styles.gameImgStyle}
+    resizeMode="contain"
+  />
+</View>
+
+          <Text style={styles.gameName}>{game.name}</Text>
+        </TouchableOpacity>
+
+        {/* Select button stays independent */}
+        <TouchableOpacity
+          style={styles.selectButton}
+          onPress={() => handleSelect(game.id, game.name)}
+        >
+          <Text style={styles.selectButtonText}>Select</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  })}
+
 
 {/* Single modal for all games */}
 <Modal
@@ -187,6 +201,7 @@ const GameSelection: React.FC<Props> = ({ navigation }) => {
   </View>
 </Modal>
   </View>
+  </View>
 </ImageBackground>
 
   );
@@ -197,33 +212,48 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-  gameItemContainer: {
-    marginBottom: 16,
-    alignItems: "center",
-    width: "100%",
-  },
-  gameContainer: {
-    width: "100%",
-    borderRadius: 12,
-    overflow: "hidden",
-    marginBottom: 8,
-  },
-  gameImg: {
-    width: "100%",
-    height: 150,
-    justifyContent: "flex-end",
-  },
-  gameImgStyle: {
-    borderRadius: 12,
-  },
-  gameName: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-    backgroundColor: "rgba(0,0,0,0.4)",
-    padding: 6,
-    textAlign: "center",
-  },
+gameItemContainer: {
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '100%',
+  marginBottom: 16,
+},
+
+gameContainer: {
+  width: "100%",
+  alignItems: "center",  // ✅ centers the image horizontally
+  borderRadius: 12,
+  overflow: "hidden",
+  marginBottom: 8,
+},
+
+gameImg: {
+  width: '90%',          // already good
+  aspectRatio: 16 / 9,
+  alignSelf: 'center',   // ✅ this ensures it's centered within its container
+  justifyContent: 'flex-end',
+  marginVertical: 10,
+  marginLeft: 33
+},
+
+
+
+gameImgStyle: {
+  borderRadius: 12,
+},
+
+gameName: {
+  marginTop: 10,
+  fontSize: 18,
+  fontWeight: '600',
+  color: 'white',
+},
+
+  tabsWrapper: {
+  height: 60,
+  marginTop: 10,
+},
+
   selectButton: {
     backgroundColor: "#FFD700",
     paddingVertical: 8,
@@ -269,16 +299,17 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
   },
-  tabButton: {
-  paddingVertical: 6,
-  paddingHorizontal: 16,
-  marginRight: 10,
-  borderRadius: 12,
-  backgroundColor: 'rgba(255,255,255,0.2)',
-},
-tabButtonActive: {
-  backgroundColor: '#4CAF50',
-},
+  choiceButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginRight: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  choiceButtonSelected: { backgroundColor: "rgba(255, 215, 0, 0.3)", borderColor: "#FFD700" },
 tabButtonText: {
   color: '#fff',
   fontWeight: '600',
@@ -287,6 +318,13 @@ tabButtonText: {
 tabButtonTextActive: {
   fontWeight: '700',
 },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#FFF",
+    textAlign: "center",
+    marginBottom: 20,
+  },
   backButtonContainer: {
     position: 'absolute',
     top: 40, // slightly higher for better spacing
@@ -320,8 +358,9 @@ tabsContainer: {
   flexDirection: 'row',
   height: 50,
   paddingHorizontal: 10,
-  marginTop: 20,
+  marginTop: 10,
 },
+categoriesScroll: { paddingVertical: 5 },
   gameItem: {
     marginBottom: 12,
     backgroundColor: 'rgba(80,90,140,0.5)',
@@ -344,6 +383,16 @@ tabsContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.5)',
     borderRadius: 6,
   },
+gameListContainer: {
+  flex: 1,
+  paddingHorizontal: 15,
+  marginTop: 30, // pushes list further down from category tabs
+},
+imageWrapper: {
+  width: '100%',
+  alignItems: 'center',
+},
+
 });
 
 
