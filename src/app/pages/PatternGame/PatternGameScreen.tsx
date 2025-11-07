@@ -305,6 +305,8 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
             setCountdown(null);
             setLevel(msg.round_number);
             setCurrentSeqLen(msg.sequence.length);
+            // Fallback: ensure game timer started when first round arrives
+            if (!gameTimerStartedRef.current) startGameTimer();
             queueRef.current.push(msg.sequence);
             drainQueue();
             break;
@@ -436,6 +438,7 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
     return () => {
       wsRef.current?.close();
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (gameTimerRef.current) clearInterval(gameTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengeId]);
