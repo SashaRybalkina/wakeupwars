@@ -97,7 +97,6 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
   const [results, setResults] = useState<GuessResult[][]>([]);
   const [selectedRow, setSelectedRow] = useState(0);
   const [selectedCol, setSelectedCol] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(300);
   const [gameOver, setGameOver] = useState(false);
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -130,6 +129,11 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
   const [members, setMembers] = useState<{ id: number; name: string }[]>([]);
   const [onlineIds, setOnlineIds] = useState<number[]>([]);
 
+  // 5-minute game timer
+  const [gameTimeLeft, setGameTimeLeft] = useState<number>(30); // 5 minutes in seconds
+  const gameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerExpiredSentRef = useRef(false);
+
   const canStartNow = useMemo(() => readyCount >= 1, [readyCount]);
 
   const startLocalCountdown = (deadlineISO: string | null) => {
@@ -151,6 +155,68 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
     countdownRef.current = setInterval(tick, 1000);
   };
 
+  const startGameTimer = () => {
+    if (gameTimerRef.current) {
+      clearInterval(gameTimerRef.current);
+    }
+    setGameTimeLeft(30);
+    timerExpiredSentRef.current = false;
+    gameTimerRef.current = setInterval(() => {
+      setGameTimeLeft((prev) => {
+        if (prev <= 1) {
+          if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleTimerExpired = async () => {
+    if (timerExpiredSentRef.current || !gameStateId) return;
+    timerExpiredSentRef.current = true;
+    
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) return;
+
+      const response = await fetch(endpoints.gameTimerExpired, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          model: 'WordleGameState',
+          game_state_id: gameStateId,
+        }),
+      });
+      
+      const data = await response.json();
+      console.log('[Wordle] Timer expired signal sent to backend', data);
+      
+      // For single-player games (no WebSocket), handle the response directly
+      if (!isMultiplayer) {
+        if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+        Alert.alert(
+          "Time's Up!",
+          'The 5-minute game timer has expired. Final scores have been calculated.',
+          [{ text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) }]
+        );
+      }
+      // For multiplayer, the WebSocket handler will show the alert
+    } catch (e) {
+      console.error('[Wordle] Failed to send timer expired signal:', e);
+    }
+  };
+
+  // Watch for game timer expiry
+  useEffect(() => {
+    if (gameTimeLeft === 0 && !gameOver) {
+      handleTimerExpired();
+    }
+  }, [gameTimeLeft, gameOver]);
+
   // 🔄 Reset game
   const resetGame = () => {
     // Safely close any existing socket before re-initializing
@@ -168,7 +234,6 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
     setResults([]);
     setSelectedRow(0);
     setSelectedCol(0);
-    setTimeLeft(300);
     setGameOver(false);
     setOpponentRows({});
     hasShownResultRef.current = false;
@@ -298,6 +363,21 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
             }
             setShowCountdown(false);
             setCountdownValue(null);
+            // Start 5-minute game timer when join window closes
+            startGameTimer();
+          }
+
+          if (msg.type === 'timeout') {
+            Alert.alert('Timeout', 'You have been timed out for inactivity.', [
+              { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
+            ]);
+          }
+
+          if (msg.type === 'timer_expired') {
+            if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+            Alert.alert('Time\'s Up!', 'The 5-minute game timer has expired. Final scores have been calculated.', [
+              { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
+            ]);
           }
 
           if (msg.type === 'game_complete') {
@@ -332,9 +412,14 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
         ws.onclose = () => console.log('[WebSocket] disconnected');
         socketRef.current = ws;
         setSocket(ws);
-      }
-    } catch (err) {
-      console.error('[initGame] Failed:', err);
+      } 
+      else {  // ✅ Properly closes if(is_multiplayer) inside the outer try
+      console.log('[Wordle] Single-player mode - starting game timer');
+      startGameTimer();
+    }
+    } 
+    catch (err) {
+        console.error('[Wordle] WebSocket setup failed:', err);
     }
   };
 
@@ -424,32 +509,12 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
   }, [remainingSec, waitingActive]);
 
   // Cleanup countdown on unmount
-  useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
-  
-  // ⏳ Timer — paused while waiting room is active
   useEffect(() => {
-    if (gameOver || waitingActive) return;
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setGameOver(true);
-          Alert.alert('⏰ Time’s up!', ``, [
-            { text: 'Play Again', onPress: resetGame },
-            { text: 'Exit', 
-              onPress: () => 
-                navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) 
-            },
-          ]);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [gameOver, waitingActive]);
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+    };
+  }, []);
 
   //  validate API
   const submitGuess = async () => {
@@ -629,21 +694,18 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity
           style={styles.exitButton}
           onPress={() => {
-              navigation.goBack();
+            navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall });
           }}
-          // onPress={() => {
-          //   AlarmModule.clearLaunchIntent().then(() => {
-          //     navigation.goBack();
-          //   });
-          // }}
         >
           <Text style={styles.exitText}>Exit</Text>
         </TouchableOpacity>
 
         <Text style={styles.title}>Wordle</Text>
-        <Text style={styles.description}>
-          Time left: {formatTime(timeLeft)}
-        </Text>
+        {!waitingActive && (
+          <Text style={[styles.timer, { color: gameTimeLeft < 60 ? '#ffffffff' : 'white' }]}>
+            Game Timer: {formatTime(gameTimeLeft)}
+          </Text>
+        )}
         
         {/* Player List */}
         {players.length > 0 && (
@@ -825,6 +887,7 @@ const styles = StyleSheet.create({
   exitText: { fontWeight: 'bold' },
   title: { fontSize: 30, fontWeight: 'bold', color: 'white' },
   description: { fontSize: 18, color: 'white', marginVertical: 10 },
+  timer: { fontSize: 18, color: 'white', marginVertical: 5 },
   gridContainer: { marginVertical: 20 },
   row: { flexDirection: 'row', justifyContent: 'center' },
   cell: {

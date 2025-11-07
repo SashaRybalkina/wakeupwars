@@ -126,6 +126,7 @@ export const endpoints = {
   patternCreate: `${BASE_URL}/api/pattern/create/`,
   patternValidate: `${BASE_URL}/api/pattern/validate/`,
   csrfToken: `${BASE_URL}/api/csrf-token/`,
+  gameTimerExpired: `${BASE_URL}/api/game/timer-expired/`,
 
   sendBet: () => `${BASE_URL}/api/send-bet/`,
 

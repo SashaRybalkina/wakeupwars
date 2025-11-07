@@ -89,29 +89,36 @@ def validate_sudoku_move(game_state_id, user, index, value):
         player_record.accuracyCount += 1
         game_state.puzzle[row][col] = value
         game_state.save()
+        
+        print("correct: ", player_record.accuracyCount)
     else:
         player_record.inaccuracyCount += 1
-
+        print("incorrect: ", player_record.inaccuracyCount)
     player_record.save()
 
     is_complete = game_state.puzzle == game_state.solution
 
     if is_complete:
+        print("i'm getting passed yay~")
         players = SudokuGamePlayer.objects.filter(gameState=game_state)
+        total_correct = sum(int(getattr(p, 'accuracyCount', 0) or 0) for p in players) or 1
         player_scores = []
 
         for player in players:
-            correct = player.accuracyCount
-            incorrect = player.inaccuracyCount
-            total_attempts = correct + incorrect if (correct + incorrect) > 0 else 1
+            correct = int(getattr(player, 'accuracyCount', 0) or 0)
+            incorrect = int(getattr(player, 'inaccuracyCount', 0) or 0)
+            print("correct: ", correct)
+            print("incorrect: ", incorrect)
+            print("total correct: ", total_correct)
+            print("player: ", player.player.username)
 
-            # Scoring system: scale based on accuracy
-            accuracy_score = correct / total_attempts * 100
+            # Progress-based score: share of cells filled correctly by this player
+            progress_score = (correct / total_correct) * 100
             player_scores.append({
                 'username': player.player.username,
                 'accuracy': correct,
                 'inaccuracy': incorrect,
-                'score': round(accuracy_score, 2)
+                'score': round(progress_score, 2)
             })
 
         return {
