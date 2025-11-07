@@ -3138,6 +3138,82 @@ class ValidateWordleMoveView(APIView):
 
         return Response(result, status=status.HTTP_200_OK)
 
+class FinalizeWordleResultView(APIView):
+    """
+    Client-side validation finalization endpoint.
+    Frontend submits final results after local validation.
+    
+    Request:
+      - game_state_id: ID of the WordleGameState
+      - guesses: array of {row, guess, evaluation}
+      - is_complete: boolean
+      - is_correct: boolean (did user win)
+      - attempts_used: number of attempts used
+    
+    Response:
+      - scores: leaderboard for all players
+    """
+    def post(self, request):
+        game_state_id = request.data.get('game_state_id')
+        guesses = request.data.get('guesses', [])
+        is_complete = request.data.get('is_complete', False)
+        is_correct = request.data.get('is_correct', False)
+        attempts_used = request.data.get('attempts_used', 0)
+        user = request.user
+
+        if not game_state_id:
+            return Response({'error': 'Missing game_state_id'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            gs = WordleGameState.objects.select_related('challenge', 'game').get(id=game_state_id)
+        except WordleGameState.DoesNotExist:
+            return Response({'error': 'Game not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        is_multiplayer = bool(getattr(gs.game, 'isMultiplayer', False))
+        play_date = timezone.localdate()
+
+        # Compute score based on game mode
+        score = 0
+        if is_complete and is_correct:
+            if not is_multiplayer:
+                # Single-player: score based on attempts (fewer attempts = higher score)
+                max_attempts = 5
+                base_score = 100 // max_attempts
+                score = max(0, 100 - ((attempts_used - 1) * base_score))
+            else:
+                # Multiplayer: score will be computed based on ranking
+                # For now, just mark completion
+                score = 0
+
+        # Save or update GamePerformance
+        GamePerformance.objects.update_or_create(
+            challenge=gs.challenge,
+            game=gs.game,
+            user=user,
+            date=play_date,
+            defaults={'score': score, 'auto_generated': False}
+        )
+
+        print(f'[Wordle][Finalize] user={user.username} gs={game_state_id} complete={is_complete} correct={is_correct} score={score}')
+
+        # Build leaderboard
+        scores = []
+        performances = GamePerformance.objects.filter(
+            challenge=gs.challenge,
+            game=gs.game,
+            date=play_date
+        ).select_related('user')
+
+        for perf in performances:
+            scores.append({
+                'username': perf.user.username,
+                'score': perf.score,
+            })
+
+        scores = sorted(scores, key=lambda x: x['score'], reverse=True)
+
+        return Response({'scores': scores}, status=status.HTTP_200_OK)
+
 class ValidateSudokuMoveView(APIView):
     def post(self, request):
         game_id = request.data.get('game_state_id')

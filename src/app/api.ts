@@ -104,6 +104,7 @@ export const endpoints = {
   validateSudokuMove: `${BASE_URL}/api/sudoku/validate/`,
   createWordleGame: `${BASE_URL}/api/wordle/create/`,
   validateWordleMove: `${BASE_URL}/api/wordle/validate/`,
+  wordleFinalize: `${BASE_URL}/api/wordle/finalize/`,
   typingRaceCreate: `${BASE_URL}/api/typing-race/create/`,
   typingRaceFinalize: `${BASE_URL}/api/typing-race/finalize/`,
 

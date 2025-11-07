@@ -129,12 +129,50 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
   const [members, setMembers] = useState<{ id: number; name: string }[]>([]);
   const [onlineIds, setOnlineIds] = useState<number[]>([]);
 
+  // Answer for local validation
+  const [answer, setAnswer] = useState<string>('');
+  const [wordLength, setWordLength] = useState<number>(5);
+  const [maxAttempts, setMaxAttempts] = useState<number>(5);
+
   // 5-minute game timer
   const [gameTimeLeft, setGameTimeLeft] = useState<number>(30); // 5 minutes in seconds
   const gameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerExpiredSentRef = useRef(false);
 
   const canStartNow = useMemo(() => readyCount >= 1, [readyCount]);
+
+  // Local Wordle validation function
+  const evaluateGuess = (guess: string, answer: string): GuessResult[] => {
+    const result: GuessResult[] = Array(guess.length).fill({ letter: '', result: 'absent' });
+    const answerCounts: Record<string, number> = {};
+    
+    // Count frequency of each letter in answer
+    for (let ch of answer) {
+      answerCounts[ch] = (answerCounts[ch] || 0) + 1;
+    }
+
+    // First pass: mark correct positions
+    for (let i = 0; i < guess.length; i++) {
+      if (guess[i] === answer[i]) {
+        result[i] = { letter: guess[i], result: 'correct' };
+        answerCounts[guess[i]] -= 1;
+      } else {
+        result[i] = { letter: guess[i], result: 'absent' };
+      }
+    }
+
+    // Second pass: mark present (misplaced) letters
+    for (let i = 0; i < guess.length; i++) {
+      const ch = guess[i];
+      if (result[i].result === 'correct') continue;
+      if ((answerCounts[ch] || 0) > 0) {
+        result[i] = { letter: ch, result: 'present' };
+        answerCounts[ch] -= 1;
+      }
+    }
+
+    return result;
+  };
 
   const startLocalCountdown = (deadlineISO: string | null) => {
     if (countdownRef.current) {
@@ -283,9 +321,17 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
       const data = await res.json();
       console.log("[Wordle] Game created:", data);
 
-      const { game_state_id, is_multiplayer, join_deadline_at } = data as any;
+      const { game_state_id, is_multiplayer, join_deadline_at, answer: serverAnswer, word_length, max_attempts } = data as any;
       setGameStateId(game_state_id);
       setIsMultiplayer(is_multiplayer);
+      
+      // Store answer for local validation
+      if (serverAnswer) {
+        setAnswer(serverAnswer.toUpperCase());
+        console.log('[Wordle] Answer received and stored for local validation');
+      }
+      if (word_length) setWordLength(word_length);
+      if (max_attempts) setMaxAttempts(max_attempts);
 
       //console.log(`[Wordle] Challenge=${challengeId}, game_state_id=${game_state_id}, answer=${answer}`);
 
@@ -516,88 +562,106 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
     };
   }, []);
 
-  //  validate API
+  // Local validation - no backend call per guess
   const submitGuess = async () => {
-    if (gameOver || !gameStateId) return;
+    if (gameOver || !gameStateId || !answer) return;
     if (submittedRows.has(selectedRow)) {
-    console.log(`[Wordle] Row ${selectedRow} already submitted, skipping`);
-    return;
-  }
+      console.log(`[Wordle] Row ${selectedRow} already submitted, skipping`);
+      return;
+    }
+    
     const rowArr = Array.isArray(grid[selectedRow]) ? grid[selectedRow] : [];
-    const guess = rowArr.join('');
+    const guess = rowArr.join('').toUpperCase();
     setSubmittedRows(prev => new Set(prev).add(selectedRow));
-    console.log(`[Wordle] Submitting guess row=${selectedRow}, guess="${guess}"`);
+    console.log(`[Wordle] Validating guess locally: row=${selectedRow}, guess="${guess}", answer="${answer}"`);
 
-    try {
-      const accessToken = await getAccessToken(); // ✅ get token before request
-      if (!accessToken) {
-        console.error("[Wordle] No access token found");
-        return;
-      }
+    // Validate guess locally
+    const feedback = evaluateGuess(guess, answer);
+    setResults((prev) => [...prev, feedback]);
 
-      const res = await fetch(endpoints.validateWordleMove, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`, // ✅ changed here
-        },
-        body: JSON.stringify({
-          game_state_id: gameStateId,
+    const isCorrect = guess === answer;
+    const isComplete = isCorrect || (selectedRow >= maxAttempts - 1);
+
+    console.log(`[Wordle] Local validation: correct=${isCorrect}, complete=${isComplete}`);
+
+    // Broadcast move to other players via WebSocket (for multiplayer)
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      console.log("[WebSocket] Broadcasting my move:", guess);
+      socket.send(
+        JSON.stringify({
+          type: 'make_move',
+          player: user?.username,
           row: selectedRow,
           guess,
+          evaluation: feedback,
+          is_correct: isCorrect,
+          is_complete: isComplete,
         }),
-      });
+      );
+    }
 
-      console.log("[Wordle] validateWordleMove response status:", res.status);
-
-      if (!res.ok) {
-        console.error('[submitGuess] backend error:', res.status);
-        return;
-      }
-
-      const data = await res.json();
-      setResults((prev) => [...prev, data.feedback]);
-
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        console.log("[WebSocket] Sending my move:", guess);
-        socket.send(
-          JSON.stringify({
-            type: 'make_move',
-            player: user?.username,
-            row: selectedRow,
-            guess,
-            evaluation: data.feedback,
-          }),
-        );
-      } else {
-        console.log('[WebSocket] Skipping send; socket not open');
-      }
-
-      if (data.is_correct || data.is_complete) {
-        setGameOver(true);
-        
-
-        if (!hasShownResultRef.current) {
-          const leaderboard = data.scores
-            ?.map((p: { username: string; score: number }) => `${p.username}: ${p.score}`)
-            .join('\n') || 'No scores yet';
-
-          Alert.alert(
-            data.is_correct ? '🎉 You Win!' : '❌ Game Over',
-            `Leaderboard:\n${leaderboard}`,
-            [
-              { text: 'Play Again', onPress: resetGame },
-              { text: 'Exit', onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) },
-            ],
-          );
-          hasShownResultRef.current = true;
+    if (isComplete) {
+      setGameOver(true);
+      
+      // Submit final results to backend
+      try {
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          console.error("[Wordle] No access token for finalization");
+          return;
         }
-      } else {
-        setSelectedRow((r) => r + 1);
-        setSelectedCol(0);
+
+        const finalGuesses = [...results, feedback].map((r, idx) => ({
+          row: idx,
+          guess: grid[idx].join(''),
+          evaluation: r,
+        }));
+
+        const response = await fetch(endpoints.wordleFinalize, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            game_state_id: gameStateId,
+            guesses: finalGuesses,
+            is_complete: isComplete,
+            is_correct: isCorrect,
+            attempts_used: selectedRow + 1,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[Wordle] Final results submitted:', data);
+          
+          // Show result alert for single-player
+          if (!isMultiplayer && !hasShownResultRef.current) {
+            const leaderboard = data.scores
+              ?.map((p: { username: string; score: number }) => `${p.username}: ${p.score}`)
+              .join('\n') || 'No scores yet';
+
+            Alert.alert(
+              isCorrect ? '🎉 You Win!' : '❌ Game Over',
+              `Leaderboard:\n${leaderboard}`,
+              [
+                { text: 'Play Again', onPress: resetGame },
+                { text: 'Exit', onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) },
+              ],
+            );
+            hasShownResultRef.current = true;
+          }
+        } else {
+          console.error('[Wordle] Failed to submit final results:', response.status);
+        }
+      } catch (err) {
+        console.error('[Wordle] Error submitting final results:', err);
       }
-    } catch (err) {
-      console.error('[submitGuess] Failed:', err);
+    } else {
+      // Move to next row
+      setSelectedRow((r) => r + 1);
+      setSelectedCol(0);
     }
   };
 
