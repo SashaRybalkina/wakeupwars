@@ -414,6 +414,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
           }
 
           if (msg.type === 'timeout') {
+            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
             Alert.alert('Timeout', 'You have been timed out for inactivity.', [
               { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
             ]);
@@ -421,6 +422,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
 
           if (msg.type === 'timer_expired') {
             if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
             Alert.alert('Time\'s Up!', 'The 5-minute game timer has expired. Final scores have been calculated.', [
               { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
             ]);
@@ -440,6 +442,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
               isWinner
             });
             console.log('[WebSocket] Game complete:', scoresArr);
+            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
             Alert.alert(
               isWinner ? '🏆 You Win!' : '❌ Game Over',
               scoresArr.map((s: { username: string; score: number }) => `${s.username}: ${s.score}`).join('\n'),
@@ -646,8 +649,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
               isCorrect ? '🎉 You Win!' : '❌ Game Over',
               `Leaderboard:\n${leaderboard}`,
               [
-                { text: 'Play Again', onPress: resetGame },
-                { text: 'Exit', onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) },
+                { text: 'OK', onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) },
               ],
             );
             hasShownResultRef.current = true;
