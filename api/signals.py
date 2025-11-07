@@ -213,9 +213,16 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                     send_fcm_notification(title, body, data, recipient_id)
 
                             bets = ChallengeBet.objects.filter(challenge=ch, isPending=False)
+                            bet_participants = []
                             for bet in bets:
                                 print(bet.id)
                                 bet.isCompleted = True
+                                
+                                if (bet.initiator not in bet_participants):
+                                    bet_participants.append(bet.initiator)
+                                
+                                if (bet.recipient not in bet_participants):
+                                    bet_participants.append(bet.recipient)
 
                                 initiator_points = GamePerformance.objects.filter(
                                     challenge=ch,
@@ -228,16 +235,12 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                     user=bet.recipient
                                 ).aggregate(total_points=Sum("score"))["total_points"] or 0
                                 print(recipient_points)
-
-                                loser = None
                                     
                                 if initiator_points > recipient_points:
                                     bet.winner = bet.initiator
-                                    loser = bet.recipient
                                     # User.objects.filter(pk=bet.initiator.pk).update(numCoins=F('numCoins') + (2 * bet.betAmount))
                                 elif recipient_points > initiator_points:
                                     bet.winner = bet.recipient
-                                    loser = bet.initiator
                                     # User.objects.filter(pk=bet.recipient.pk).update(numCoins=F('numCoins') + (2 * bet.betAmount))
                                 else:
                                     bet.winner = None  # tie
@@ -246,82 +249,31 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                     # User.objects.filter(pk=bet.recipient.pk).update(numCoins=F('numCoins') + bet.betAmount)
                                 bet.save()
                                 print(bet.winner)
-                                
-                                if (bet.winner):
-                                    UserNotification.objects.create(
-                                        user=bet.winner,
-                                        title=f"Bet Won!",
-                                        body=f"You won {bet.betAmount} from {loser.name or loser.username}.",
-                                        type="bet_result",
-                                        screen="Bets",
-                                        challengeId=bet.challenge.id,
-                                        challName=bet.challenge.name,
-                                        isCompleted=bet.challenge.isCompleted,
-                                        challengeMembers=bet.challenge.members,
-                                    )
+                               
+                               
+                            for u in bet_participants:
+                                UserNotification.objects.create(
+                                    user=u,
+                                    title=f"Bets Completed",
+                                    body=f"Check your results!",
+                                    type="bet_result",
+                                    screen="Bets",
+                                    challengeId=bet.challenge.id,
+                                    challName=bet.challenge.name,
+                                    isCompleted=bet.challenge.isCompleted,
+                                    challengeMembers=bet.challenge.members,
+                                )
                                         
-                                    device = FCMDevice.objects.filter(user=bet.winner.id).first()
-                                    recipient_id = bet.winner.id
-                                    if device:
-                                        title=f"Bet Won!",
-                                        body=f"You won {bet.betAmount} from {loser.name or loser.username}.",
-                                        data={
-                                            "screen": "Notifications",
-                                            "type": "bet_result",
-                                        }
-                                        send_fcm_notification(title, body, data, recipient_id)
-
-                                    UserNotification.objects.create(
-                                        user=loser,
-                                        title=f"Bet Lost.",
-                                        body=f"You lost {bet.betAmount} to {bet.winner.name or bet.winner.username}.",
-                                        type="bet_result",
-                                        screen="Bets",
-                                        challengeId=bet.challenge.id,
-                                        challName=bet.challenge.name,
-                                        isCompleted=bet.challenge.isCompleted,
-                                        challengeMembers=bet.challenge.members,
-                                    )
-                                        
-                                    device = FCMDevice.objects.filter(user=loser.id).first()
-                                    recipient_id = loser.id
-                                    if device:
-                                        title=f"Bet Lost.",
-                                        body=f"You lost {bet.betAmount} to {bet.winner.name or bet.winner.username}.",
-                                        data={
-                                            "screen": "Notifications",
-                                            "type": "bet_result",
-                                        }
-                                        send_fcm_notification(title, body, data, recipient_id)
-                            
-                                else:
-                                    for u in [bet.initiator, bet.recipient]:
-                                        other = bet.initiator
-                                        if u == bet.initiator: 
-                                            other = bet.recipient
-                                        UserNotification.objects.create(
-                                            user=u,
-                                            title=f"Bet Tie",
-                                            body=f"You tied with {other.name or other.username}.",
-                                            type="bet_result",
-                                            screen="Bets",
-                                            challengeId=bet.challenge.id,
-                                            challName=bet.challenge.name,
-                                            isCompleted=bet.challenge.isCompleted,
-                                            challengeMembers=bet.challenge.members,
-                                        )
-                                            
-                                        device = FCMDevice.objects.filter(user=u.id).first()
-                                        recipient_id = u.id
-                                        if device:
-                                            title=f"Bet Tie",
-                                            body=f"You tied with {other.name or other.username}.",
-                                            data={
-                                                "screen": "Notifications",
-                                                "type": "bet_result",
-                                            }
-                                            send_fcm_notification(title, body, data, recipient_id)
-
+                                device = FCMDevice.objects.filter(user_id=u.id).first()
+                                recipient_id = u.id
+                                if device:
+                                    title=f"Bets Completed",
+                                    body=f"Check your results!",
+                                    data={
+                                        "screen": "Notifications",
+                                        "type": "bet_result",
+                                    }
+                                    send_fcm_notification(title, body, data, recipient_id)
 
                             # mark first blood winners
                             first_blood_badge = Badge.objects.get(name="First Blood")
