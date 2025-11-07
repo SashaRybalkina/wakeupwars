@@ -3647,7 +3647,7 @@ class SkillLevelsView(APIView):
     #     "skillLevels": data,
     #     "numCoins": user.numCoins,
     # }, status=status.HTTP_200_OK)
-    def get(self, request):
+    def get(self, request, user_id):
         qs = SkillLevel.objects.filter(user=request.user).select_related("category")
 
         window_days = SKILL_CONFIG.WINDOW_DAYS
