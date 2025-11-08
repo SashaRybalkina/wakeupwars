@@ -527,9 +527,14 @@ class SudokuGameState(models.Model):
       created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
       join_deadline_at = models.DateTimeField(null=True, blank=True)
       joins_closed = models.BooleanField(default=False, null=True, blank=True)
+      alarmDateTime = models.DateTimeField(null=True, blank=True)  # alarm time for this game instance
+      user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)  # null for multiplayer, set for singleplayer
 
       class Meta:
         db_table = 'SudokuGameStates'
+        unique_together = [['challenge', 'game', 'alarmDateTime', 'user']]
+        # Note: MariaDB doesn't support conditional unique constraints
+        # Race condition prevention is handled by get_or_create() in transactions
 
 # representing m-m relationship between SudokuGameStates and Users. Can use to keep track of player inaccuracies/accuracies
 class SudokuGamePlayer(models.Model):
@@ -573,9 +578,15 @@ class PatternMemorizationGameState(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     join_deadline_at = models.DateTimeField(null=True, blank=True)
     joins_closed = models.BooleanField(default=False, null=True, blank=True)
+    alarmDateTime = models.DateTimeField(null=True, blank=True)  # alarm time for this game instance
+    user = models.ForeignKey('User', on_delete=models.CASCADE, null=True, blank=True)  # null for multiplayer, set for singleplayer
 
     class Meta:
         db_table = 'PatternMemorizationGameStates'
+        # Unique constraint to prevent race conditions
+        # For multiplayer: (challenge, game, alarmDateTime, user=NULL)
+        # For singleplayer: (challenge, game, alarmDateTime, user=<user_id>)
+        unique_together = [['challenge', 'game', 'alarmDateTime', 'user']]
 
     def __str__(self):
         return f"PatternMemorizationGameState for challenge {self.challenge.name} (Round {self.current_round}/{self.max_rounds})"
@@ -723,9 +734,14 @@ class WordleGameState(models.Model):
       created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
       join_deadline_at = models.DateTimeField(null=True, blank=True)
       joins_closed = models.BooleanField(default=False, null=True, blank=True)
+      alarmDateTime = models.DateTimeField(null=True, blank=True)  # alarm time for this game instance
+      user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)  # null for multiplayer, set for singleplayer
 
       class Meta:
         db_table = 'WordleGameStates'
+        unique_together = [['challenge', 'game', 'alarmDateTime', 'user']]
+        # Note: MariaDB doesn't support conditional unique constraints
+        # Race condition prevention is handled by get_or_create() in transactions
 
 # representing m-m relationship between WordleGameStates and Users. Can use to keep track of player inaccuracies/accuracies
 class WordleGamePlayer(models.Model):
