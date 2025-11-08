@@ -230,11 +230,13 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
         // For single-player games (no WebSocket), handle the response directly
         if (!isMultiplayer) {
           if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+          setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
           Alert.alert(
             "Time's Up!",
             'The 5-minute game timer has expired. Final scores have been calculated.',
             [{ text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) }]
           );
+          
         }
         // For multiplayer, the WebSocket handler will show the alert
       } catch (e) {
@@ -559,6 +561,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
             Alert.alert('Timeout', 'You have been timed out for inactivity.', [
               { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
             ]);
+            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
             break;
           }
 
@@ -567,6 +570,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
             Alert.alert('Time\'s Up!', 'The 5-minute game timer has expired.', [
               { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
             ]);
+            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
             break;
           }
 
@@ -577,7 +581,9 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
               (async () => {
                 try {
                   await refreshSkills();
+                  await saveScores({challenge_id: challengeId, scores});
                   // Auto-navigate to ChallDetails after 2s to allow backend to finalize
+                  setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
                   Alert.alert(
                     "🎉 Puzzle Complete!",
                     `\n\nScores:\n` +

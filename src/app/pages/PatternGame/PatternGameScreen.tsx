@@ -288,12 +288,14 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
           }
           case 'timer_expired': {
             if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
             Alert.alert("Time's Up!", 'The 5-minute game timer has expired.', [
               { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
             ]);
             break;
           }
           case 'timeout': {
+            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
             Alert.alert('Timeout', 'You have been timed out for inactivity.', [
               { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
             ]);
@@ -342,6 +344,7 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
           case 'game_over': {
             setGameCompleted(true);
             if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
             const lines = msg.scores
               .sort((a, b) => b.score - a.score)
               .map((s) => `${s.username}: ${s.score} (R${s.rounds_completed})`)
