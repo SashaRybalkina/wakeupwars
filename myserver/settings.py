@@ -133,7 +133,7 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),   # default 15 minutes
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),     # default 7 days
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=60),     # default 7 days
 }
 
 

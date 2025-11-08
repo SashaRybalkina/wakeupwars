@@ -66,41 +66,43 @@ const Profile: React.FC<Props> = ({ navigation }) => {
   const [currentMemoji, setCurrentMemoji] = useState<Memoji | null>(null);
   const [numCoins, setNumCoins] = useState<number>(0);
   const [backgroundColor, setBackgroundColor] = useState<string>('#FFB3BA');
-  const { user, setUser, setSkillLevels } = useUser();
+  const { user, setUser, setSkillLevels, logout } = useUser();
   const [badges, setBadges] = useState<Badge[]>([]);
   const [selectedBadge, setSelectedBadge] = useState<null | any>(null);
   const [notifCount, setNotifCount] = useState(0);
 
-  // const handleLogout = () => {
-  //   setUser(null);
 
-  //   navigation.reset({
-  //     index: 0,
-  //     routes: [{ name: 'Login' }],
-  //   });
-  // };
+
+
+// const handleLogout = async () => {
+//   try {
+//     // 1. Clear tokens from SecureStore
+//     await SecureStore.deleteItemAsync("access");
+//     await SecureStore.deleteItemAsync("refresh");
+
+//     // 2. Clear user context
+//     setUser(null);
+
+//     await AlarmModule.clearLaunchIntent();
+
+    // // 3. Reset navigation to login screen
+    // navigation.reset({
+    //   index: 0,
+    //   routes: [{ name: "Login" }],
+    // });
+//   } catch (err: any) {
+//     console.error("Logout failed", err);
+//     Alert.alert("Error", "Failed to log out. Try again.");
+//   }
+// };
 
 
 const handleLogout = async () => {
-  try {
-    // 1. Clear tokens from SecureStore
-    await SecureStore.deleteItemAsync("access");
-    await SecureStore.deleteItemAsync("refresh");
-
-    // 2. Clear user context
-    setUser(null);
-
-    await AlarmModule.clearLaunchIntent();
-
-    // 3. Reset navigation to login screen
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Login" }],
-    });
-  } catch (err: any) {
-    console.error("Logout failed", err);
-    Alert.alert("Error", "Failed to log out. Try again.");
-  }
+  await logout();
+  navigation.reset({
+    index: 0,
+    routes: [{ name: "Login" }],
+  });
 };
 
 
@@ -109,7 +111,18 @@ const handleLogout = async () => {
 
     const fetchNotificationsCount = async () => {
       try {
-        const access = await getAccessToken();
+                const access = await getAccessToken();
+                if (!access) {
+                  await logout();
+                  // 3. Reset navigation to login screen
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: "Login" }],
+                  });
+
+                  // await handleLogout();
+                  // throw new Error("Not authenticated");
+                }
         const res = await fetch(endpoints.notifications(Number(user.id)), {
           headers: { Authorization: `Bearer ${access}` },
         });
@@ -127,20 +140,7 @@ const handleLogout = async () => {
     // return () => clearInterval(interval);
   }, [user]);
 
-    // useEffect(() => {
-  //   if (!user) return;
-  //   (async () => {
-  //     try {
-  //       const access = await getAccessToken();
-  //       const res = await fetch(endpoints.skillLevels(), {
-  //         headers: {
-  //           Authorization: `Bearer ${access}`
-  //         }
-  //       });
-  //       setSkillLevels(await res.json());
-  //     } catch {}
-  //   })();
-  // }, [user, setSkillLevels]);
+
 
   useFocusEffect(
     React.useCallback(() => {
@@ -152,7 +152,13 @@ const handleLogout = async () => {
         try {
                 const access = await getAccessToken();
                 if (!access) {
-                  throw new Error("Not authenticated");
+                  await logout();
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: "Login" }],
+                  });
+                  // await handleLogout();
+                  // throw new Error("Not authenticated");
                 }
         const res = await fetch(endpoints.userData(Number(user.id)), {
           headers: {
@@ -180,7 +186,16 @@ const handleLogout = async () => {
 
   const fetchBadges = async () => {
     if (!user) return;
-    const access = await getAccessToken();
+                const access = await getAccessToken();
+                if (!access) {
+                  await logout();
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: "Login" }],
+                  });
+                  // await handleLogout();
+                  // throw new Error("Not authenticated");
+                }
     const res = await fetch(endpoints.badges(Number(user.id)), {
       headers: { Authorization: `Bearer ${access}` },
     });
@@ -248,80 +263,6 @@ const collectBadge = async (badgeId: number) => {
 }
 
 
-// const PulsingBadge = ({ badge, onPress }) => {
-//   const scale = useRef(new Animated.Value(1)).current;
-
-//   useEffect(() => {
-//     if (badge.earned && !badge.collected) {
-//       // Start pulsing loop
-//       Animated.loop(
-//         Animated.sequence([
-//           Animated.timing(scale, {
-//             toValue: 1.15,
-//             duration: 800,
-//             useNativeDriver: true,
-//           }),
-//           Animated.timing(scale, {
-//             toValue: 1,
-//             duration: 800,
-//             useNativeDriver: true,
-//           }),
-//         ])
-//       ).start();
-//     } else {
-//       scale.setValue(1); // reset scale when no longer pulsing
-//     }
-//   }, [badge.earned, badge.collected]);
-
-//   const borderColor = badge.collected
-//     ? 'rgba(94, 204, 114, 1)'
-//     : badge.earned
-//       ? 'gold'
-//       : 'transparent';
-
-//   const opacity = badge.earned ? 1 : 0.3;
-
-//   return (
-//     <TouchableOpacity
-//       key={badge.id}
-//       onPress={onPress}
-//       activeOpacity={0.9}
-//     >
-//       <Animated.View
-//         style={{
-//           transform: [{ scale }],
-//           width: 60,
-//           height: 60,
-//           margin: 5,
-//           borderRadius: 8,
-//           alignItems: 'center',
-//           justifyContent: 'center',
-//           borderWidth: badge.earned ? 2 : 0,
-//           borderColor,
-//           backgroundColor: badge.collected
-//             ? 'rgba(94, 204, 114, 0.2)'
-//             : badge.earned
-//               ? 'rgba(255, 215, 0, 0.15)'
-//               : 'rgba(255,255,255,0.1)',
-//           shadowColor: badge.earned && !badge.collected ? 'gold' : 'transparent',
-//           shadowOpacity: badge.earned && !badge.collected ? 0.8 : 0,
-//           shadowRadius: badge.earned && !badge.collected ? 8 : 0,
-//           shadowOffset: { width: 0, height: 0 },
-//         }}
-//       >
-//         <Image
-//           source={{ uri: `${BASE_URL}${badge.imageUrl}` }}
-//           style={{
-//             width: 50,
-//             height: 50,
-//             opacity,
-//           }}
-//           resizeMode="contain"
-//         />
-//       </Animated.View>
-//     </TouchableOpacity>
-//   );
-// };
 
 
   return (
@@ -364,166 +305,11 @@ const collectBadge = async (badgeId: number) => {
           badgesGiven={badges}
         />
 
-        {/* <View style={styles.menu}> */}
-          {/* <TouchableOpacity style={styles.menuItem} activeOpacity={0.7} onPress={() => navigation.navigate('MySkills')}>
-            <View style={styles.menuItemContent}>
-              <Ionicons name="star" size={22} color="#FFD700" style={styles.menuIcon} />
-              <Text style={styles.menuText}>My Skills</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={22} color="#FFF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
-            <View style={styles.menuItemContent}>
-              <Ionicons name="podium" size={22} color="#FFD700" style={styles.menuIcon} />
-              <Text style={styles.menuText}>Leaderboard</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={22} color="#FFF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
-            <View style={styles.menuItemContent}>
-              <Ionicons name="alarm" size={22} color="#FFD700" style={styles.menuIcon} />
-              <Text style={styles.menuText}>Alarms</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={22} color="#FFF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
-            <View style={styles.menuItemContent}>
-              <Ionicons name="help-circle" size={22} color="#FFD700" style={styles.menuIcon} />
-              <Text style={styles.menuText}>Support</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={22} color="#FFF" />
-          </TouchableOpacity> */}
-        {/* </View> */}
-
-
-
-
-{/* <ScrollView horizontal contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 5 }}>
-  {badges.map((badge) => {
-    const borderColor = badge.collected
-      ? 'rgba(94, 204, 114, 1)'
-      : badge.earned
-        ? 'gold'
-        : 'transparent';
-
-    const opacity = badge.earned ? 1 : 0.3;
-
-    return (
-      <TouchableOpacity
-        key={badge.id}
-        onPress={() => {
-          if (badge.earned && !badge.collected) {
-            collectBadge(badge.id); // hit the /collect endpoint
-          } else {
-            setSelectedBadge(badge);
-          }
-        }}
-        style={{
-          width: 60,
-          height: 60,
-          margin: 5,
-          borderRadius: 8,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: badge.earned ? 2 : 0,
-          borderColor,
-          backgroundColor: badge.collected
-            ? 'rgba(94, 204, 114, 0.2)'
-            : badge.earned
-              ? 'rgba(255, 215, 0, 0.15)'
-              : 'rgba(255,255,255,0.1)',
-          ...(badge.earned && !badge.collected
-            ? { shadowColor: 'gold', shadowOpacity: 0.7, shadowRadius: 6 }
-            : {}),
-        }}
-      >
-        <Image
-          source={{ uri: `${BASE_URL}${badge.imageUrl}` }}
-          style={{ width: 50, height: 50, opacity }}
-          resizeMode="contain"
-        />
-      </TouchableOpacity>
-    );
-  })}
-</ScrollView> */}
-
-{/* 
-<ScrollView
-  horizontal
-  contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 5 }}
->
-  {badges.map((badge) => (
-    <PulsingBadge
-      key={badge.id}
-      badge={badge}
-      onPress={() => {
-        if (badge.earned && !badge.collected) {
-          collectBadge(badge.id);
-        } else {
-          setSelectedBadge(badge);
-        }
-      }}
-    />
-  ))}
-</ScrollView> */}
-
-
-{/* 
-{selectedBadge && (
-  <Modal
-    transparent
-    animationType="fade"
-    visible={!!selectedBadge}
-    onRequestClose={() => setSelectedBadge(null)}
-  >
-    <View style={{
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 20,
-    }}>
-      <View style={{
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 20,
-        width: '100%',
-        maxWidth: 300,
-        alignItems: 'center',
-      }}>
-        <Image
-          source={{ uri: `${BASE_URL}${selectedBadge.imageUrl}` }}
-          style={{ width: 80, height: 80 }}
-          resizeMode="contain"
-        />
-        <Text style={{ fontWeight: 'bold', fontSize: 18, marginTop: 10 }}>
-          {selectedBadge.name}
-        </Text>
-        <Text style={{ fontSize: 14, textAlign: 'center', marginTop: 5 }}>
-          {selectedBadge.description}
-        </Text>
-        <TouchableOpacity
-          onPress={() => setSelectedBadge(null)}
-          style={{ marginTop: 15, padding: 10 }}
-        >
-          <Text style={{ color: '#007BFF', fontWeight: 'bold' }}>Close</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </Modal>
-)} */}
-
-
-
-
-
         <TouchableOpacity
           style={styles.logoutButton}
           activeOpacity={0.8}
           onPress={handleLogout}
+          // onPress={logout}
         >
           <Ionicons
             name="log-out-outline"

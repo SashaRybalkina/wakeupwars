@@ -1,4 +1,8 @@
+import { NavigationProp, useNavigation } from "@react-navigation/native";
+import * as SecureStore from "expo-secure-store";
 import React, { createContext, useState, useContext } from "react";
+import { Alert, NativeModules } from 'react-native';
+const { AlarmModule } = NativeModules;
 
 export type SkillLevel = {
   category: { categoryName: string };
@@ -19,6 +23,8 @@ type UserCtx = {
   setActiveConversationId: (id: string | number | null) => void;
   activeGroupId: string | number | null;
   setActiveGroupId: (id: string | number | null) => void;
+
+  logout: () => Promise<void>;
 };
 
 const UserContext = createContext<UserCtx | undefined>(undefined);
@@ -29,6 +35,20 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [skillLevels, setSkillLevels] = useState<SkillLevel[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | number | null>(null);
   const [activeGroupId, setActiveGroupId] = useState<string | number | null>(null);
+
+  // const navigation = useNavigation<NavigationProp<any>>();
+
+  const logout = async () => {
+    try {
+      await SecureStore.deleteItemAsync("access");
+      await SecureStore.deleteItemAsync("refresh");
+      setUser(null);
+      await AlarmModule.clearLaunchIntent();
+    } catch (err: any) {
+      console.error("Logout failed", err);
+      Alert.alert("Error", "Failed to log out. Try again.");
+    }
+  };
 
   return (
     <UserContext.Provider
@@ -43,6 +63,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setActiveConversationId,
         activeGroupId,
         setActiveGroupId,
+        logout,
       }}
     >
       {children}

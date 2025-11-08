@@ -127,7 +127,7 @@ export async function scheduleAlarmsForUser(
     if (alarms.length === 0) return;
 
     // console.log(alarms)
-    // await scheduleAlarms(alarms);
+    await scheduleAlarms(alarms);
   } catch (err) {
     console.error('Failed to sync alarms:', err);
   }

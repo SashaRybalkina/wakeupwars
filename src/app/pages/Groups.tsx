@@ -20,19 +20,43 @@ type Group = {
 }
 
 const Groups: React.FC<Props> = ({ navigation }) => {
-  const { user } = useUser()
-  const { groups, inviteCount, refreshGroups, isLoading, invalid } = useGroups();
+  const { user, logout } = useUser()
+  const { groups, refreshGroups, invalid, isLoading } = useGroups();
   const route = useRoute()
   const from = route?.params?.from;
   // const [groups, setGroups] = useState<Group[]>([])
   // const [isLoading, setIsLoading] = useState(true)
-  // const [inviteCount, setInviteCount] = useState(0)
+  const [inviteCount, setInviteCount] = useState(0)
 
+  const fetchInvites = async () => {
+    try {
+                    const access = await getAccessToken();
+                    if (!access) {
+                      await logout();
+                      navigation.reset({
+                        index: 0,
+                        routes: [{ name: "Login" }],
+                      });
+                    }
+          const invitesResponse = await fetch(endpoints.groupInvites(Number(user?.id)), {
+        headers: { Authorization: `Bearer ${access}` },
+        });
+          if (invitesResponse.ok) {
+            const invitesData = await invitesResponse.json().catch(() => []);
+            setInviteCount(Array.isArray(invitesData) ? invitesData.length : 0);
+          } else {
+            setInviteCount(0);
+          }
+        } catch (error) {
+        console.error("Failed to fetch invites:", error);
+    } 
+  }
 
   useFocusEffect(
     useCallback(() => {
       if (invalid) refreshGroups();
-    }, [invalid, refreshGroups])
+      fetchInvites();
+    }, [invalid, refreshGroups, user?.id])
   );
 
 

@@ -34,7 +34,7 @@ export async function getAccessToken(): Promise<string | null> {
       });
 
       if (!res.ok) {
-        await logout();
+        // await logout();
         return null;
       }
 
@@ -44,7 +44,7 @@ export async function getAccessToken(): Promise<string | null> {
         data = await res.json();
       } else {
         console.error("Expected JSON but got:", await res.text());
-        await logout();
+        // await logout();
         return null;
       }
 
@@ -52,7 +52,7 @@ export async function getAccessToken(): Promise<string | null> {
       if (access) await SecureStore.setItemAsync("access", access);
     } catch (err) {
       console.error("Refresh token failed", err);
-      await logout();
+      // await logout();
       return null;
     }
   }
@@ -91,20 +91,20 @@ export async function getAccessToken(): Promise<string | null> {
 //   return access;
 // }
 
-export async function logout() {
-  await SecureStore.deleteItemAsync("access");
-  await SecureStore.deleteItemAsync("refresh");
+// export async function logout() {
+//   await SecureStore.deleteItemAsync("access");
+//   await SecureStore.deleteItemAsync("refresh");
 
-    // setUser(null);
+//     // setUser(null);
 
-    // await AlarmModule.clearLaunchIntent();
+//     // await AlarmModule.clearLaunchIntent();
 
-    // // 3. Reset navigation to login screen
-    // navigation.reset({
-    //   index: 0,
-    //   routes: [{ name: "Login" }],
-    // });
-}
+//     // // 3. Reset navigation to login screen
+//     // navigation.reset({
+//     //   index: 0,
+//     //   routes: [{ name: "Login" }],
+//     // });
+// }
 
 
 

@@ -12,12 +12,10 @@ type Group = {
 type GroupsContextType = {
   groups: Group[];
   setGroups: React.Dispatch<React.SetStateAction<Group[]>>;
-  inviteCount: number;
-  setInviteCount: React.Dispatch<React.SetStateAction<number>>;
   refreshGroups: () => Promise<void>;
-  isLoading: boolean;
   invalid: boolean;
   invalidateGroups: () => void;
+  isLoading: boolean;
 };
 
 const GroupsContext = createContext<GroupsContextType | undefined>(undefined);
@@ -30,7 +28,7 @@ export const useGroups = () => {
 
 export const GroupsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [groups, setGroups] = useState<Group[]>([]);
-  const [inviteCount, setInviteCount] = useState(0);
+//   const [inviteCount, setInviteCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [invalid, setInvalid] = useState(true);
   const { user } = useUser();
@@ -41,19 +39,12 @@ export const GroupsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const accessToken = await getAccessToken();
       if (!accessToken) throw new Error("Not authenticated");
 
-      const [groupsRes, invitesRes] = await Promise.all([
-        fetch(endpoints.groups(Number(user?.id)), { headers: { Authorization: `Bearer ${accessToken}` } }),
-        fetch(endpoints.groupInvites(Number(user?.id)), { headers: { Authorization: `Bearer ${accessToken}` } }),
-      ]);
+        const groupsRes = await fetch(endpoints.groups(Number(user?.id)), { headers: { Authorization: `Bearer ${accessToken}` } })
+
 
       if (groupsRes.ok) {
         const groupsData = await groupsRes.json();
         setGroups(groupsData);
-      }
-
-      if (invitesRes.ok) {
-        const invitesData = await invitesRes.json().catch(() => []);
-        setInviteCount(Array.isArray(invitesData) ? invitesData.length : 0);
       }
     } catch (err) {
       console.error("Failed to refresh groups:", err);
@@ -67,7 +58,7 @@ export const GroupsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
   if (user?.id) {
     setGroups([]);
-    setInviteCount(0);
+    // setInviteCount(0);
     refreshGroups();
   }
 }, [user?.id, refreshGroups]);
@@ -75,7 +66,7 @@ export const GroupsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const invalidateGroups = () => setInvalid(true);
 
   return (
-    <GroupsContext.Provider value={{ groups, setGroups, inviteCount, setInviteCount, refreshGroups, isLoading, invalid, invalidateGroups }}>
+    <GroupsContext.Provider value={{ groups, setGroups, refreshGroups, invalid, invalidateGroups, isLoading }}>
       {children}
     </GroupsContext.Provider>
   );
