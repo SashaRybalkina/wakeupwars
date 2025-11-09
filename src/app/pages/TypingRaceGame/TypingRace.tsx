@@ -250,12 +250,45 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
       };
 
-      ws.onclose = () => console.log('[Typing WS] disconnected');
+      // === 🧱 Connection closed handling ===
+      ws.onclose = (event) => {
+        console.log('[Typing WS] disconnected, code:', event.code);
+
+        if (event.code === 4001) {
+          Alert.alert(
+            "Join Deadline Passed",
+            "You cannot join this game because the join window has already closed.",
+            [{ text: "OK", onPress: () => navigation.goBack() }]
+          );
+        } else if (event.code === 4002) {
+          Alert.alert(
+            "Game Already Completed",
+            "This challenge has already been completed today.",
+            [{ text: "OK", onPress: () => navigation.goBack() }]
+          );
+        } else if (event.code !== 1000) { // 1000 = normal close
+          Alert.alert(
+            "Connection Closed",
+            "The connection was closed unexpectedly.",
+            [{ text: "OK", onPress: () => navigation.goBack() }]
+          );
+        }
+      };
       ws.onerror = (e: any) => console.error('[Typing WS] error:', e);
 
       ws.onmessage = (event) => {
         const msg: ServerToClientMessage | any = JSON.parse(event.data);
         const log = (...args: any[]) => console.log("%c[Typing WS]", "color:#00BFFF;font-weight:bold;", ...args);
+
+        // 🛑 Handle server-side error messages
+        if (msg.type === "error") {
+          // Alert.alert(
+          //   "⚠️ Unable to Join",
+          //   msg.message || "An unexpected error occurred. Please try again later.",
+          //   [{ text: "OK", onPress: () => navigation.goBack() }]
+          // );
+          return;
+        }
 
         switch (msg.type) {
           // case "lobby_state":

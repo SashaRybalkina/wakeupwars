@@ -36,7 +36,11 @@ def _started_key(game_id: int):
 
 
 CACHE_TTL = 360
-JOIN_TIMEOUT_SEC = 20
+JOIN_TIMEOUT_SEC = 30
+
+# ===== Feature switches =====
+ENABLE_JOIN_DEADLINE = True
+ENABLE_ENDED_CHECK = True
 
 
 
@@ -66,6 +70,31 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             #print("[Typing][DENIED] Unauthenticated user attempted to connect.")
             await self.close()
             return
+        
+        # === Check join deadline & game end ===
+        gs = await sync_to_async(TypingRaceGameState.objects.select_related("challenge", "game").get)(id=self.game_id)
+
+        if ENABLE_JOIN_DEADLINE:
+            if not await self._check_join_deadline(gs):
+                await self.accept()  # ✅ need to accept before sending
+                await self.send_json({
+                    "type": "error",
+                    "message": "Join window has closed for this game."
+                })
+                await self.close(code=4001)
+                logger.warning(f"[Typing][JOIN BLOCK] {self.user.username} denied by join deadline (game_id={self.game_id})")
+                return
+
+        if ENABLE_ENDED_CHECK:
+            if not await self._check_game_not_ended(gs):
+                await self.accept()  # ✅ need to accept before sending
+                await self.send_json({
+                    "type": "error",
+                    "message": "This challenge has already been completed today."
+                })
+                await self.close(code=4002)
+                logger.warning(f"[Typing][JOIN BLOCK] {self.user.username} denied because game ended (game_id={self.game_id})")
+                return
 
         # Join the channel group
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
@@ -182,6 +211,14 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             #print(f"[Typing][START] Ignored duplicate start signal for game {self.game_id}")
             return
         cache.set(started_key, True, timeout=CACHE_TTL)
+
+        # Mark joins_closed in DB
+        await sync_to_async(
+            TypingRaceGameState.objects.filter(id=self.game_id).update
+        )(joins_closed=True)
+
+        # Auto-assign zero scores to absent players
+        await self._auto_save_zero_for_absent_players()
 
         #cache.delete(_deadline_key(self.game_id))
         await self.channel_layer.group_send(
@@ -451,7 +488,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         """Broadcast current waiting room state to all connected clients."""
         conns = set(cache.get(_conns_key(self.game_id)) or [])
         ready_count = len(conns)
-        print(f"[Typing][DEBUG] _broadcast_lobby_state() triggered | conns={conns}, ready_count={ready_count}")
+        logger.warning(f"[Typing][DEBUG] _broadcast_lobby_state() triggered | conns={conns}, ready_count={ready_count}")
 
         try:
             gs, expected_count, members = await self._get_lobby_state_data()
@@ -494,7 +531,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             "members": members,
         }
 
-        #print(f"[Typing][BROADCAST] lobby_state -> {message}")
+        logger.warning(f"[Typing][BROADCAST] lobby_state -> {message}")
         await self.channel_layer.group_send(self.room_group_name, message)
 
     
@@ -556,11 +593,40 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         Sync TypingRaceGamePlayer results into GamePerformance for leaderboard use.
         Called only once at the end of the match.
         """
+
+        # --- Handle absent players before syncing performances ---
+        absent_ids = cache.get(f"absent_players_{self.game_id}") or []
         try:
             state = TypingRaceGameState.objects.select_related("challenge", "game").get(id=self.game_id)
-            players = TypingRaceGamePlayer.objects.filter(game_state=state)
             today = date.today()
 
+            if absent_ids:
+                users = list(User.objects.filter(id__in=absent_ids))
+                for user in users:
+                    TypingRaceGamePlayer.objects.get_or_create(
+                        game_state=state,
+                        player=user,
+                        defaults={
+                            "final_score": 0,
+                            "progress": 0,
+                            "accuracy": 0,
+                            "is_completed": False,
+                        },
+                    )
+                    GamePerformance.objects.update_or_create(
+                        challenge=state.challenge,
+                        game=state.game,
+                        user=user,
+                        date=today,
+                        defaults={"score": 0, "auto_generated": True},
+                    )
+                cache.delete(f"absent_players_{self.game_id}")
+                logger.warning(
+                    f"[Typing][AUTOZERO][TIMEOUT] Persisted {len(users)} absent players with 0 score"
+                )
+
+            # --- Now sync all players to GamePerformance ---
+            players = TypingRaceGamePlayer.objects.filter(game_state=state)
             for p in players:
                 GamePerformance.objects.update_or_create(
                     challenge=state.challenge,
@@ -573,8 +639,62 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
                     },
                 )
             logger.warning(f"[Typing][SYNC] GamePerformance synced for game_state={self.game_id}")
+
         except Exception as e:
             logger.error(f"[Typing][SYNC][ERROR] Failed syncing GamePerformance: {e}")
+
+    
+    # ===== Helper: join deadline check =====
+    async def _check_join_deadline(self, gs):
+        now = timezone.now()
+        if not getattr(gs, "join_deadline_at", None):
+            gs.join_deadline_at = (gs.created_at or now) + timezone.timedelta(minutes=2)
+            await sync_to_async(gs.save)(update_fields=["join_deadline_at"])
+
+        # if joins_closed or deadline passed, block the join
+        if getattr(gs, "joins_closed", False) or now > gs.join_deadline_at:
+            logger.warning(f"[Typing][JOIN DEADLINE] {self.user.username} denied join for game_state={self.game_id}")
+            return False  
+        return True
+        
+
+
+    # ===== Helper: ended game check =====
+    async def _check_game_not_ended(self, gs):
+        ended = await sync_to_async(
+            GamePerformance.objects.filter(
+                challenge=gs.challenge,
+                game=gs.game,
+                date=timezone.localdate()
+            ).exists
+        )()
+        if ended:
+            gs.joins_closed = True
+            await sync_to_async(gs.save)(update_fields=["joins_closed"])
+            logger.warning(f"[Typing][ENDED CHECK] {self.user.username} denied join because game already ended")
+            return False
+        return True
+    
+    async def _auto_save_zero_for_absent_players(self):
+        """Just record absent players to cache; no DB writes yet."""
+        gs = await sync_to_async(
+            TypingRaceGameState.objects.select_related("challenge", "game").get
+        )(id=self.game_id)
+
+        all_members = await sync_to_async(list)(
+            ChallengeMembership.objects.filter(
+                challengeID=gs.challenge
+            ).select_related("uID")
+        )
+
+        connected_ids = set(cache.get(_conns_key(self.game_id)) or [])
+        absent_ids = [m.uID.id for m in all_members if m.uID.id not in connected_ids]
+
+        cache.set(f"absent_players_{self.game_id}", absent_ids, timeout=3600)
+        logger.warning(f"[Typing][AUTOZERO][CACHE] Marked {len(absent_ids)} absent players for game_id={self.game_id}")
+
+
+
 
 
 
