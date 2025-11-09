@@ -2300,8 +2300,8 @@ class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
         
         print(final_schedule)
 
-        default_to_multiplayer = {43: 10, 44: 12, 45: 30}
-        default_to_singleplayer = {43: 9, 44: 11, 45: 32}
+        default_to_multiplayer = {43: 10, 44: 12, 45: 30, 48: 47,}
+        default_to_singleplayer = {43: 9, 44: 11, 45: 32, 48: 46,}
 
         # Persist everything atomically
         try:
@@ -2425,6 +2425,8 @@ class FinalizeCollaborativeGroupChallengeScheduleView(APIView):
                                 code = "wordle"
                             elif "pattern" in g_name:
                                 code = "pattern"
+                            elif "typing" in g_name: 
+                                code = "typingrace"
                             else:
                                 logger.warning("Unknown game name=%r id=%s; skipping", g.name, g.id)
                                 continue

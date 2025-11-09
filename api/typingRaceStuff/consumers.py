@@ -346,6 +346,13 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             },
         )
 
+        # ✅ Persist both TypingRaceGamePlayer + GamePerformance (parallel for speed)
+        await asyncio.gather(
+            sync_to_async(_save_leaderboard_cache_to_db)(self.game_id),
+            self._save_game_performance_from_typing_results(),
+        )
+        logger.warning(f"[Typing][TIMEOUT] Game {self.game_id} fully synced to DB")
+
 
     # =========================
     # 📡 Group Event Handlers
@@ -493,16 +500,42 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
     
     @sync_to_async
     def _save_zero_score_if_needed(self):
-        """Auto-save a zero score for disconnected users with no record."""
-        gs = TypingRaceGameState.objects.select_related("challenge", "game").get(id=self.game_id)
-        today = date.today()
-        exists = GamePerformance.objects.filter(
-            challenge=gs.challenge,
-            game=gs.game,
-            user=self.user,
-            date=today,
-        ).exists()
-        if not exists:
+        """Auto-save a zero score for disconnected users with no record,
+        but skip if player already completed or has cached progress."""
+        try:
+            gs = TypingRaceGameState.objects.select_related("challenge", "game").get(id=self.game_id)
+            today = date.today()
+
+            # check completed in DB or not
+            player = TypingRaceGamePlayer.objects.filter(
+                game_state=gs, player=self.user
+            ).first()
+            if player and player.is_completed:
+                logger.warning(f"[Typing][SCORE] {self.user.username} already completed — skip zero score")
+                return
+
+            # ✅ check cache for completed status
+            leaderboard_key = f"typing_leaderboard_{self.game_id}"
+            lb_cache = cache.get(leaderboard_key)
+            if lb_cache:
+                for entry in lb_cache:
+                    if entry.get("user_id") == self.user.id and entry.get("is_completed"):
+                        logger.warning(f"[Typing][SCORE] {self.user.username} marked complete in cache — skip zero score")
+                        return
+
+            # ✅ check if a formal record already exists (non auto_generated)
+            exists = GamePerformance.objects.filter(
+                challenge=gs.challenge,
+                game=gs.game,
+                user=self.user,
+                date=today,
+                auto_generated=False,
+            ).exists()
+            if exists:
+                logger.warning(f"[Typing][SCORE] {self.user.username} already has a score — skip zero score")
+                return
+
+            # 🧩 If none of the above conditions are met, safely create a 0 score
             GamePerformance.objects.update_or_create(
                 challenge=gs.challenge,
                 game=gs.game,
@@ -510,7 +543,39 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
                 date=today,
                 defaults={"score": 0, "auto_generated": True},
             )
-            print(f"[Typing][SCORE] Auto-saved 0 score for {self.user.username}")
+            logger.warning(f"[Typing][SCORE] Auto-saved 0 score for disconnected {self.user.username}")
+
+        except Exception as e:
+            logger.error(f"[Typing][SCORE][ERROR] Failed zero score save: {e}")
+
+
+    
+    @database_sync_to_async
+    def _save_game_performance_from_typing_results(self):
+        """
+        Sync TypingRaceGamePlayer results into GamePerformance for leaderboard use.
+        Called only once at the end of the match.
+        """
+        try:
+            state = TypingRaceGameState.objects.select_related("challenge", "game").get(id=self.game_id)
+            players = TypingRaceGamePlayer.objects.filter(game_state=state)
+            today = date.today()
+
+            for p in players:
+                GamePerformance.objects.update_or_create(
+                    challenge=state.challenge,
+                    game=state.game,
+                    user=p.player,
+                    date=today,
+                    defaults={
+                        "score": int(p.final_score or 0),
+                        "auto_generated": False,
+                    },
+                )
+            logger.warning(f"[Typing][SYNC] GamePerformance synced for game_state={self.game_id}")
+        except Exception as e:
+            logger.error(f"[Typing][SYNC][ERROR] Failed syncing GamePerformance: {e}")
+
 
 
         
