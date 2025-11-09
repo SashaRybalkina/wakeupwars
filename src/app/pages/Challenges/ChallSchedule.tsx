@@ -495,6 +495,14 @@ const getInitials = (name: string): string => {
     const dayData = schedule.find((d) => DayOfWeekLabels[d.dayOfWeek] === dayLabel);
     const isActive = dayData?.dayOfWeek === selectedDay;
 
+    const getInitials = (name: string) => {
+      return name
+        .trim()
+        .split(/\s+/)
+        .map((part) => part[0]?.toUpperCase())
+        .join("");
+    };
+
     // Group alarms by time
     const groupedAlarms: Record<string, string[]> = {};
     dayData?.alarms.forEach((a) => {
@@ -514,7 +522,9 @@ const getInitials = (name: string): string => {
         {/* vertically stacked alarms */}
         <View style={{ flexDirection: "column", marginTop: 8, alignItems: "center" }}>
           {Object.entries(groupedAlarms).map(([time, users], i) => {
-            const label = users.length === members.length ? "All" : users.join(", ");
+            const label = users.length === members.length
+              ? "All"
+              : users.map((u) => getInitials(u)).join(", ");
 
             return (
               <View key={i} style={{ alignItems: "center", marginVertical: 6 }}>
