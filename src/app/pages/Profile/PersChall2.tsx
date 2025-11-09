@@ -1,6 +1,6 @@
 import type React from "react"
 import { useState } from "react"
-import { ImageBackground, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, Platform } from "react-native"
+import { ImageBackground, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, Platform, ActivityIndicator } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import type { NavigationProp } from "@react-navigation/native"
@@ -28,6 +28,7 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
   const [selectedDays, setSelectedDays] = useState<string[]>([])
   const [dayTimeMapping, setDayTimeMapping] = useState<Record<string, string>>({})
   const [gamesByDay, setGamesByDay] = useState<Record<string, [string, string][]>>({})
+  const [submitting, setSubmitting] = useState(false)
 
   const goToMessages = () => navigation.navigate("Messages")
   const goToGroups = () => navigation.navigate("Groups")
@@ -163,6 +164,7 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
 
 
   const handleCreateChallenge = async () => {
+    if (submitting) return;
     console.log("hello")
     if (!name.trim()) {
       Alert.alert("Error", "Please enter a challenge name");
@@ -276,6 +278,7 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
     console.log(payload)
 
     try {
+      setSubmitting(true);
       const accessToken = await getAccessToken();
       if (!accessToken) {
         throw new Error("Not authenticated");
@@ -295,12 +298,15 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
         throw new Error(`Server error: ${response.status}`);
       }
 
+      setSubmitting(false);
       Alert.alert("Success", "Personal challenge created successfully", [
         { text: "OK", onPress: () => navigation.navigate("Profile") },
       ]);
     } catch (error) {
       console.error("Create challenge failed:", error);
       Alert.alert("Error", "Failed to create challenge. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -491,9 +497,9 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
             )}
           </View>
 
-          <TouchableOpacity style={styles.createButton} onPress={handleCreateChallenge}>
+          <TouchableOpacity style={[styles.createButton, submitting && { opacity: 0.6 }]} onPress={handleCreateChallenge} disabled={submitting}>
             <LinearGradient colors={["#FFD700", "#FFC107"]} style={styles.createButtonGradient}>
-              <Text style={styles.createButtonText}>Create Challenge</Text>
+              <Text style={styles.createButtonText}>{submitting ? "Creating..." : "Create Challenge"}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </ScrollView>
@@ -758,6 +764,33 @@ const styles = StyleSheet.create({
     color: "#333",
     fontSize: 18,
     fontWeight: "700",
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+  },
+  loadingBox: {
+    backgroundColor: 'rgba(33,31,38,0.95)',
+    padding: 20,
+    borderRadius: 12,
+    width: '85%',
+    maxWidth: 360,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)'
+  },
+  loadingText: {
+    color: '#FFF',
+    marginTop: 12,
+    textAlign: 'center',
+    fontSize: 14,
   },
   navBar: {
     backgroundColor: "#211F26",

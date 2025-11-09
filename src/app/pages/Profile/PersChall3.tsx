@@ -9,6 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
@@ -74,6 +75,7 @@ const PersChall3: React.FC<Props> = ({ navigation }) => {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(first_possible_start_date);
+  const [submitting, setSubmitting] = useState(false);
 
   const alarmDays = useMemo(
     () => alarm_schedule.map((a) => a.dayOfWeek),
@@ -160,6 +162,7 @@ function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number
 
 
   const handleCreateChallenge = async () => {
+    if (submitting) return;
     if (!startDate || !endDate) {
       Alert.alert("Error", "Please select both start and end dates.");
       return;
@@ -172,6 +175,7 @@ function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number
     const total_days = countAlarmDaysBetween(startDate, endDate, alarmDays);
 
     try {
+        setSubmitting(true);
         const accessToken = await getAccessToken();
         if (!accessToken) throw new Error("Not authenticated");
 
@@ -214,6 +218,7 @@ function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number
             } catch (e) {
                 console.warn('Failed to schedule alarms for new challenge', e);
             }
+            setSubmitting(false);
             Alert.alert('Success', 'Challenge created successfully', [
                 { text: 'OK', onPress: () => navigation.navigate('PersChall1') },
             ]);
@@ -250,6 +255,7 @@ function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number
             );
 
             console.log("[FRONTEND] Share response:", response.data);
+            setSubmitting(false);
             Alert.alert("Saved", "Challenge shared successfully!");
             navigation.navigate('PersChall1');
           } catch (error: any) {
@@ -288,6 +294,7 @@ function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number
                 throw new Error(error.message || 'Failed to save schedule');
             }
 
+            setSubmitting(false);
             Alert.alert('Success', 'Schedule saved successfully', [
                 { text: 'OK', onPress: () => navigation.navigate('GroupDetails', { groupId: group_id }) },
             ]);
@@ -325,6 +332,7 @@ function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number
             const data = await res.json();
             console.log('Challenge created:', data);
 
+            setSubmitting(false);
             Alert.alert('Success', 'Challenge created successfully', [
                 { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
             ]);
@@ -332,6 +340,7 @@ function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number
 
     } catch (err: any) {
       Alert.alert("Error", err.message);
+      setSubmitting(false);
     }
 
   };
@@ -466,14 +475,15 @@ function countAlarmDaysBetween(startDate: Date, endDate: Date, alarmDays: number
           </View>
 
           <TouchableOpacity
-            style={styles.createButton}
+            style={[styles.createButton, submitting && { opacity: 0.6 }]}
             onPress={handleCreateChallenge}
+            disabled={submitting}
           >
             <LinearGradient
               colors={["#FFD700", "#FFC107"]}
               style={styles.createButtonGradient}
             >
-              <Text style={styles.createButtonText}>Create Challenge</Text>
+              <Text style={styles.createButtonText}>{submitting ? "Creating..." : "Create Challenge"}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </ScrollView>
