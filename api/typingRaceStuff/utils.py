@@ -6,6 +6,7 @@ from pathlib import Path
 import random
 from datetime import date
 import logging, time
+import asyncio, contextlib, threading
 logger = logging.getLogger(__name__)
 
 
@@ -73,66 +74,170 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
     Create or reuse a TypingRaceGameState for this challenge.
     Auto-selects the correct Typing Race Game (single or multi) based on Challenge or GameSchedule.
     """
-    challenge = Challenge.objects.select_for_update().get(id=challenge_id)
+    # challenge = Challenge.objects.select_for_update().get(id=challenge_id)
 
-    # Try to get the game from GameSchedule → handles challenge with planned games
-    sched_ids = list(GameSchedule.objects.filter(challenge_id=challenge_id).values_list("id", flat=True))
-    assoc = (
-        GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids)
-        .select_related("game")
-        .order_by("game_order", "id")
-        .first()
-    )
+    # # Try to get the game from GameSchedule → handles challenge with planned games
+    # sched_ids = list(GameSchedule.objects.filter(challenge_id=challenge_id).values_list("id", flat=True))
+    # assoc = (
+    #     GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids)
+    #     .select_related("game")
+    #     .order_by("game_order", "id")
+    #     .first()
+    # )
 
-    typing_game = assoc.game if assoc else None
+    # typing_game = assoc.game if assoc else None
 
-    # If not found, fallback to single/multi logic based on Challenge group
+    # # If not found, fallback to single/multi logic based on Challenge group
+    # if not typing_game:
+    #     is_group = challenge.groupID_id is not None
+    #     typing_game = (
+    #         Game.objects.filter(name__icontains="typing", isMultiplayer=1 if is_group else 0)
+    #         .order_by("id")
+    #         .first()
+    #     )
+
+    # if typing_game is None:
+    #     raise ValueError("No Typing Race game found (single or multiplayer).")
+
+    # # Reuse or create the TypingRaceGameState
+    # game_state = TypingRaceGameState.objects.filter(challenge=challenge).first()
+    # is_multiplayer = bool(getattr(typing_game, "isMultiplayer", False))
+    # #print(f"[TYPING][get_or_create] is_multiplayer={is_multiplayer}")
+
+    # if not game_state:
+    #     text = random.choice(TYPING_PASSAGES)
+    #     game_state = TypingRaceGameState.objects.create(
+    #         game=typing_game,
+    #         challenge=challenge,
+    #         text=text,
+    #         join_deadline_at=timezone.now() + timedelta(seconds=20),
+    #     )
+    #     #print(f"[TYPING][create] chall={challenge.id} gs={game_state.id}", flush=True)
+    # else:
+    #     # Use existing state, update join_deadline if missing
+    #     if not getattr(game_state, "join_deadline_at", None):
+    #         game_state.join_deadline_at = timezone.now() + timedelta(seconds=20)
+    #         game_state.save(update_fields=["join_deadline_at"])
+
+    # # Ensure player exists
+    # if allow_join:
+    #     initial_accuracy = 0.0 if getattr(typing_game, "isMultiplayer", False) else 100.0
+    #     TypingRaceGamePlayer.objects.get_or_create(
+    #         game_state=game_state,
+    #         player=user,
+    #         defaults={"progress": 0.0, "accuracy": initial_accuracy, "final_score": 0.0},
+    #     )
+
+    # return {
+    #     "game_state_id": game_state.id,
+    #     "text": game_state.text,
+    #     "is_multiplayer": is_multiplayer,
+    #     "created_at": game_state.created_at.isoformat() if game_state.created_at else None,
+    #     "join_deadline_at": game_state.join_deadline_at.isoformat() if game_state.join_deadline_at else None,
+    # }
+    
+    total_start = time.time()
+
+    # === 1️⃣ Fetch Challenge ===
+    t1 = time.time()
+    try:
+        challenge = Challenge.objects.get(id=challenge_id)
+    except Challenge.DoesNotExist:
+        raise ValueError(f"Challenge {challenge_id} not found")
+
+    is_group = challenge.groupID_id is not None
+    logger.warning(f"[TYPING][STEP1] Fetch Challenge took {(time.time()-t1)*1000:.2f}ms")
+
+    # === 2️⃣ Get or cache Typing Game ===
+    t2 = time.time()
+    game_cache_key = f"typing_game_cache_{int(is_group)}"
+    typing_game = cache.get(game_cache_key)
+    cache_hit = typing_game is not None
+
     if not typing_game:
-        is_group = challenge.groupID_id is not None
-        typing_game = (
-            Game.objects.filter(name__icontains="typing", isMultiplayer=1 if is_group else 0)
-            .order_by("id")
+        assoc = (
+            GameScheduleGameAssociation.objects
+            .select_related("game", "game_schedule")
+            .filter(game_schedule__challenge_id=challenge_id)
+            .order_by("game_order", "id")
             .first()
         )
+        typing_game = assoc.game if assoc else None
 
-    if typing_game is None:
-        raise ValueError("No Typing Race game found (single or multiplayer).")
+        if not typing_game:
+            typing_game = (
+                Game.objects.filter(name__icontains="typing", isMultiplayer=1 if is_group else 0)
+                .order_by("id")
+                .first()
+            )
+        if not typing_game:
+            raise ValueError("No Typing Race game found (single or multiplayer).")
 
-    # Reuse or create the TypingRaceGameState
-    game_state = TypingRaceGameState.objects.filter(challenge=challenge).first()
-    is_multiplayer = bool(getattr(typing_game, "isMultiplayer", False))
-    #print(f"[TYPING][get_or_create] is_multiplayer={is_multiplayer}")
+        cache.set(game_cache_key, typing_game, timeout=3600)
 
-    if not game_state:
-        text = random.choice(TYPING_PASSAGES)
-        game_state = TypingRaceGameState.objects.create(
-            game=typing_game,
+    logger.warning(f"[TYPING][STEP2] Get TypingGame (cache_hit={cache_hit}) took {(time.time()-t2)*1000:.2f}ms")
+
+    # === 3️⃣ Get_or_create TypingRaceGameState ===
+    t3 = time.time()
+    ctx = transaction.atomic() if is_group else contextlib.nullcontext()
+    with ctx:
+        game_state, created = TypingRaceGameState.objects.get_or_create(
             challenge=challenge,
-            text=text,
-            join_deadline_at=timezone.now() + timedelta(seconds=20),
+            defaults={
+                "game": typing_game,
+                "text": random.choice(TYPING_PASSAGES),
+                "join_deadline_at": timezone.now() + timedelta(seconds=20),
+            },
         )
-        #print(f"[TYPING][create] chall={challenge.id} gs={game_state.id}", flush=True)
-    else:
-        # Use existing state, update join_deadline if missing
-        if not getattr(game_state, "join_deadline_at", None):
-            game_state.join_deadline_at = timezone.now() + timedelta(seconds=20)
-            game_state.save(update_fields=["join_deadline_at"])
+    logger.warning(f"[TYPING][STEP3] Get_or_create GameState (created={created}) took {(time.time()-t3)*1000:.2f}ms")
 
-    # Ensure player exists
+    # === 4️⃣ Ensure join_deadline exists ===
+    t4 = time.time()
+    if not getattr(game_state, "join_deadline_at", None):
+        game_state.join_deadline_at = timezone.now() + timedelta(seconds=20)
+        game_state.save(update_fields=["join_deadline_at"])
+    logger.warning(f"[TYPING][STEP4] Ensure join_deadline took {(time.time()-t4)*1000:.2f}ms")
+
+    # === 5️⃣ Player creation (sync for multi, async for single) ===
+    t5 = time.time()
     if allow_join:
-        initial_accuracy = 0.0 if getattr(typing_game, "isMultiplayer", False) else 100.0
-        TypingRaceGamePlayer.objects.get_or_create(
-            game_state=game_state,
-            player=user,
-            defaults={"progress": 0.0, "accuracy": initial_accuracy, "final_score": 0.0},
-        )
+        if typing_game.isMultiplayer:
+            # 🧱 Multiplayer — must sync for lobby correctness
+            TypingRaceGamePlayer.objects.get_or_create(
+                game_state=game_state,
+                player=user,
+                defaults={"progress": 0.0, "accuracy": 0.0, "final_score": 0.0},
+            )
+            logger.warning("[TYPING][STEP5] Multiplayer player created synchronously")
+
+        else:
+            # 🚀 Singleplayer — return response immediately, create player in background
+            def _create_player_background():
+                TypingRaceGamePlayer.objects.get_or_create(
+                    game_state=game_state,
+                    player=user,
+                    defaults={"progress": 0.0, "accuracy": 100.0, "final_score": 0.0},
+                )
+                logger.warning("[TYPING][STEP5] Singleplayer player created in background thread")
+
+            threading.Thread(target=_create_player_background, daemon=True).start()
+            logger.warning("[TYPING][STEP5] Singleplayer player creation deferred")
+
+    logger.warning(f"[TYPING][STEP5] Player creation scheduling took {(time.time()-t5)*1000:.2f}ms")
+
+    # === ✅ 6️⃣ Return immediately (especially for singleplayer) ===
+    total_elapsed = (time.time() - total_start) * 1000
+    logger.warning(
+        f"[TYPING][PROFILE] chall={challenge_id} "
+        f"{'multi' if is_group else 'single'}-player TOTAL took {total_elapsed:.2f}ms"
+    )
 
     return {
         "game_state_id": game_state.id,
         "text": game_state.text,
-        "is_multiplayer": is_multiplayer,
-        "created_at": game_state.created_at.isoformat() if game_state.created_at else None,
-        "join_deadline_at": game_state.join_deadline_at.isoformat() if game_state.join_deadline_at else None,
+        "is_multiplayer": bool(typing_game.isMultiplayer),
+        "created_at": getattr(game_state.created_at, "isoformat", lambda: None)(),
+        "join_deadline_at": getattr(game_state.join_deadline_at, "isoformat", lambda: None)(),
     }
 
 @transaction.atomic
