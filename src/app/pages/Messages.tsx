@@ -40,12 +40,15 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   const [composeRecipientId, setComposeRecipientId] = useState("")
   const [composeGroupId, setComposeGroupId] = useState("")
   const [sending, setSending] = useState(false)
+  const [loadingFriends, setLoadingFriends] = useState(true)
+  const [loadingGroups, setLoadingGroups] = useState(true)
   const wsPrivate = useRef<WebSocket | null>(null)
   const wsGroups = useRef<WebSocket | null>(null)
 
   // Fetch messages
   const fetchMessages = async () => {
     if (!user?.id) return
+    setLoadingFriends(true)
     try {
       const accessToken = await getAccessToken();
       const response = await fetch(`${BASE_URL}/api/user/${user.id}/recent-messages/`, {
@@ -56,11 +59,14 @@ const Messages: React.FC<Props> = ({ navigation }) => {
       setFriendMessages(friends)
     } catch (error) {
       console.error("Failed to fetch messages:", error)
+    } finally {
+      setLoadingFriends(false)
     }
   }
 
   const fetchGroupConversations = async () => {
     if (!user?.id) return
+    setLoadingGroups(true)
     try {
       const accessToken = await getAccessToken();
       const response = await fetch(`${BASE_URL}/api/user/${user.id}/recent-group-messages/`, {
@@ -70,6 +76,8 @@ const Messages: React.FC<Props> = ({ navigation }) => {
       setGroupConversations(data)
     } catch (error) {
       console.error("Failed to fetch group conversations:", error)
+    } finally {
+      setLoadingGroups(false)
     }
   }
 
@@ -233,12 +241,18 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     </TouchableOpacity>
   )
 
-  const EmptyState = () => (
-    <View style={styles.emptyStateContainer}>
-      <Ionicons name="chatbubble-ellipses-outline" size={70} color="rgba(255,255,255,0.5)" />
-      <Text style={styles.emptyStateText}>No messages yet</Text>
-    </View>
-  )
+  const EmptyState = () => {
+    const isLoading = selected === "Friends" ? loadingFriends : loadingGroups
+    return (
+      <View style={styles.emptyStateContainer}>
+        <Ionicons name="chatbubble-ellipses-outline" size={70} color="rgba(255,255,255,0.5)" />
+        <Text style={styles.emptyStateText}>No messages yet</Text>
+        {isLoading && (
+          <Text style={styles.emptyStateTextLoading}>Loading...</Text>
+        )}
+      </View>
+    )
+  }
 
   return (
     <ImageBackground source={require("../images/cgpt.png")} style={styles.background}>
@@ -505,6 +519,12 @@ const styles = StyleSheet.create({
   emptyStateText: {
     color: "#FFF",
     fontSize: 20,
+    fontWeight: "600",
+    marginTop: 15,
+  },
+  emptyStateTextLoading: {
+    color: "#FFF",
+    fontSize: 16,
     fontWeight: "600",
     marginTop: 15,
   },
