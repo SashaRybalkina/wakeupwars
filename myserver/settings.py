@@ -92,26 +92,26 @@ ASGI_APPLICATION = 'myserver.asgi.application'
 WSGI_APPLICATION = 'myserver.wsgi.application'
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',  # Use MySQL engine
-        'NAME': 'wake_up_wars_db',  # Name of the database (e.g., 'myappdb')
-        'USER': 'wuw',  # RDS username (e.g., 'admin')
-        'PASSWORD': 'AlarmsYay!',  # RDS password
-        'HOST': 'wake-up-wars-db.c526i6syeb7e.us-east-1.rds.amazonaws.com',  # RDS endpoint 
-        'PORT': '3306',  # Default MySQL port
-    }
-}
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'wake_up_db',
-#         'USER': 'wuw2',
-#         'PASSWORD': 'Alarming5!',
-#         'HOST': 'wake-up-db.cp1ocvohzzzi.us-east-1.rds.amazonaws.com',
-#         'PORT': '3306',
+#         'ENGINE': 'django.db.backends.mysql',  # Use MySQL engine
+#         'NAME': 'wake_up_wars_db',  # Name of the database (e.g., 'myappdb')
+#         'USER': 'wuw',  # RDS username (e.g., 'admin')
+#         'PASSWORD': 'AlarmsYay!',  # RDS password
+#         'HOST': 'wake-up-wars-db.c526i6syeb7e.us-east-1.rds.amazonaws.com',  # RDS endpoint 
+#         'PORT': '3306',  # Default MySQL port
 #     }
 # }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'wake_up_db',
+        'USER': 'wuw2',
+        'PASSWORD': 'Alarming5!',
+        'HOST': 'wake-up-db.cp1ocvohzzzi.us-east-1.rds.amazonaws.com',
+        'PORT': '3306',
+    }
+}
 
 
 
