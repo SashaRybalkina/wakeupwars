@@ -13,6 +13,7 @@ import {
   Animated,
   Dimensions,
   Alert,
+  Image,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import type { NavigationProp } from "@react-navigation/native"
@@ -167,6 +168,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     timestamp: string; 
     onPress?: () => void;
     unread?: boolean;
+    avatar?: { imageUrl?: string; backgroundColor?: string } | null;
   }> = ({
     name,
     text,
@@ -174,6 +176,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     timestamp,
     onPress,
     unread = false,
+    avatar,
   }) => (
     <TouchableOpacity
       style={[
@@ -190,10 +193,19 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     >
       <View style={styles.messageAvatarContainer}>
         <View style={[
-          styles.messageAvatar, 
+          styles.messageAvatar,
+          { backgroundColor: (avatar?.backgroundColor || "rgba(255, 215, 0, 0.3)") },
           unread && { borderColor: "#FFF700" }
         ]}>
-          <Text style={styles.avatarText}>{name ? name.charAt(0).toUpperCase() : "?"}</Text>
+          {avatar?.imageUrl ? (
+            <Image
+              source={{ uri: avatar.imageUrl.startsWith("http") ? avatar.imageUrl : `${BASE_URL}${avatar.imageUrl}` }}
+              style={styles.messageAvatarImg}
+              resizeMode="cover"
+            />
+          ) : (
+            <Text style={styles.avatarText}>{name ? name.charAt(0).toUpperCase() : "?"}</Text>
+          )}
         </View>
       </View>
       <View style={styles.messageContent}>
@@ -259,6 +271,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
                     timestamp={lastMessage.timestamp}
                     unread={!isMine && lastMessage.hasOwnProperty('is_read') && !lastMessage.is_read}
                     onPress={() => openConversation(otherUser.id, otherUser.name)}
+                    avatar={otherUser.avatar}
                   />
                 )
               })
@@ -446,8 +459,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 215, 0, 0.3)",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
+    borderWidth: 1.3,
     borderColor: "#FFD700",
+    overflow: "hidden",
+  },
+  messageAvatarImg: {
+    width: "95%",
+    height: "95%",
+    borderRadius: 25,
   },
   avatarText: {
     color: "#FFF",
@@ -498,7 +517,8 @@ const styles = StyleSheet.create({
     height: 65,
     borderRadius: 25,
     overflow: "hidden",
-    marginTop: 10,
+    marginTop: 20,
+    marginBottom:-20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
