@@ -388,6 +388,24 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             'server_now': event.get('server_now'),
         }))
 
+    async def player_timeout(self, event):
+        # Only act if this timeout targets me
+        if event.get('user_id') == getattr(self.user, 'id', None):
+            await self.send(text_data=json.dumps({'type': 'timeout'}))
+            await self.close(code=4003)
+
+    async def timer_expired(self, event):
+        # Backend finalized due to global timer
+        await self.send(text_data=json.dumps({
+            'type': 'timer_expired',
+            'leaderboard': event.get('leaderboard', []),
+            'server_now': event.get('server_now'),
+            'auto_completed': event.get('auto_completed', True),
+        }))
+        try:
+            await self.close(code=4004)
+        except Exception:
+            pass
     # Color assignment (thread-safe)
     @sync_to_async
     def assign_color(self):
@@ -479,14 +497,25 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         gs = SudokuGameState.objects.select_related('challenge', 'game').get(id=self.game_state_id)
         play_date = dj_tz.localdate()
 
-        # Compute scores from player accuracy
+        # Compute scores using progress-based denominator = filled_so_far + empties_remaining
         players = SudokuGamePlayer.objects.select_related('player').filter(gameState_id=self.game_state_id)
+        total_correct = 0
+        try:
+            total_correct = sum(int(getattr(p, 'accuracyCount', 0) or 0) for p in players)
+        except Exception:
+            total_correct = 0
+        try:
+            def _is_empty(v):
+                return v in (0, None, '') or (isinstance(v, str) and v.strip() == '')
+            empties_remaining = sum(1 for row in (gs.puzzle or []) for v in (row or []) if _is_empty(v))
+        except Exception:
+            empties_remaining = 0
+        denom = max(1, total_correct + empties_remaining)
+
         submitted_ids = set()
         for p in players:
             correct = int(getattr(p, 'accuracyCount', 0) or 0)
-            incorrect = int(getattr(p, 'inaccuracyCount', 0) or 0)
-            attempts = max(1, correct + incorrect)
-            score = round((correct / attempts) * 100, 2)
+            score = round((correct / denom) * 100, 2)
             GamePerformance.objects.update_or_create(
                 challenge=gs.challenge,
                 game=gs.game,

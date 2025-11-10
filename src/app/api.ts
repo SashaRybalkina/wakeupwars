@@ -1,4 +1,4 @@
-// export const BASE_URL = 'http://192.168.50.3:8000';
+// export const BASE_URL = 'http://10.18.120.220:8000';
 // blah
 export const BASE_URL = 'https://178c8ad26a44.ngrok-free.app';
 
@@ -109,6 +109,7 @@ export const endpoints = {
   validateSudokuMove: `${BASE_URL}/api/sudoku/validate/`,
   createWordleGame: `${BASE_URL}/api/wordle/create/`,
   validateWordleMove: `${BASE_URL}/api/wordle/validate/`,
+  wordleFinalize: `${BASE_URL}/api/wordle/finalize/`,
   typingRaceCreate: `${BASE_URL}/api/typing-race/create/`,
   typingRaceFinalize: `${BASE_URL}/api/typing-race/finalize/`,
 
@@ -122,7 +123,7 @@ export const endpoints = {
     `${BASE_URL}/api/get-performances/${challId}/`,
   submitGameScores: () => `${BASE_URL}/api/submit-game-scores/`,
   addGameToSchedule: () => `${BASE_URL}/api/add-game-to-schedule/`,
-  skillLevels: (userId: number) => `${BASE_URL}/api/skill-levels/${userId}/`,
+  skillLevels: () => `${BASE_URL}/api/skill-levels/`,
   userData: (userId: number) => `${BASE_URL}/api/user-data/${userId}/`,
   badges: (userId: number) => `${BASE_URL}/api/badges/${userId}/`,
   skillLevelDetail: (categoryId: number) => `${BASE_URL}/api/skill-levels/${categoryId}/detail/`,
@@ -131,6 +132,7 @@ export const endpoints = {
   patternCreate: `${BASE_URL}/api/pattern/create/`,
   patternValidate: `${BASE_URL}/api/pattern/validate/`,
   csrfToken: `${BASE_URL}/api/csrf-token/`,
+  gameTimerExpired: `${BASE_URL}/api/game/timer-expired/`,
 
   sendBet: () => `${BASE_URL}/api/send-bet/`,
 

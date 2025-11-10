@@ -23,6 +23,8 @@ type UserCtx = {
   setActiveConversationId: (id: string | number | null) => void;
   activeGroupId: string | number | null;
   setActiveGroupId: (id: string | number | null) => void;
+  activeGroupName: string | null;
+  setActiveGroupName: (name: string | null) => void;
 
   logout: () => Promise<void>;
 };
@@ -35,6 +37,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [skillLevels, setSkillLevels] = useState<SkillLevel[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | number | null>(null);
   const [activeGroupId, setActiveGroupId] = useState<string | number | null>(null);
+  const [activeGroupName, setActiveGroupName] = useState<string | null>(null);
 
   // const navigation = useNavigation<NavigationProp<any>>();
 
@@ -63,6 +66,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setActiveConversationId,
         activeGroupId,
         setActiveGroupId,
+        activeGroupName,
+        setActiveGroupName,
         logout,
       }}
     >

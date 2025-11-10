@@ -510,13 +510,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "700",
     color: "#FFF",
     textAlign: "center",
     marginBottom: 20,
-    textShadowColor: "rgba(0, 0, 0, 0.2)",
-    textShadowOffset: { width: 1, height: 1 },
+    marginTop: 10,
+    textShadowColor: "rgba(0,0,0,0.2)",
+    textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 3,
   },
   scrollContainer: {

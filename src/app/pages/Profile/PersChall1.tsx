@@ -14,6 +14,7 @@ import PendingChallengeActionCard from "../Challenges/PersonalPendingChallengeCa
 import { getAccessToken } from "../../auth"
 import { scheduleAlarmsForUser } from "../../alarmService"
 import NavBar from "../Components/NavBar"
+import { LinearGradient } from "expo-linear-gradient"
 
 type Props = {
   navigation: NavigationProp<any>
@@ -75,57 +76,7 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
             })
           );
           setChallenges(formattedData);
-
-
-
-      // const response = await axios.get(endpoints.challengeList(Number(user!.id), "Personal"), {
-      //   headers: {
-      //     "Authorization": `Bearer ${accessToken}`,
-      //   },
-      // });
-
-      // // attach alarm schedule for each challenge
-      // const challengesWithAlarms = await Promise.all(
-      //   response.data.map(async (c: any) => {
-      //     try {
-      //       const scheduleRes = await axios.get(endpoints.challengeSchedule(c.id), {
-      //         headers: {
-      //           "Authorization": `Bearer ${accessToken}`,
-      //         },
-      //       });
-      //       const alarmSchedule = scheduleRes.data.map((day: any) => ({
-      //         dayOfWeek: day.dayOfWeek,
-      //         alarmTime: day.alarmTime,
-      //         userName: "",
-      //       }))
-      //       return {
-      //         id: c.id,
-      //         name: c.name,
-      //         daysCompleted: c.daysCompleted || 0,
-      //         startDate: c.startDate,
-      //         endDate: c.endDate || null,
-      //         totalDays: c.totalDays,
-      //         daysOfWeek: c.daysOfWeek ?? [],
-      //         alarmSchedule,
-      //         isCompleted: c.isCompleted,
-      //       }
-      //     } catch {
-      //       return {
-      //         id: c.id,
-      //         name: c.name,
-      //         daysCompleted: c.daysCompleted || 0,
-      //         startDate: c.startDate,
-      //         endDate: c.endDate || null,
-      //         totalDays: c.totalDays ?? 30, // TODO: fix this
-      //         daysOfWeek: c.daysOfWeek ?? [],
-      //         alarmSchedule: [],
-      //         isCompleted: c.isCompleted,
-      //       }
-      //     }
-      //   })
-      // )
-      // setChallenges(challengesWithAlarms)
-
+          
       // fetch pending invites
       const pendingRes = await axios.get(endpoints.getPersonalChallengeInvites(Number(user!.id)), {
         headers: {
@@ -246,113 +197,50 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
 
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FFD700" />
-            <Text style={styles.loadingText}>Loading challenges...</Text>
-          </View>
-        ) : (
-          <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+        <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
             
-            {/* -------- PENDING -------- */}
+          {/* -------- PENDING -------- */}
+          {!loading && pendingChallenges.length > 0 && (
             <View style={styles.challengesSection}>
               <Text style={styles.sectionTitle}>Pending Challenges</Text>
-              {pendingChallenges.length === 0 ? (
-                <View style={styles.emptyStateContainer}>
-                  <Ionicons name="flag-outline" size={40} color="rgba(255,255,255,0.7)" />
-                  <Text style={styles.emptyStateText}>No pending challenges</Text>
-                </View>
-              ) : (
-                <View style={styles.challengeCardsContainer}>
-                  {pendingChallenges.map((c) => (
-                    <PendingChallengeActionCard
-                      key={c.id}
-                      title={c.name}
-                      icon={require("../../images/school.png")}
-                      onAccept={() => handleAccept(c.id, c.name)}
-                      onDecline={() => handleDecline(c.id)}
-                      onPress={() =>
-                        navigation.navigate("ChallSchedule", {
-                          challId: c.id,
-                          challName: c.name,
-                          fromInvite: true,  
-                        })
-                      }
-                    />
-                  ))}
-                </View>
-              )}
+              <View style={styles.challengeCardsContainer}>
+                {pendingChallenges.map((c) => (
+                  <PendingChallengeActionCard
+                    key={c.id}
+                    title={c.name}
+                    icon={require("../../images/school.png")}
+                    onAccept={() => handleAccept(c.id, c.name)}
+                    onDecline={() => handleDecline(c.id)}
+                    onPress={() =>
+                      navigation.navigate("ChallSchedule", {
+                        challId: c.id,
+                        challName: c.name,
+                        fromInvite: true,  
+                      })
+                    }
+                  />
+                ))}
+              </View>
             </View>
+          )}
 
-            {/* -------- CURRENT -------- */}
-            <View style={styles.challengesSection}>
-              <Text style={styles.sectionTitle}>Current Challenges</Text>
-              {currentChallenges.length === 0 ? (
-                <View style={styles.emptyStateContainer}>
-                  <Ionicons name="flag-outline" size={40} color="rgba(255,255,255,0.7)" />
-                  <Text style={styles.emptyStateText}>No active challenges</Text>
-                </View>
-              ) : (
-                <View style={styles.challengeCardsContainer}>
-                  {currentChallenges.map((c) => (
-                    <View key={c.id} style={styles.challengeRow}>
-                      <TouchableOpacity
-                        style={styles.challengeCardWrapper}
-                        onPress={() =>
-                          navigation.navigate("ChallDetails", {
-                            challId: c.id,
-                            challName: c.name,
-                            whichChall: "Personal",
-                          })
-                        }
-                      >
-                        <ChallengeCard
-                          title={c.name}
-                          icon={require("../../images/school.png")}
-                          startDate={c.startDate}
-                          endDate={c.endDate}
-                          daysCompleted={c.daysCompleted}
-                          totalDays={c.totalDays === null ? 30 : c.totalDays}
-                          daysOfWeek={c.daysOfWeek}
-                          isCompleted={c.isCompleted}
-                        />
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.shareButton}
-                        onPress={() =>
-                          navigation.navigate("EditChallengeSharingFriends", {
-                            challId: c.id,
-                            challName: c.name,
-                          })
-                        }
-                      >
-                        <Ionicons name="share-outline" size={20} color="#FFF" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
-              <TouchableOpacity
-                style={styles.addNewButton}
-                onPress={() => navigation.navigate("PersChall2Copy")}
-              >
-                <Text style={styles.addNewButtonText}>Add new +</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* -------- PAST -------- */}
-            <View style={styles.challengesSection}>
-              <Text style={styles.sectionTitle}>Past Challenges</Text>
-              {pastChallenges.length === 0 ? (
-                <View style={styles.emptyStateContainer}>
-                  <Ionicons name="time-outline" size={40} color="rgba(255,255,255,0.7)" />
-                  <Text style={styles.emptyStateText}>No past challenges</Text>
-                </View>
-              ) : (
-                <View style={styles.challengeCardsContainer}>
-                  {pastChallenges.map((c) => (
-                    <View key={c.id} style={styles.challengeRow}>
+          {/* -------- CURRENT -------- */}
+          <View style={[styles.challengesSection, styles.currentSection]}>
+            <Text style={styles.sectionTitle}>Current Challenges</Text>
+            {loading ? (
+              <View style={styles.emptyStateContainer}>
+                <ActivityIndicator size="small" color="#FFD700" />
+                <Text style={styles.emptyStateText}>Loading...</Text>
+              </View>
+            ) : currentChallenges.length === 0 ? (
+              <View style={styles.emptyStateContainer}>
+                <Ionicons name="flag-outline" size={40} color="rgba(255,255,255,0.7)" />
+                <Text style={styles.emptyStateText}>No active challenges</Text>
+              </View>
+            ) : (
+              <View style={styles.challengeCardsContainer}>
+                {currentChallenges.map((c) => (
+                  <View key={c.id} style={styles.challengeRow}>
                     <TouchableOpacity
                       style={styles.challengeCardWrapper}
                       onPress={() =>
@@ -374,13 +262,47 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
                         isCompleted={c.isCompleted}
                       />
                     </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          </ScrollView>
-        )}
+
+                    <TouchableOpacity
+                      style={styles.shareButton}
+                      onPress={() =>
+                        navigation.navigate("EditChallengeSharingFriends", {
+                          challId: c.id,
+                          challName: c.name,
+                        })
+                      }
+                    >
+                      <Ionicons name="share-outline" size={20} color="#FFF" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+            <TouchableOpacity
+              style={styles.addNewButton}
+              onPress={() => navigation.navigate("PersChall2Copy")}
+            >
+              <Text style={styles.addNewButtonText}>Add new +</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.pastButtonContainer}
+            onPress={() => navigation.navigate("PastChallenges", { type: "Personal" })}
+          >
+            <LinearGradient
+              colors={["#FFE0B2", "#ffcf4dff"]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.pastButtonGradient}
+            >
+              <View style={styles.pastButtonRow}>
+                <Ionicons name="time-outline" size={18} color="#333" style={{ marginRight: 8 }} />
+                <Text style={styles.pastButtonText}>View past challenges</Text>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </ScrollView>
       </ImageBackground>
 
       {/* NAV BAR */}
@@ -407,15 +329,13 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   titleContainer: { marginTop: 10, paddingLeft: 10 },
-  title: { color: "#FFF", fontSize: 38, fontWeight: "800" },
-  titleSecondary: { color: "#FFF", fontSize: 38, fontWeight: "800", marginTop: -5 },
+  title: { color: "#FFF", fontSize: 38, fontWeight: "800", textShadowColor: "rgba(0, 0, 0, 0.2)", textShadowOffset: { width: 2, height: 2 }, textShadowRadius: 3 },
+  titleSecondary: { color: "#FFF", fontSize: 38, fontWeight: "800", marginTop: -5, textShadowColor: "rgba(0, 0, 0, 0.2)", textShadowOffset: { width: 2, height: 2 }, textShadowRadius: 3 },
   decorativeLine: { width: 60, height: 4, backgroundColor: "#FFD700", borderRadius: 2, marginTop: 10, marginBottom: 10 },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  loadingText: { color: "#FFF", fontSize: 18, fontWeight: "600" },
   scrollContainer: { flex: 1 },
-  scrollContent: { paddingBottom: 100 },
+  scrollContent: { paddingBottom: 30 },
   challengesSection: { marginBottom: 25, paddingHorizontal: 20 },
-  sectionTitle: { fontSize: 24, fontWeight: "700", color: "#FFF", marginTop: 10, marginBottom: 15 },
+  sectionTitle: { fontSize: 24, fontWeight: "700", color: "#ffffffff", marginTop: 10, marginBottom: 15 },
   challengeCardsContainer: { width: "100%" },
   challengeCardWrapper: {
     borderRadius: 16, overflow: "hidden",
@@ -434,6 +354,41 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255, 255, 255, 0.3)",
   },
   addNewButtonText: { color: "#000", fontSize: 16, fontWeight: "600", textAlign: "center" },
+  pastButtonContainer: {
+    alignSelf: "center",
+    marginTop: 10,
+    marginBottom: 5,
+    width: "90%",
+  },
+  pastButtonGradient: {
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    minWidth: 220,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.35)",
+  },
+  pastButtonText: {
+    color: "#353535ff",
+    fontSize: 16,
+    fontWeight: "700",
+    textShadowColor: "rgba(0, 0, 0, 0.1)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  pastButtonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inlineLoadingRow: { flexDirection: "row", alignItems: "center", marginTop: 4, marginBottom: 8 },
+  inlineLoadingText: { color: "#FFF", fontSize: 14, fontWeight: "600", marginLeft: 8 },
   navBar: {
     backgroundColor: "#211F26", flexDirection: "row", height: 80,
     justifyContent: "space-around", alignItems: "center", paddingBottom: 15,

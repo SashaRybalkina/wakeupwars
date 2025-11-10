@@ -174,50 +174,35 @@ const PublicChallenges: React.FC<Props> = ({ navigation }) => {
           <Ionicons name="arrow-back" size={28} color="#FFF" />
         </TouchableOpacity>
 
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FFD700" />
-            <Text style={styles.loadingText}>Loading...</Text>
-          </View>
-        ) : (
-          <ScrollView
-            style={styles.scrollContainer}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.headerSection}>
-              <Text style={styles.sectionTitle}>Public Challenges</Text>
-              <View style={styles.decorativeLine} />
-            </View>
-
-
-        <TouchableOpacity
-          style={styles.addNewButton}
-          onPress={() => {
-            navigation.navigate("VerifyAvailability");
-          }}
+        <ScrollView
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.searchButtonContent}>
-            <Ionicons name="search" size={18} color="#000" style={{ marginRight: 8 }} />
-            <Text style={styles.addNewButtonText}>Search for Public Challenge</Text>
+          <View style={styles.headerSection}>
+            <Text style={styles.sectionTitle}>Public Challenges</Text>
+            <View style={styles.decorativeLine} />
           </View>
-        </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.addNewButton}
+            onPress={() => {
+              navigation.navigate("VerifyAvailability");
+            }}
+          >
+            <View style={styles.searchButtonContent}>
+              <Ionicons name="search" size={18} color="#000" style={{ marginRight: 8 }} />
+              <Text style={styles.addNewButtonText}>Search for Public Challenge</Text>
+            </View>
+          </TouchableOpacity>
 
+          <View style={styles.challengesSection}>
 
-
-            <View style={styles.challengesSection}>
-
-              <Text style={styles.sectionTitle}>Pending Challenges</Text>
-
-              {pendingChallenges?.length === 0 ? (
-                <View style={styles.emptyStateContainer}>
-                  <Ionicons name="flag-outline" size={40} color="rgba(255,255,255,0.7)" />
-                  <Text style={styles.emptyStateText}>No pending challenges</Text>
-                </View>
-              ) : (
+            {pendingChallenges.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Pending Challenges</Text>
                 <View style={styles.challengeCardsContainer}>
-                  {pendingChallenges?.map((challenge) => (
+                  {pendingChallenges.map((challenge) => (
                     <TouchableOpacity
                       key={challenge.id}
                       style={styles.challengeCardWrapper}
@@ -238,116 +223,88 @@ const PublicChallenges: React.FC<Props> = ({ navigation }) => {
                         categories={challenge.categories}
                         averageSkillLevel={challenge.averageSkillLevel}
                       />
-                      {/* const PendingPublicChallengeCard: React.FC<PendingPublicChallengeCardProps> = ({ 
-                        title, 
-                        icon, 
-                      //   daysComplete,
-                        numEnrolledMembers,
-                        totalDays, 
-                        daysOfWeek,
-                        // alarmSchedule = [] // Default to empty array if not provided
-                      }) => { */}
                     </TouchableOpacity>
                   ))}
                 </View>
-              )}
+              </>
+            )}
 
+            <Text style={styles.sectionTitle}>Current Challenges</Text>
 
+            {currentChallenges.length === 0 ? (
+              <View style={styles.emptyStateContainer}>
+                {isLoading ? (
+                  <>
+                    <ActivityIndicator size="small" color="#FFD700" />
+                    <Text style={styles.emptyStateText}>Loading...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="flag-outline" size={40} color="rgba(255,255,255,0.7)" />
+                    <Text style={styles.emptyStateText}>No active challenges</Text>
+                    <Text style={styles.emptyStateSubText}>Create a challenge to get started</Text>
+                  </>
+                )}
+              </View>
+            ) : (
+              <View style={styles.challengeCardsContainer}>
+                {currentChallenges.map((challenge) => (
+                  <TouchableOpacity
+                    key={challenge.id}
+                    style={styles.challengeCardWrapper}
+                    onPress={() =>
+                      navigation.navigate("ChallDetails", {
+                        challId: challenge.id,
+                        challName: challenge.name,
+                        whichChall: "Public",
+                        isCompleted: challenge.isCompleted,
+                      })
+                    }
+                  >
+                    <PublicChallengeCard
+                      title={challenge.name}
+                      icon={require("../../images/school.png")}
+                      startDate={challenge.startDate}
+                      endDate={challenge.endDate}
+                      daysOfWeek={challenge.daysOfWeek}
+                      daysCompleted={challenge.daysCompleted}
+                      totalDays={challenge.totalDays || 30}
+                      isCompleted={challenge.isCompleted}
+                      categories={challenge.categories}
+                      averageSkillLevel={challenge.averageSkillLevel}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
+            <TouchableOpacity
+              style={styles.addNewButton}
+              onPress={() => {
+                navigation.navigate("CreatePublicChall1");
+              }}
+            >
+              <Text style={styles.addNewButtonText}>Add new +</Text>
+            </TouchableOpacity>
+          </View>
 
-              <Text style={styles.sectionTitle}>Current Challenges</Text>
-
-              {currentChallenges.length === 0 ? (
-                <View style={styles.emptyStateContainer}>
-                  <Ionicons name="flag-outline" size={40} color="rgba(255,255,255,0.7)" />
-                  <Text style={styles.emptyStateText}>No active challenges</Text>
-                  <Text style={styles.emptyStateSubText}>Create a challenge to get started</Text>
-                </View>
-              ) : (
-                <View style={styles.challengeCardsContainer}>
-                  {currentChallenges.map((challenge) => (
-                    <TouchableOpacity
-                      key={challenge.id}
-                      style={styles.challengeCardWrapper}
-                      onPress={() =>
-                        navigation.navigate("ChallDetails", {
-                          challId: challenge.id,
-                          challName: challenge.name,
-                          whichChall: "Public",
-                          isCompleted: challenge.isCompleted,
-                        })
-                      }
-                    >
-                      <PublicChallengeCard
-                        title={challenge.name}
-                        icon={require("../../images/school.png")}
-                        startDate={challenge.startDate}
-                        endDate={challenge.endDate}
-                        daysOfWeek={challenge.daysOfWeek}
-                        daysCompleted={challenge.daysCompleted}
-                        totalDays={challenge.totalDays || 30}
-                        isCompleted={challenge.isCompleted}
-                        categories={challenge.categories}
-                        averageSkillLevel={challenge.averageSkillLevel}
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              <TouchableOpacity
-                style={styles.addNewButton}
-                onPress={() => {
-                  navigation.navigate("CreatePublicChall1");
-                }}
-              >
-                <Text style={styles.addNewButtonText}>Add new +</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.challengesSection}>
-              <Text style={styles.sectionTitle}>Past Challenges</Text>
-
-              {pastChallenges.length === 0 ? (
-                <View style={styles.emptyStateContainer}>
-                  <Ionicons name="time-outline" size={40} color="rgba(255,255,255,0.7)" />
-                  <Text style={styles.emptyStateText}>No past challenges</Text>
-                  <Text style={styles.emptyStateSubText}>Completed challenges will appear here</Text>
-                </View>
-              ) : (
-                <View style={styles.challengeCardsContainer}>
-                  {pastChallenges.map((challenge) => (
-                    <TouchableOpacity
-                      key={challenge.id}
-                      style={styles.challengeCardWrapper}
-                      onPress={() =>
-                        navigation.navigate("ChallDetails", {
-                          challId: challenge.id,
-                          challName: challenge.name,
-                          whichChall: "Group",
-                          isCompleted: challenge.isCompleted,
-                        })
-                      }
-                    >
-                      <PublicChallengeCard
-                        title={challenge.name}
-                        icon={require("../../images/school.png")}
-                        startDate={challenge.startDate}
-                        endDate={challenge.endDate}
-                        daysOfWeek={challenge.daysOfWeek}
-                        daysCompleted={challenge.daysCompleted}
-                        totalDays={challenge.totalDays || 30}
-                        isCompleted={challenge.isCompleted}
-                        categories={challenge.categories}
-                        averageSkillLevel={challenge.averageSkillLevel}
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-          </ScrollView>
-        )}
+          <TouchableOpacity
+            style={styles.pastButtonContainer}
+            onPress={() => navigation.navigate("PastChallenges", { type: "Public" })}
+          >
+            <LinearGradient
+              colors={["#FFE0B2", "#ffcf4dff"]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.pastButtonGradient}
+            >
+              <View style={styles.pastButtonRow}>
+                <Ionicons name="time-outline" size={18} color="#333" style={{ marginRight: 8 }} />
+                <Text style={styles.pastButtonText}>View past challenges</Text>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
 
       <NavBar
@@ -405,7 +362,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   headerSection: {
     alignItems: "center",
@@ -507,6 +464,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     textAlign: "center",
+  },
+  pastButtonContainer: {
+    alignSelf: "center",
+    marginTop: 10,
+    marginBottom: 5,
+    width: "90%",
+  },
+  pastButtonGradient: {
+    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    minWidth: 220,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.35)",
+  },
+  pastButtonText: {
+    color: "#333",
+    fontSize: 16,
+    fontWeight: "700",
+    textShadowColor: "rgba(0, 0, 0, 0.1)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  pastButtonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: "700",
+    fontSize: 16,
   },
   emptyStateContainer: {
     alignItems: "center",

@@ -72,32 +72,6 @@ const Profile: React.FC<Props> = ({ navigation }) => {
   const [selectedBadge, setSelectedBadge] = useState<null | any>(null);
   const [notifCount, setNotifCount] = useState(0);
 
-
-
-
-// const handleLogout = async () => {
-//   try {
-//     // 1. Clear tokens from SecureStore
-//     await SecureStore.deleteItemAsync("access");
-//     await SecureStore.deleteItemAsync("refresh");
-
-//     // 2. Clear user context
-//     setUser(null);
-
-//     await AlarmModule.clearLaunchIntent();
-
-    // // 3. Reset navigation to login screen
-    // navigation.reset({
-    //   index: 0,
-    //   routes: [{ name: "Login" }],
-    // });
-//   } catch (err: any) {
-//     console.error("Logout failed", err);
-//     Alert.alert("Error", "Failed to log out. Try again.");
-//   }
-// };
-
-
 const handleLogout = async () => {
   await logout();
   navigation.reset({

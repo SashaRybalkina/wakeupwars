@@ -16,7 +16,6 @@ type Props = {
   currentMemoji: Memoji | null;
   bgColor: string;
   numCoins: number;
-  badgesGiven: Badge[]
 };
 
 type Memoji = {
@@ -329,7 +328,7 @@ const PulsingBadge = ({ badge, onPress }) => {
           {tab === 'skills' ? (
             <View style={styles.skillsSection}>
               {rows.map((row, idx) => (
-                <View key={idx} style={[styles.skillsRow, row.length === 3 ? styles.row3 : styles.row2]}> 
+                <View key={idx} style={[styles.skillsRow, row.length === 3 ? styles.row3 : styles.row2]}>
                   {row.map((sl, j) => {
                     const categoryId = sl?.category?.id;
                     const categoryName = sl?.category?.categoryName ?? 'Unknown';

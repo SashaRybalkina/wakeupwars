@@ -1,6 +1,7 @@
  # utils.py – core logic for Pattern Memorization
 from math import remainder
 from django.db import transaction
+from django.db import IntegrityError
 from asgiref.sync import sync_to_async
 from typing import List, Dict, Any
 import random
@@ -41,45 +42,85 @@ def _build_full_pattern(max_rounds: int, start_len: int = 4) -> List[List[str]]:
     return rounds
 
 
-@transaction.atomic  # ensure all DB changes are committed together or rolled back (all-or-nothing)
-def get_or_create_pattern_game(challenge_id: int, user, allow_join: bool = True) -> Dict[str, Any]:
+@transaction.atomic
+def get_or_create_pattern_game(challenge_id: int, user, allow_join: bool = True, alarm_datetime=None) -> Dict[str, Any]:
     """
-    Create (or reuse) a PatternMemorizationGameState for a given challenge
-    and ensure the current user has a player row.
+    Create or reuse a PatternMemorizationGameState for a given challenge using proper get_or_create.
+    Uses alarm_datetime and user fields to prevent race conditions.
+    Ensure the current user has a player row.
     """
-    challenge = Challenge.objects.get(id=challenge_id)
-    game_state = PatternMemorizationGameState.objects.filter(challenge=challenge).first()
-    sched_ids = list( GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
-    assoc = (GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids).select_related('game').order_by('game_order', 'id').first())
+    challenge = Challenge.objects.select_for_update().get(id=challenge_id)
+    sched_ids = list(GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
+    assoc = (GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids)
+             .select_related('game').order_by('game_order', 'id').first())
     patternMemGame = assoc.game if assoc else Game.objects.filter(name__icontains='pattern').order_by('id').first()
     is_multiplayer = bool(getattr(patternMemGame, 'isMultiplayer', False))
     print("is multiplayer: ", is_multiplayer)
-    # is_multiplayer = challenge.groupID is not None # same like sudoku, checking is part of the group or not
 
-    if not game_state:
-        # Build full pattern for all rounds (max_rounds is default=5 in model)
-        max_rounds = 2
-        pattern = _build_full_pattern(max_rounds=max_rounds, start_len=4)
+    # Use alarm_datetime if provided, otherwise use now
+    if alarm_datetime is None:
+        alarm_datetime = timezone.now()
+    # Normalize to minute precision so concurrent calls share the same key
+    alarm_datetime = alarm_datetime.replace(second=0, microsecond=0)
 
-        # Create the game state
-        game_state = PatternMemorizationGameState.objects.create(
-            game=patternMemGame,
-            challenge=challenge,
-            max_rounds=max_rounds,
-            current_round=1,
-            pattern_sequence=pattern,
-            is_completed=False
-        )
+    # Prepare defaults for creation
+    max_rounds = 2
+    pattern = _build_full_pattern(max_rounds=max_rounds, start_len=4)
 
-        # set join deadline to 2 minutes after creation
-        deadline = timezone.now() + timedelta(minutes=2)
-        game_state.join_deadline_at = deadline
-        game_state.save(update_fields=["join_deadline_at"])
-        
-        # let the developer see the pattern in console for testing
-        print(f"[PATTERN][create] gamestate={game_state.id} chall={challenge_id} rounds={max_rounds}", flush=True)
+    defaults = {
+        'max_rounds': max_rounds,
+        'current_round': 1,
+        'pattern_sequence': pattern,
+        'is_completed': False,
+        'join_deadline_at': timezone.now() + timedelta(minutes=2),
+    }
+
+    # Use get_or_create with proper unique constraint fields
+    if is_multiplayer:
+        # Multiplayer: user=None, unique per (challenge, game, alarmDateTime)
+        try:
+            game_state, created = PatternMemorizationGameState.objects.get_or_create(
+                challenge=challenge,
+                game=patternMemGame,
+                alarmDateTime=alarm_datetime,
+                user=None,
+                defaults=defaults
+            )
+        except IntegrityError:
+            created = False
+            game_state = PatternMemorizationGameState.objects.get(
+                challenge=challenge,
+                game=patternMemGame,
+                alarmDateTime=alarm_datetime,
+                user=None,
+            )
+    else:
+        # Singleplayer: user=user, unique per (challenge, game, alarmDateTime, user)
+        try:
+            game_state, created = PatternMemorizationGameState.objects.get_or_create(
+                challenge=challenge,
+                game=patternMemGame,
+                alarmDateTime=alarm_datetime,
+                user=user,
+                defaults=defaults
+            )
+        except IntegrityError:
+            created = False
+            game_state = PatternMemorizationGameState.objects.get(
+                challenge=challenge,
+                game=patternMemGame,
+                alarmDateTime=alarm_datetime,
+                user=user,
+            )
+
+    if created:
+        print(f"[PATTERN][create] chall={challenge.id} gs={game_state.id} multiplayer={is_multiplayer}", flush=True)
         for i, seq in enumerate(pattern, start=1):
             print(f"  - round {i}: {seq}", flush=True)
+    else:
+        print(f"[PATTERN][reuse] chall={challenge.id} gs={game_state.id} multiplayer={is_multiplayer}", flush=True)
+        # Derive is_multiplayer from existing game state
+        is_multiplayer = bool(getattr(game_state.game, 'isMultiplayer', False))
 
     # Ensure user is recorded as a player only if allowed
     if allow_join:
@@ -98,7 +139,6 @@ def get_or_create_pattern_game(challenge_id: int, user, allow_join: bool = True)
         "is_multiplayer": is_multiplayer,
     }
 
-    
     import logging
     logger = logging.getLogger(__name__)
     logger.warning(f"[PatternCreate] returning {result}")

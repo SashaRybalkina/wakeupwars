@@ -114,6 +114,8 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
   const [perfLoading, setPerfLoading] = useState(false);
   const [perfError, setPerfError] = useState<string | null>(null);
 
+  const [isPublicChallenge, setIsPublicChallenge] = useState<boolean | null>(null);
+  const [groupIdVal, setGroupIdVal] = useState<number | null>(null);
 
 
   const getDayLabel = (day: number): string => {
@@ -163,6 +165,13 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
         setTotalDays(data.totalDays ?? 30)
         console.log('total days??', data.totalDays)
         setMembers(data.members);
+        try {
+          const schedRes = await axios.get(endpoints.getChallengeSchedule(challId), {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          });
+          setIsPublicChallenge(!!schedRes.data?.isPublic);
+          setGroupIdVal(schedRes.data?.groupId ?? null);
+        } catch {}
         setWinner(data.winner)
         setUnlockedCoins(data.unlockedCoins)
       } catch (err) {
@@ -245,7 +254,7 @@ const loadPerformances = async () => {
                       });
     }
 
-    const res = await fetch(endpoints.getPerformances(challId), {
+    const res = await fetch(`${endpoints.getPerformances(challId)}?t=${Date.now()}`, {
                 headers: {
                   Authorization: `Bearer ${accessToken}`
                 }
@@ -306,10 +315,20 @@ const loadPerformances = async () => {
             setDaysComplete(data.daysCompleted);
             setTotalDays(data.totalDays ?? 30);
             setMembers(data.members);
+            try {
+              const schedRes = await axios.get(endpoints.getChallengeSchedule(challId), {
+                headers: { Authorization: `Bearer ${accessToken}` }
+              });
+              setIsPublicChallenge(!!schedRes.data?.isPublic);
+              setGroupIdVal(schedRes.data?.groupId ?? null);
+            } catch {}
           } catch {}
         })();
 
-        if (whichChall === "Personal") {
+        if (isPublicChallenge === null && groupIdVal === null) {
+          return () => {};
+        }
+        if (isPublicChallenge === false && !groupIdVal) {
           loadPerformances();
           return () => {};
         } else {
@@ -352,7 +371,7 @@ const loadPerformances = async () => {
           //   timeoutIds.forEach(id => clearTimeout(id));
           // };
         }
-      }, [challId, whichChall])
+      }, [challId, isPublicChallenge, groupIdVal])
     );
 
     // useEffect(() => {
@@ -474,6 +493,9 @@ const loadPerformances = async () => {
     return [...top3, { ellipsis: true }, me]
   }
   const displayRows = buildDisplayRows()
+  const typeKnown = (isPublicChallenge !== null || groupIdVal !== null)
+  const isPersonal = typeKnown ? (isPublicChallenge === false && !groupIdVal) : null as null | boolean
+  console.log("is personal: ", isPersonal)
 
   return (
     <ImageBackground source={require("../../images/cgpt.png")} style={styles.background} resizeMode="cover">
@@ -598,7 +620,7 @@ const loadPerformances = async () => {
           </View>
 
 {/* Leaderboard or Performance Section */}
-{(whichChall === "Group" || whichChall === "Public") && (
+{(isPersonal === false) && (
   <View style={styles.leaderboardCard}>
     <View style={styles.leaderboardHeader}>
       <Ionicons name="trophy" size={24} color="#FFD700" style={styles.trophyIcon} />
@@ -663,7 +685,7 @@ const loadPerformances = async () => {
   </View>
 )}
 
-{whichChall === "Personal" && (
+{(isPersonal === true) && (
   <View style={styles.leaderboardCard}>
     <View style={styles.leaderboardHeader}>
       <Ionicons name="time-outline" size={24} color="#FFD700" style={styles.trophyIcon} />
@@ -696,7 +718,7 @@ const loadPerformances = async () => {
 )}
 
 
-{(whichChall === "Group" || whichChall === "Public") && (
+{(isPersonal === false) && (
     <TouchableOpacity
       style={[styles.viewDetailsButton, { marginBottom: 20 }]}
       onPress={() =>
@@ -939,11 +961,16 @@ const styles = StyleSheet.create({
   },
   scheduleIcon: {
     marginRight: 8,
+    color: "#333",
+    
   },
   scheduleButtonText: {
-    color: "#FFF",
-    fontWeight: "600",
+    color: "#333",
+    fontWeight: "700",
     fontSize: 16,
+    textShadowColor: "rgba(0, 0, 0, 0.1)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   leaderboardCard: {
     backgroundColor: "rgba(50, 50, 60, 0.3)",

@@ -241,7 +241,6 @@ const Friends1: React.FC<Props> = ({ navigation }) => {
                     </View>
                     <View style={styles.friendInfo}>
                       <Text style={styles.friendName}>{friend.name}</Text>
-                      <Text style={styles.friendStatus}>Online</Text>
                     </View>
                     <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.7)" />
                   </TouchableOpacity>
@@ -412,10 +411,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     marginBottom: 4,
-  },
-  friendStatus: {
-    color: "#7FFF00",
-    fontSize: 14,
   },
   emptyStateContainer: {
     flex: 1,

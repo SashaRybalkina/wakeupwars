@@ -165,7 +165,7 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
   }
 
   return (
-    <ImageBackground source={require("../../images/tertiary.png")} style={styles.background} resizeMode="cover">
+    <ImageBackground source={require("../../images/cgpt4.png")} style={styles.background} resizeMode="cover">
 
         <ScrollView
           style={styles.scrollView}

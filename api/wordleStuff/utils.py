@@ -1,6 +1,7 @@
 from api.models import GameCategory, WordleGameState, Challenge, WordleGamePlayer, User, Game, WordleMove, GameSchedule, GameScheduleGameAssociation
 import random
 from django.db import transaction
+from django.db import IntegrityError
 from asgiref.sync import sync_to_async
 from api.words_array import words
 from django.utils import timezone
@@ -21,82 +22,81 @@ def compute_multiplayer_score(rank: int, total_players: int) -> int:
 
 
 @transaction.atomic
-def get_or_create_game_wordle(challenge_id, user, allow_join: bool = True):
+def get_or_create_game_wordle(challenge_id, user, allow_join: bool = True, alarm_datetime=None):
     """
-    Create or reuse a WordleGameState for a given challenge.
+    Create or reuse a WordleGameState for a given challenge using proper get_or_create.
+    Uses unique constraints to prevent race conditions.
     Ensure the user is recorded as a player.
     """
-    challenge = Challenge.objects.get(id=challenge_id)
-    game_state = WordleGameState.objects.filter(challenge=challenge).first()
-    sched_ids = list( GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
+    challenge = Challenge.objects.select_for_update().get(id=challenge_id)
+    sched_ids = list(GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
     assoc = (GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids).select_related('game').order_by('game_order', 'id').first())
     wordleGame = assoc.game if assoc else Game.objects.filter(name__icontains='wordle').order_by('id').first()
     is_multiplayer = bool(getattr(wordleGame, 'isMultiplayer', False))
     print("is multiplayer: ", is_multiplayer)
     
-    if not game_state:
-        target_word = random.choice(words).upper()
-        puzzle = ["_"] * len(target_word)     # initial empty puzzle
-        solution = list(target_word)          # solution stored as list of chars
-
-        game_state = WordleGameState.objects.create(
-            game=wordleGame,
-            challenge=challenge,
-            puzzle=puzzle,
-            solution=solution,
-            answer=target_word,               # keep string version for debugging
-            #joins_closed=False,
-        )
-        print(f"[WORDLE][create] chall={challenge.id} gs={game_state.id} answer={target_word}", flush=True)
-        # Set a join deadline window (e.g., 2 minutes) similar to Sudoku
-        game_state.join_deadline_at = timezone.now() + timedelta(seconds=20)
-        game_state.save(update_fields=["join_deadline_at"])
+    # Use alarm_datetime if provided, otherwise use now
+    if alarm_datetime is None:
+        alarm_datetime = timezone.now()
+    # Normalize to minute precision so concurrent calls share the same key
+    alarm_datetime = alarm_datetime.replace(second=0, microsecond=0)
+    
+    # Prepare defaults for creation
+    target_word = random.choice(words).upper()
+    puzzle = ["_"] * len(target_word)
+    solution = list(target_word)
+    
+    defaults = {
+        'puzzle': puzzle,
+        'solution': solution,
+        'answer': target_word,
+        'join_deadline_at': timezone.now() + timedelta(seconds=20),
+    }
+    
+    # Use get_or_create with proper unique constraint fields
+    if is_multiplayer:
+        # Multiplayer: user=None, unique per (challenge, game, alarmDateTime)
+        try:
+            game_state, created = WordleGameState.objects.get_or_create(
+                challenge=challenge,
+                game=wordleGame,
+                alarmDateTime=alarm_datetime,
+                user=None,
+                defaults=defaults
+            )
+        except IntegrityError:
+            created = False
+            game_state = WordleGameState.objects.get(
+                challenge=challenge,
+                game=wordleGame,
+                alarmDateTime=alarm_datetime,
+                user=None,
+            )
     else:
-        # Existing state → derive is_multiplayer safely from the stored game
-        gs_game = getattr(game_state, 'game', None)
-        is_multiplayer = bool(getattr(gs_game, 'isMultiplayer', False))
-
-        # Normalize legacy/malformed state
-        updated_fields = []
-
-        # Ensure solution is a list of chars
-        sol = game_state.solution
-        if not sol:
-            if getattr(game_state, 'answer', None):
-                game_state.solution = list(str(game_state.answer))
-                updated_fields.append("solution")
-        elif isinstance(sol, str):
-            game_state.solution = list(sol)
-            updated_fields.append("solution")
-
-        # Ensure answer exists
-        if not getattr(game_state, 'answer', None):
-            sol2 = game_state.solution
-            if isinstance(sol2, list) and sol2:
-                game_state.answer = "".join(sol2)
-                updated_fields.append("answer")
-
-        # Ensure puzzle is a list of underscores with correct length
-        puz = game_state.puzzle
-        length = (
-            len(game_state.solution) if isinstance(game_state.solution, list) and game_state.solution
-            else (len(game_state.answer) if getattr(game_state, 'answer', None) else 5)
-        )
-        if not puz:
-            game_state.puzzle = ["_"] * length
-            updated_fields.append("puzzle")
-        elif isinstance(puz, str):
-            # Legacy string like "_____" → convert to list of underscores of same length
-            game_state.puzzle = ["_"] * max(len(puz), length)
-            updated_fields.append("puzzle")
-
-        # Ensure a join deadline exists
-        if not getattr(game_state, 'join_deadline_at', None):
-            game_state.join_deadline_at = timezone.now() + timedelta(seconds=20)
-            updated_fields.append("join_deadline_at")
-
-        if updated_fields:
-            game_state.save(update_fields=updated_fields)
+        # Singleplayer: user=user, unique per (challenge, game, alarmDateTime, user)
+        try:
+            game_state, created = WordleGameState.objects.get_or_create(
+                challenge=challenge,
+                game=wordleGame,
+                alarmDateTime=alarm_datetime,
+                user=user,
+                defaults=defaults
+            )
+        except IntegrityError:
+            created = False
+            game_state = WordleGameState.objects.get(
+                challenge=challenge,
+                game=wordleGame,
+                alarmDateTime=alarm_datetime,
+                user=user,
+            )
+    
+    if created:
+        print(f"[WORDLE][create] chall={challenge.id} gs={game_state.id} answer={target_word} multiplayer={is_multiplayer}", flush=True)
+    else:
+        print(f"[WORDLE][reuse] chall={challenge.id} gs={game_state.id} multiplayer={is_multiplayer}", flush=True)
+        # Derive is_multiplayer from existing game state
+        is_multiplayer = bool(getattr(game_state.game, 'isMultiplayer', False))
 
     # Ensure user is recorded as a player
     if allow_join:

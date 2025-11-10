@@ -3,47 +3,90 @@ from sudoku import Sudoku
 import time
 import random
 from django.db import transaction
+from django.db import IntegrityError
 from asgiref.sync import sync_to_async
 from datetime import timedelta
 from django.utils import timezone
 
 
-def get_or_create_game(challenge_id, user, allow_join: bool = True):
-    challenge = Challenge.objects.get(id=challenge_id)
-    # TODO: Right now it only returns one game for the challenge, but it should return all games for the challenge.
-    # There could be more than one scheduled in one alarm, so beware of this and make changes
-    # Try to get existing game for this challenge
-    game_state = SudokuGameState.objects.filter(challenge=challenge).first()
-    sched_ids = list( GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
-    assoc = (GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids).select_related('game').order_by('game_order', 'id').first())
+@transaction.atomic
+def get_or_create_game(challenge_id, user, allow_join: bool = True, alarm_datetime=None):
+    """
+    Create or reuse a SudokuGameState for a given challenge using proper get_or_create.
+    Uses alarm_datetime and user fields to prevent race conditions.
+    Ensure the user is recorded as a player.
+    """
+    challenge = Challenge.objects.select_for_update().get(id=challenge_id)
+    sched_ids = list(GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
+    assoc = (GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids)
+             .select_related('game').order_by('game_order', 'id').first())
     sudokuGame = assoc.game if assoc else Game.objects.filter(name__icontains='sudoku').order_by('id').first()
     is_multiplayer = bool(getattr(sudokuGame, 'isMultiplayer', False))
     print("is multiplayer: ", is_multiplayer)
+    print("game name: ", sudokuGame.name)
 
-    game_name = sudokuGame.name
-    print("game name: ", game_name)
-    
+    # Use alarm_datetime if provided, otherwise use now
+    if alarm_datetime is None:
+        alarm_datetime = timezone.now()
+    # Normalize to minute precision so concurrent calls share the same key
+    alarm_datetime = alarm_datetime.replace(second=0, microsecond=0)
+
+    # Prepare defaults for creation
     difficulty = 0.1
+    sudoku = Sudoku(3, 3, seed=int(time.time() * 1000)).difficulty(difficulty)
+    puzzle = sudoku.board
+    solution = sudoku.solve().board
 
-    if not game_state:
-        
-        sudoku = Sudoku(3, 3, seed=int(time.time() * 1000)).difficulty(difficulty)
-        puzzle = sudoku.board
-        solution = sudoku.solve().board
+    defaults = {
+        'puzzle': puzzle,
+        'solution': solution,
+        'join_deadline_at': timezone.now() + timedelta(seconds=20),
+    }
 
-        game_state = SudokuGameState.objects.create(
-            game=sudokuGame,
-            challenge=challenge,
-            puzzle=puzzle,
-            solution=solution,
-        )
-        # set join deadline to 2 minutes after creation
-        game_state.join_deadline_at = timezone.now() + timedelta(seconds=20)
-        game_state.save(update_fields=["join_deadline_at"])
+    # Use get_or_create with proper unique constraint fields
+    if is_multiplayer:
+        # Multiplayer: user=None, unique per (challenge, game, alarmDateTime)
+        try:
+            game_state, created = SudokuGameState.objects.get_or_create(
+                challenge=challenge,
+                game=sudokuGame,
+                alarmDateTime=alarm_datetime,
+                user=None,
+                defaults=defaults
+            )
+        except IntegrityError:
+            created = False
+            game_state = SudokuGameState.objects.get(
+                challenge=challenge,
+                game=sudokuGame,
+                alarmDateTime=alarm_datetime,
+                user=None,
+            )
     else:
-        # Existing state, infer multiplayer from its game safely
-        gs_game = getattr(game_state, 'game', None)
-        is_multiplayer = bool(getattr(gs_game, 'isMultiplayer', False))
+        # Singleplayer: user=user, unique per (challenge, game, alarmDateTime, user)
+        try:
+            game_state, created = SudokuGameState.objects.get_or_create(
+                challenge=challenge,
+                game=sudokuGame,
+                alarmDateTime=alarm_datetime,
+                user=user,
+                defaults=defaults
+            )
+        except IntegrityError:
+            created = False
+            game_state = SudokuGameState.objects.get(
+                challenge=challenge,
+                game=sudokuGame,
+                alarmDateTime=alarm_datetime,
+                user=user,
+            )
+
+    if created:
+        print(f"[SUDOKU][create] chall={challenge.id} gs={game_state.id} multiplayer={is_multiplayer}", flush=True)
+    else:
+        print(f"[SUDOKU][reuse] chall={challenge.id} gs={game_state.id} multiplayer={is_multiplayer}", flush=True)
+        # Derive is_multiplayer from existing game state
+        is_multiplayer = bool(getattr(game_state.game, 'isMultiplayer', False))
 
     # Ensure user is recorded as a player (track accuracy stats)
     if allow_join:
@@ -89,29 +132,36 @@ def validate_sudoku_move(game_state_id, user, index, value):
         player_record.accuracyCount += 1
         game_state.puzzle[row][col] = value
         game_state.save()
+        
+        print("correct: ", player_record.accuracyCount)
     else:
         player_record.inaccuracyCount += 1
-
+        print("incorrect: ", player_record.inaccuracyCount)
     player_record.save()
 
     is_complete = game_state.puzzle == game_state.solution
 
     if is_complete:
+        print("i'm getting passed yay~")
         players = SudokuGamePlayer.objects.filter(gameState=game_state)
+        total_correct = sum(int(getattr(p, 'accuracyCount', 0) or 0) for p in players) or 1
         player_scores = []
 
         for player in players:
-            correct = player.accuracyCount
-            incorrect = player.inaccuracyCount
-            total_attempts = correct + incorrect if (correct + incorrect) > 0 else 1
+            correct = int(getattr(player, 'accuracyCount', 0) or 0)
+            incorrect = int(getattr(player, 'inaccuracyCount', 0) or 0)
+            print("correct: ", correct)
+            print("incorrect: ", incorrect)
+            print("total correct: ", total_correct)
+            print("player: ", player.player.username)
 
-            # Scoring system: scale based on accuracy
-            accuracy_score = correct / total_attempts * 100
+            # Progress-based score: share of cells filled correctly by this player
+            progress_score = (correct / total_correct) * 100
             player_scores.append({
                 'username': player.player.username,
                 'accuracy': correct,
                 'inaccuracy': incorrect,
-                'score': round(accuracy_score, 2)
+                'score': round(progress_score, 2)
             })
 
         return {

@@ -74,7 +74,7 @@ const Games: React.FC<Props> = ({ navigation }) => {
 
   return (
     <ImageBackground
-      source={require('../../images/tertiary.png')}
+      source={require('../../images/cgpt4.png')}
       style={styles.background}
       resizeMode="cover"
     >

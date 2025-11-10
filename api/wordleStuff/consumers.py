@@ -207,25 +207,13 @@ class WordleConsumer(AsyncWebsocketConsumer):
         if data['type'] == 'make_move':
             row = data.get('row')
             guess = data.get('guess')
-            print(f"[WebSocket][MOVE] {self.user.username} guessed '{guess}' at row={row} in game_state={self.game_state_id}")
+            evaluation = data.get('evaluation', [])
+            is_correct = data.get('is_correct', False)
+            is_complete = data.get('is_complete', False)
+            
+            print(f"[WebSocket][MOVE] {self.user.username} guessed '{guess}' at row={row} in game_state={self.game_state_id} (client-validated: correct={is_correct}, complete={is_complete})")
 
-            # Validate the move
-            result = await validate_wordle_move_async(self.game_state_id, self.user, guess, row)
-            print(f"[WebSocket][RESULT] {self.user.username} -> correct={result['is_correct']} complete={result['is_complete']} scores={result['scores']}")
-
-            # Send result to this player
-            await self.send(text_data=json.dumps({
-                'type': 'move_result',
-                'row': row,
-                'guess': guess,
-                'feedback': result['feedback'],
-                'is_correct': result['is_correct'],
-                'is_complete': result['is_complete'],
-                'scores': result['scores'],
-            }))
-            print(f"[WebSocket][SEND] move_result sent to {self.user.username}")
-
-            # Broadcast to other players
+            # Client has already validated - just broadcast to other players
             await self.channel_layer.group_send(
                 self.group_name,
                 {
@@ -233,28 +221,16 @@ class WordleConsumer(AsyncWebsocketConsumer):
                     'player': self.user.username,
                     'row': row,
                     'guess': guess,
-                    'evaluation': result['feedback'],
+                    'evaluation': evaluation,
                     'attempt': row + 1,
                 }
             )
             print(f"[WebSocket][BROADCAST] move from {self.user.username} -> others in game_state={self.game_state_id}")
 
-            # If the game is complete, broadcast the leaderboard
-            if result['is_complete']:
-                await self.channel_layer.group_send(
-                    self.group_name,
-                    {
-                        'type': 'game.complete',
-                        'scores': result['scores'],
-                    }
-                )
-                print(f"[WebSocket][GAME COMPLETE] game_state={self.game_state_id}, scores={result['scores']}")
-                await self._persist_scores_once(result['scores'])
-                # Immediately compute + broadcast finalized leaderboard for this game
-                try:
-                    broadcast_leaderboard.delay('WordleGameState', self.game_state_id)
-                except Exception:
-                    pass
+            # If the game is complete, client will call finalize endpoint
+            # No need to handle completion here anymore
+            if is_complete:
+                print(f"[WebSocket][GAME COMPLETE] game_state={self.game_state_id}, user={self.user.username} completed (client will finalize)")
 
         elif data.get('type') == 'start_game':
             # Close join window and notify all clients to dismiss lobby
@@ -343,6 +319,25 @@ class WordleConsumer(AsyncWebsocketConsumer):
             'leaderboard': event.get('leaderboard', []),
             'server_now': event.get('server_now'),
         }))
+
+    async def player_timeout(self, event):
+        # Only act if this timeout targets me
+        if event.get('user_id') == getattr(self.user, 'id', None):
+            await self.send(text_data=json.dumps({'type': 'timeout'}))
+            await self.close(code=4003)
+
+    async def timer_expired(self, event):
+        # Backend finalized due to global timer
+        await self.send(text_data=json.dumps({
+            'type': 'timer_expired',
+            'leaderboard': event.get('leaderboard', []),
+            'server_now': event.get('server_now'),
+            'auto_completed': event.get('auto_completed', True),
+        }))
+        try:
+            await self.close(code=4004)
+        except Exception:
+            pass
 
 
     # ===== Helper: join deadline check =====

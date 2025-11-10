@@ -18,10 +18,10 @@ from .views import (AcceptPersonalChallenge, ConversationView, DeclinePersonalCh
                     ChallengeLeaderboardView, SubmitGameScoresView, ChallengeDailyHistoryView,
                     SkillLevelsView, SkillLevelDetailView, SkillLevelHistoryView, CreatePublicChallengeView, RewardSettingView, 
                     CreateSudokuGameView, UserRecentGroupMessagesView, UserRecentMessagesView, ValidateSudokuMoveView, CreatePatternGameView, 
-                    ValidatePatternMoveView, CreateWordleGameView, ValidateWordleMoveView, 
+                    ValidatePatternMoveView, CreateWordleGameView, ValidateWordleMoveView, FinalizeWordleResultView,
                     SavePushTokenView, UserNotificationsView, DeleteNotificationView,
                     GroupLeaderboardView,
-                    GroupDailyHistoryView,
+                    GroupDailyHistoryView, GameTimerExpiredView,
 )
 
 from django.urls import path, include
@@ -56,6 +56,7 @@ from .views import (
     FinalizeChallengeView,
     FinalizeCollaborativeGroupChallengeScheduleView,
     FinalizePublicChallengeView,
+    FinalizeWordleResultView,
     FriendListView,
     FriendRequestListView,
     GameListView,
@@ -124,8 +125,10 @@ from .views import (
     SaveFCMTokenView,
     SendGroupInviteView,
     RespondGroupInviteView,
+    RespondGroupInviteView,
     CreateTypingRaceGameView,
     FinalizeTypingRaceResultView,
+    GameTimerExpiredView,,
     CollectBetRefundView,
     GetPersonalChallengesView,
     CollectChallengeCoinsView,
@@ -218,6 +221,7 @@ urlpatterns = [
     path('sudoku/validate/', ValidateSudokuMoveView.as_view(), name='validate-sudoku'),
     path('wordle/create/', CreateWordleGameView.as_view(), name='create-wordle'),
     path('wordle/validate/', ValidateWordleMoveView.as_view(), name='validate-wordle'),
+    path('wordle/finalize/', FinalizeWordleResultView.as_view(), name='wordle-finalize'),
     path("create-personal-challenge/", CreatePersonalChallengeView.as_view(), name="create_personal_challenge"),
     path('pattern/create/',   CreatePatternGameView.as_view(),   name='pattern-create'),
     path('pattern/validate/', ValidatePatternMoveView.as_view(), name='pattern-validate'),
@@ -228,7 +232,7 @@ urlpatterns = [
     path('get-performances/<int:chall_id>/', GetPerformancesView.as_view(), name='get-performances'),
     path('submit-game-scores/', SubmitGameScoresView.as_view(), name='submit-game-scores'),
     path('add-game-to-schedule/', AddGameToScheduleView.as_view(), name='add-game-to-schedule'),
-    path('skill-levels/<int:user_id>/', SkillLevelsView.as_view(), name="skill-levels"),
+    path('skill-levels/', SkillLevelsView.as_view(), name="skill-levels"),
     path('user-data/<int:user_id>/', UserDataView.as_view(), name="user-data"),
     path('badges/<int:user_id>/', BadgesView.as_view(), name="badges"),
     path('base-memojies/', BaseMemojiesView.as_view(), name="base-memojies"),
@@ -258,4 +262,6 @@ urlpatterns = [
     path('typing-race/create/', CreateTypingRaceGameView.as_view(), name='typing-race-create'),
     path('typing-race/finalize/', FinalizeTypingRaceResultView.as_view(), name='typing-race-finalize'),
 
+    # Game timer expiry (frontend-driven)
+    path('game/timer-expired/', GameTimerExpiredView.as_view(), name='game-timer-expired'),
 ]

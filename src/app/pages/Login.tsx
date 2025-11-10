@@ -249,30 +249,6 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             >
               <Text style={styles.loginButtonText}>Login</Text>
             </TouchableOpacity>
-
-            <View style={styles.dividerContainer}>
-              <View style={styles.divider} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.divider} />
-            </View>
-
-            <View style={styles.socialButtonsContainer}>
-              <TouchableOpacity
-                style={[styles.socialButton, styles.googleButton]}
-              >
-                <Ionicons name="logo-google" size={20} color="#DB4437" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.socialButton, styles.appleButton]}
-              >
-                <Ionicons name="logo-apple" size={20} color="#000" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.socialButton, styles.facebookButton]}
-              >
-                <Ionicons name="logo-facebook" size={20} color="#4267B2" />
-              </TouchableOpacity>
-            </View>
           </View>
 
           <View style={styles.signupContainer}>

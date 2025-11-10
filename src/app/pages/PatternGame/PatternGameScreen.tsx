@@ -50,13 +50,18 @@ type WsRoundCountdown = {
   seconds: number;
 };
 
+type WsTimerExpired = { type: 'timer_expired' };
+type WsTimeout = { type: 'timeout' };
+
 type WsIncoming =
   | WsLobbyState
   | WsLobbyCountdown
   | WsPatternSequence
   | WsAnswerResult
   | WsGameOver
-  | WsRoundCountdown;
+  | WsRoundCountdown
+  | WsTimerExpired
+  | WsTimeout;
 
 /*********** REST responses **************/
 type CreateResp = {
@@ -93,6 +98,8 @@ const wsUrlFor = (gameStateId: number, accessToken: string) => {
 const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
   // Use only the formal route params
   const challengeId: number | undefined = route?.params?.challengeId;
+  const challName: string | undefined = route?.params?.challName;
+  const whichChall: string | undefined = route?.params?.whichChall;
 
   const { logout } = useUser();
 
@@ -118,6 +125,13 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
   const [isMultiplayer, setIsMultiplayer] = useState<boolean>(false);
   const wsRef = useRef<WebSocket | null>(null);
 
+  // 5-minute game timer (mirrors Sudoku)
+  const [gameTimeLeft, setGameTimeLeft] = useState<number>(300); // 300 for prod
+  const gameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerExpiredSentRef = useRef(false);
+  const gameTimerStartedRef = useRef(false);
+  const [gameCompleted, setGameCompleted] = useState(false);
+
   // Non-blocking toast
   const [toast, setToast] = useState<string>('');
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -133,6 +147,60 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
 
   // Small sleep helper
   const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+  // Game timer helpers
+  const handleTimerExpired = useCallback(async () => {
+    if (timerExpiredSentRef.current || !gameStateId) return;
+    timerExpiredSentRef.current = true;
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) return;
+      const response = await fetch(endpoints.gameTimerExpired, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          model: 'PatternMemorizationGameState',
+          game_state_id: gameStateId,
+        }),
+      });
+      const data = await response.json().catch(() => ({} as any));
+      console.log('[Pattern] Timer expired signal sent to backend', data);
+      // For single-player, show alert here (no WS)
+      if (!isMultiplayer) {
+        if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+        Alert.alert("Time's Up!", 'The 5-minute game timer has expired.', [
+          { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
+        ]);
+      }
+    } catch (e) {
+      console.error('[Pattern] Failed to send timer expired signal:', e);
+    }
+  }, [gameStateId, isMultiplayer, navigation, challengeId, challName, whichChall]);
+
+  const startGameTimer = useCallback(() => {
+    if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+    setGameTimeLeft(300);
+    timerExpiredSentRef.current = false;
+    gameTimerStartedRef.current = true;
+    gameTimerRef.current = setInterval(() => {
+      setGameTimeLeft((prev) => {
+        if (prev <= 1) {
+          if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   // Play a single sequence (works for single/multiplayer)
   const playSequence = useCallback(
@@ -209,6 +277,10 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
               ? 'started'
               : `waiting ${msg.ready_count}/${msg.expected_count}`;
             setLobbyStatus(s);
+            // Start game timer when server indicates game has started
+            if (msg.started && !gameTimerStartedRef.current) {
+              startGameTimer();
+            }
             break;
           }
           case 'lobby_countdown': {
@@ -221,12 +293,29 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
             setLobbyStatus(`Next round in ${msg.seconds}`);
             break;
           }
+          case 'timer_expired': {
+            if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
+            Alert.alert("Time's Up!", 'The 5-minute game timer has expired.', [
+              { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
+            ]);
+            break;
+          }
+          case 'timeout': {
+            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
+            Alert.alert('Timeout', 'You have been timed out for inactivity.', [
+              { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
+            ]);
+            break;
+          }
           case 'pattern_sequence': {
             // Server pushes sequence for this round (multiplayer)
             setLobbyStatus('');
             setCountdown(null);
             setLevel(msg.round_number);
             setCurrentSeqLen(msg.sequence.length);
+            // Fallback: ensure game timer started when first round arrives
+            if (!gameTimerStartedRef.current) startGameTimer();
             queueRef.current.push(msg.sequence);
             drainQueue();
             break;
@@ -260,16 +349,15 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
             break;
           }
           case 'game_over': {
+            setGameCompleted(true);
+            if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
             const lines = msg.scores
               .sort((a, b) => b.score - a.score)
               .map((s) => `${s.username}: ${s.score} (R${s.rounds_completed})`)
               .join('\n');
-            // Auto-navigate back after 2s to let backend finalize GP and refresh details
-            setTimeout(() => {
-              navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall });
-            }, 2000);
             Alert.alert('🏁 Game Completed', lines || 'No scores', [
-              { text: 'OK' },
+              { text: 'OK', onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) },
             ]);
             break;
           }
@@ -347,6 +435,8 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
             setPatternSeq(j.pattern_sequence);
             setCurrentSeqLen(j.pattern_sequence[j.current_round - 1]?.length ?? 0);
             await playRound(j.current_round, j.pattern_sequence);
+            // Single-player: start game timer immediately
+            startGameTimer();
           } else {
             Alert.alert('Missing pattern', 'pattern_sequence not provided by server.');
           }
@@ -362,9 +452,17 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
     return () => {
       wsRef.current?.close();
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (gameTimerRef.current) clearInterval(gameTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengeId]);
+
+  // Watch for game timer expiry
+  useEffect(() => {
+    if (gameTimeLeft === 0 && !gameCompleted) {
+      handleTimerExpired();
+    }
+  }, [gameTimeLeft, gameCompleted, handleTimerExpired]);
 
   // Single-player resync (multiplayer does not need)
   const resyncFromServer = useCallback(async () => {
@@ -470,8 +568,28 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
 
       if (j.success && j.result === 'correct') {
         if (j.is_complete) {
+          try {
+            if (!isMultiplayer && gameStateId) {
+              const token2 = await getAccessToken();
+              if (token2) {
+                await fetch(endpoints.gameTimerExpired, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token2}`,
+                  },
+                  body: JSON.stringify({
+                    model: 'PatternMemorizationGameState',
+                    game_state_id: gameStateId,
+                  }),
+                });
+              }
+            }
+          } catch (e) {
+            console.error('[Pattern] finalize on complete failed', e);
+          }
           Alert.alert('🎉 Finished', `Great job! +${j.round_score}`, [
-            { text: 'OK', onPress: () => navigation.goBack() },
+            { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
           ]);
         } else {
           if (Platform.OS === 'android')  // NEW
@@ -521,6 +639,7 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
 
         <Text style={styles.title}>🧠 Pattern Memory Game</Text>
         <Text style={styles.subtitle}>Round: {level}/{maxRounds}</Text>
+        <Text style={[styles.subtitle, { marginTop: -4 }]}>Game Timer: {formatTime(gameTimeLeft)}</Text>
 
         {/* Multiplayer lobby status / countdown */}
         {isMultiplayer && (

@@ -50,6 +50,14 @@ interface JoinWindowClosedMessage {
   server_now?: string;
 }
 
+interface TimeoutMessage {
+  type: 'timeout';
+}
+
+interface TimerExpiredMessage {
+  type: 'timer_expired';
+}
+
 type PlayerScore = {
   username: string;
   accuracy: number;
@@ -103,7 +111,9 @@ export type ServerToClientMessage =
   | IgnoredMessage
   | CellLockedMessage
   | CellUnlockedMessage
-  | LockFailedMessage;
+  | LockFailedMessage
+  | TimeoutMessage
+  | TimerExpiredMessage;
 
 // Client to server
 export type ClientToServerMessage = MakeMoveMessage;
@@ -129,6 +139,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   // will only have a color if in a multiplayer game
   const [playerColor, setPlayerColor] = useState<string>('');
   const [playerColors, setPlayerColors] = useState<Record<string, string>>({});
+  const [isMultiplayer, setIsMultiplayer] = useState(false);
   const [gameId, setGameId] = useState<number | null>(null);
   // {
   //   "alice": "aqua",
@@ -161,6 +172,11 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   const [members, setMembers] = useState<{ id: number; name: string }[]>([]);
   const [onlineIds, setOnlineIds] = useState<number[]>([]);
 
+   // 5-minute game timer
+  const [gameTimeLeft, setGameTimeLeft] = useState<number>(300); // 5 minutes in seconds
+  const gameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerExpiredSentRef = useRef(false);
+  
   const canStartNow = useMemo(() => {
     return readyCount >= 1;
   }, [readyCount]);
@@ -187,8 +203,76 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => () => {
     if (countdownRef.current) clearInterval(countdownRef.current);
   }, []);
+  
+  const handleTimerExpired = async () => {
+    if (timerExpiredSentRef.current || !gameStateId) return;
+    timerExpiredSentRef.current = true;
+    
+    try {
+      const accessToken = await getAccessToken();
+        if (!accessToken) return;
+  
+        const response = await fetch(endpoints.gameTimerExpired, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            model: 'SudokuGameState',
+            game_state_id: gameStateId,
+          }),
+        });
+        
+        const data = await response.json();
+        console.log('[Sudoku] Timer expired signal sent to backend', data);
+        
+        // For single-player games (no WebSocket), handle the response directly
+        if (!isMultiplayer) {
+          if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+          setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
+          Alert.alert(
+            "Time's Up!",
+            'The 5-minute game timer has expired. Final scores have been calculated.',
+            [{ text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) }]
+          );
+          
+        }
+        // For multiplayer, the WebSocket handler will show the alert
+      } catch (e) {
+        console.error('[Sudoku] Failed to send timer expired signal:', e);
+      }
+  };
+  
+    // Watch for game timer expiry
+  useEffect(() => {
+    if (gameTimeLeft === 0 && !gameCompleted) {
+      handleTimerExpired();
+    }
+  }, [gameTimeLeft, gameCompleted]);
 
-  // const formatTime = (sec: number) => `${Math.floor(sec / 60)}:${sec % 60 < 10 ? '0' + sec % 60 : sec % 60}`;
+  const startGameTimer = () => {
+      if (gameTimerRef.current) {
+        clearInterval(gameTimerRef.current);
+      }
+      setGameTimeLeft(300);
+      timerExpiredSentRef.current = false;
+      gameTimerRef.current = setInterval(() => {
+        setGameTimeLeft((prev) => {
+          if (prev <= 1) {
+            if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+  };
+  
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
     const refreshSkills = async () => {
       try {
@@ -323,6 +407,8 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
       console.log("Response data:", data);
 
       const { game_id, game_state_id, puzzle, is_multiplayer, created_at, join_deadline_at } = data;
+
+      setIsMultiplayer(!!is_multiplayer);
 
       const board = puzzle as number[][];
       if (!Array.isArray(board)) {
@@ -478,20 +564,38 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
               }
               setShowCountdown(false);
               setCountdownValue(null);
+            // Start 5-minute game timer when join window closes
+              startGameTimer();
               break;
             }
 
-            case 'game_complete': {
+          case 'timeout': {
+            Alert.alert('Timeout', 'You have been timed out for inactivity.', [
+              { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
+            ]);
+            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
+            break;
+          }
+
+          case 'timer_expired': {
+            if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+            Alert.alert('Time\'s Up!', 'The 5-minute game timer has expired.', [
+              { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
+            ]);
+            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
+            break;
+          }
+
+          case 'game_complete': {
               const { scores } = data;
               console.log("game complete score: ", scores);
 
               (async () => {
                 try {
                   await refreshSkills();
+                  await saveScores({challenge_id: challengeId, scores});
                   // Auto-navigate to ChallDetails after 2s to allow backend to finalize
-                  setTimeout(() => {
-                    navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall });
-                  }, 2000);
+                  setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
                   Alert.alert(
                     "🎉 Puzzle Complete!",
                     `\n\nScores:\n` +
@@ -499,7 +603,7 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                         .sort((a, b) => b.score - a.score)
                         .map(s => `${s.username}: ${s.score} (✅ ${s.accuracy} / ❌ ${s.inaccuracy})`)
                         .join("\n"),
-                    [{ text: "OK" }]
+                    [{ text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) }]
                   );
                 } catch (err) {
                   console.error("submit score failed", err);
@@ -517,11 +621,21 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
 
         setSocket(ws);
       }
+      else {  // Single-player: start game timer immediately
+        console.log('[Sudoku] Single-player mode - starting game timer');
+        startGameTimer();
+      }
     } catch (error) {
       console.error('Init failed', error);
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+    };
+  }, []);
   // const restartGame = async () => {
   //   if (intervalId) clearInterval(intervalId);
   //   setIntervalId(null);
@@ -612,19 +726,35 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
               setGameCompleted(true);
 
               (async () => {
-                if (user?.username) {
-                  try {
-                    await refreshSkills();
-                  } catch (e) {
-                    console.error("submit score failed", e);
+                try {
+                  if (!isMultiplayer && gameStateId) {
+                    const accessToken = await getAccessToken();
+                    if (accessToken) {
+                      await fetch(endpoints.gameTimerExpired, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${accessToken}`,
+                        },
+                        body: JSON.stringify({
+                          model: 'SudokuGameState',
+                          game_state_id: gameStateId,
+                        }),
+                      });
+                    }
                   }
+                } catch (e) {
+                  console.error('[Sudoku] finalize on complete failed', e);
                 }
-                // Auto-return after 2s to allow backend to finalize
-                setTimeout(() => {
-                  navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall });
-                }, 2000);
+
+                try {
+                  await refreshSkills();
+                } catch (e) {
+                  console.error('skill refresh failed', e);
+                }
+
                 Alert.alert("🎉 Puzzle Complete!", "", [
-                  { text: "OK" },
+                  { text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) },
                 ]);
               })();
             }
@@ -798,7 +928,15 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.exitText}>Exit</Text>
           </TouchableOpacity>
 
-          <Text style={styles.title}>Sudoku</Text>
+          {!waitingActive && (
+            <Text style={[styles.timer, { color: gameTimeLeft < 60 ? '#ffffffff' : 'white' }]}>
+              Game Timer: {formatTime(gameTimeLeft)}
+            </Text>
+          )}
+
+          <View pointerEvents="none" style={styles.headerTitleWrap}>
+            <Text style={styles.title}>Sudoku</Text>
+          </View>
           {/* <Text style={styles.timer}>Timer: {formatTime(timeLeft)}</Text> */}
 
           {/*Temp function for checking board is full and exit is working*/}
@@ -908,13 +1046,17 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
                     style={[
                       styles.cell,
                       { 
-                        backgroundColor: cellColors[index], 
-                        // use player color when selected, otherwise keep the border color
-                        borderColor: selected ? playerColor : cellBorderColors[index],
-                        borderWidth: cellLocks[index] ? 3 : BORDER_WIDTH_THIN,
+                        // singleplayer & multiplayer color handling
+                        ...(selected
+                          ? (playerColor
+                              ? { borderColor: playerColor, borderWidth: 2 }  // multiplayer mode
+                              : styles.selectedCell)                           // singleplayer mode
+                          : { borderColor: cellBorderColors[index], borderWidth: cellLocks[index] ? 3 : BORDER_WIDTH_THIN }),
                       },
                       rowIndex % 3 === 0 && rowIndex !== 0 ? styles.thickTopBorder : {},
                       colIndex % 3 === 0 && colIndex !== 0 ? styles.thickLeftBorder : {},
+                      // highlight incorrect move as a red box
+                      cellColors[index] === 'red' ? { borderColor: 'red', backgroundColor: '#ff3333ff' } : {},
                     ]}>
                     <Text style={styles.cellText}>{grid[index]}</Text>
                   </TouchableOpacity>
@@ -953,11 +1095,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center' },
 
   // header styles
-  header: { flexDirection: 'row', justifyContent: 'space-between', width: '90%', marginTop: 20, alignItems: 'center' },
+  header: { position: 'relative', flexDirection: 'row', justifyContent: 'space-between', width: '92%', paddingTop: 40, paddingBottom: 8, marginTop: 10, alignItems: 'center' },
   exitButton: { backgroundColor: 'white', padding: 5, borderRadius: 5 },
   exitText: { fontWeight: 'bold' },
-  title: { fontSize: 30, fontWeight: 'bold', color: 'white' },
-  timer: { fontSize: 16, color: 'white' },
+  title: { fontSize: 32, fontWeight: '900', color: 'white', textAlign: 'center' },
+  timer: { fontSize: 18, color: 'white', marginVertical: 5, marginTop: 50, marginRight: 105, },
+  headerTitleWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
 
   // color info styles
   colorInfoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8},

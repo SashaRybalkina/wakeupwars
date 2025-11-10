@@ -36,60 +36,52 @@ logger = logging.getLogger(__name__)
 # A. fire at alarm-time
 @shared_task
 def open_join_window(challenge_id, game_id, game_code, user_id=None):
+    """
+    Opens the join window for a game at alarm time.
+    Helpers now use proper get_or_create with unique constraints to prevent race conditions.
+    """
     Model = _game_state_model(game_code)
-
-    ch   = Challenge.objects.get(pk=challenge_id)
-    game = Game.objects.get(pk=game_id)
-
-    # choose a user (some helpers require a user)
+    ch = Challenge.objects.get(pk=challenge_id)
+    
+    # Get user (assume user_id is passed in from collaborative setup)
     user = None
     if user_id is not None:
         try:
             user = User.objects.get(pk=user_id)
         except User.DoesNotExist:
             user = None
+    
+    # Fallback to initiator or first member if no user_id
     if user is None:
         user = getattr(ch, "initiator", None)
     if user is None:
-        first_uid = (
-            ChallengeMembership.objects
-            .filter(challengeID=ch)
-            .values_list("uID_id", flat=True)
-            .first()
-        )
+        first_uid = ChallengeMembership.objects.filter(challengeID=ch).values_list("uID_id", flat=True).first()
         if first_uid:
             user = User.objects.filter(pk=first_uid).first()
-
-    # try to reuse an existing state
-    try:
-        gs = Model.objects.get(challenge=ch, game=game)
-    except Model.DoesNotExist:
-        # otherwise create one
-        if game_code == "sudoku":
-            # sudoku init requires a user; fall back to any available user
-            if user is None:
-                user = User.objects.order_by("id").first()
-            gs_dict = sudoku_init(ch.id, user, allow_join=False)
-            gs = SudokuGameState.objects.get(pk=gs_dict["game_state_id"])
-
-        elif game_code == "wordle":
-            if user is None:
-                user = User.objects.order_by("id").first()
-            gs_dict = wordle_init(ch.id, user, allow_join=False)
-            gs = WordleGameState.objects.get(pk=gs_dict["game_state_id"])
-
-        elif game_code == "pattern":
-            if user is None:
-                user = User.objects.order_by("id").first()
-            gs_dict = pattern_init(ch.id, user, allow_join=False)
-            gs = PatternMemorizationGameState.objects.get(pk=gs_dict["game_state_id"])
-        else:
-            return  # unknown game type
-
-    # continue with join-window timing
+    if user is None:
+        user = User.objects.order_by("id").first()
+    
+    # Use current time as alarm_datetime
+    alarm_datetime = timezone.now()
+    
+    # Call helper functions which now use proper get_or_create
+    if game_code == "sudoku":
+        gs_dict = sudoku_init(ch.id, user, allow_join=False, alarm_datetime=alarm_datetime)
+        gs = SudokuGameState.objects.get(pk=gs_dict["game_state_id"])
+    elif game_code == "wordle":
+        gs_dict = wordle_init(ch.id, user, allow_join=False, alarm_datetime=alarm_datetime)
+        gs = WordleGameState.objects.get(pk=gs_dict["game_state_id"])
+    elif game_code == "pattern":
+        gs_dict = pattern_init(ch.id, user, allow_join=False, alarm_datetime=alarm_datetime)
+        gs = PatternMemorizationGameState.objects.get(pk=gs_dict["game_state_id"])
+    else:
+        return  # unknown game type
+    
+    # Schedule close_join_window task
     if not gs.join_deadline_at:
         gs.join_deadline_at = timezone.now() + timezone.timedelta(seconds=20)
         gs.save(update_fields=["join_deadline_at"])
+    
     close_join_window.apply_async(
         args=[Model.__name__, gs.id],
         eta=gs.join_deadline_at,
@@ -183,34 +175,37 @@ def broadcast_leaderboard(model_name: str, gs_id: int, for_date_iso: str | None 
     # Reconcile/finalize Sudoku scores if not already present
     if model_name == 'SudokuGameState':
         try:
-            # Compute scores from SudokuGamePlayer stats
+            # Respect existing GamePerformance (e.g., set by the completer at finish)
             players = (
                 SudokuGamePlayer.objects
                 .select_related('player')
                 .filter(gameState_id=gs_id)
             )
-            submitted_ids = set()
-            for p in players:
-                correct = int(getattr(p, 'accuracyCount', 0) or 0)
-                incorrect = int(getattr(p, 'inaccuracyCount', 0) or 0)
-                attempts = max(1, correct + incorrect)
-                score = round((correct / attempts) * 100, 2)
-                GamePerformance.objects.update_or_create(
-                    challenge=gs.challenge,
-                    game=gs.game,
-                    user=p.player,
-                    date=play_date,
-                    defaults={"score": score},
-                )
-                submitted_ids.add(p.player_id)
-
-            # Fill zeros for remaining participants
+            existing_ids = set(
+                GamePerformance.objects
+                .filter(challenge=gs.challenge, game=gs.game, date=play_date)
+                .values_list('user_id', flat=True)
+            )
             participant_ids = set(
                 ChallengeMembership.objects
                 .filter(challengeID=gs.challenge)
                 .values_list('uID_id', flat=True)
             )
-            for uid in participant_ids - submitted_ids:
+
+            # For any player without a row yet, assign 0
+            for p in players:
+                if p.player_id not in existing_ids:
+                    GamePerformance.objects.update_or_create(
+                        challenge=gs.challenge,
+                        game=gs.game,
+                        user=p.player,
+                        date=play_date,
+                        defaults={"score": 0, "auto_generated": True},
+                    )
+                    existing_ids.add(p.player_id)
+
+            # Zero-fill remaining participants for the day
+            for uid in participant_ids - existing_ids:
                 GamePerformance.objects.update_or_create(
                     challenge=gs.challenge,
                     game=gs.game,

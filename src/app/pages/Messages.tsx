@@ -13,6 +13,7 @@ import {
   Animated,
   Dimensions,
   Alert,
+  Image,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import type { NavigationProp } from "@react-navigation/native"
@@ -40,12 +41,15 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   const [composeRecipientId, setComposeRecipientId] = useState("")
   const [composeGroupId, setComposeGroupId] = useState("")
   const [sending, setSending] = useState(false)
+  const [loadingFriends, setLoadingFriends] = useState(true)
+  const [loadingGroups, setLoadingGroups] = useState(true)
   const wsPrivate = useRef<WebSocket | null>(null)
   const wsGroups = useRef<WebSocket | null>(null)
 
   // Fetch messages
   const fetchMessages = async () => {
     if (!user?.id) return
+    setLoadingFriends(true)
     try {
       const accessToken = await getAccessToken();
                           if (!accessToken) {
@@ -63,11 +67,14 @@ const Messages: React.FC<Props> = ({ navigation }) => {
       setFriendMessages(friends)
     } catch (error) {
       console.error("Failed to fetch messages:", error)
+    } finally {
+      setLoadingFriends(false)
     }
   }
 
   const fetchGroupConversations = async () => {
     if (!user?.id) return
+    setLoadingGroups(true)
     try {
       const accessToken = await getAccessToken();
                           if (!accessToken) {
@@ -84,6 +91,8 @@ const Messages: React.FC<Props> = ({ navigation }) => {
       setGroupConversations(data)
     } catch (error) {
       console.error("Failed to fetch group conversations:", error)
+    } finally {
+      setLoadingGroups(false)
     }
   }
 
@@ -182,6 +191,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     timestamp: string; 
     onPress?: () => void;
     unread?: boolean;
+    avatar?: { imageUrl?: string; backgroundColor?: string } | null;
   }> = ({
     name,
     text,
@@ -189,6 +199,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     timestamp,
     onPress,
     unread = false,
+    avatar,
   }) => (
     <TouchableOpacity
       style={[
@@ -205,10 +216,19 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     >
       <View style={styles.messageAvatarContainer}>
         <View style={[
-          styles.messageAvatar, 
+          styles.messageAvatar,
+          { backgroundColor: (avatar?.backgroundColor || "rgba(255, 215, 0, 0.3)") },
           unread && { borderColor: "#FFF700" }
         ]}>
-          <Text style={styles.avatarText}>{name ? name.charAt(0).toUpperCase() : "?"}</Text>
+          {avatar?.imageUrl ? (
+            <Image
+              source={{ uri: avatar.imageUrl.startsWith("http") ? avatar.imageUrl : `${BASE_URL}${avatar.imageUrl}` }}
+              style={styles.messageAvatarImg}
+              resizeMode="cover"
+            />
+          ) : (
+            <Text style={styles.avatarText}>{name ? name.charAt(0).toUpperCase() : "?"}</Text>
+          )}
         </View>
       </View>
       <View style={styles.messageContent}>
@@ -236,12 +256,18 @@ const Messages: React.FC<Props> = ({ navigation }) => {
     </TouchableOpacity>
   )
 
-  const EmptyState = () => (
-    <View style={styles.emptyStateContainer}>
-      <Ionicons name="chatbubble-ellipses-outline" size={70} color="rgba(255,255,255,0.5)" />
-      <Text style={styles.emptyStateText}>No messages yet</Text>
-    </View>
-  )
+  const EmptyState = () => {
+    const isLoading = selected === "Friends" ? loadingFriends : loadingGroups
+    return (
+      <View style={styles.emptyStateContainer}>
+        <Ionicons name="chatbubble-ellipses-outline" size={70} color="rgba(255,255,255,0.5)" />
+        <Text style={styles.emptyStateText}>No messages yet</Text>
+        {isLoading && (
+          <Text style={styles.emptyStateTextLoading}>Loading...</Text>
+        )}
+      </View>
+    )
+  }
 
   return (
     <ImageBackground source={require("../images/cgpt.png")} style={styles.background}>
@@ -274,6 +300,7 @@ const Messages: React.FC<Props> = ({ navigation }) => {
                     timestamp={lastMessage.timestamp}
                     unread={!isMine && lastMessage.hasOwnProperty('is_read') && !lastMessage.is_read}
                     onPress={() => openConversation(otherUser.id, otherUser.name)}
+                    avatar={otherUser.avatar}
                   />
                 )
               })
@@ -451,8 +478,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 215, 0, 0.3)",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
+    borderWidth: 1.3,
     borderColor: "#FFD700",
+    overflow: "hidden",
+  },
+  messageAvatarImg: {
+    width: "95%",
+    height: "95%",
+    borderRadius: 25,
   },
   avatarText: {
     color: "#FFF",
@@ -494,6 +527,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 15,
   },
+  emptyStateTextLoading: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "600",
+    marginTop: 15,
+  },
   emptyStateSubText: {
     color: "rgba(255, 255, 255, 0.7)",
     fontSize: 16,
@@ -503,7 +542,8 @@ const styles = StyleSheet.create({
     height: 65,
     borderRadius: 25,
     overflow: "hidden",
-    marginTop: 10,
+    marginTop: 20,
+    marginBottom:-20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,

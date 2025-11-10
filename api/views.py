@@ -59,6 +59,7 @@ import traceback
 from api.services.skill import recompute_skill_for_user
 from api.services.skill_config import SKILL_CONFIG
 from api.tasks import open_join_window
+from channels.layers import get_channel_layer
 
 ### Pattern Memorization###
 from api.patternMem.utils import get_or_create_pattern_game, validate_pattern_move
@@ -2747,7 +2748,16 @@ class ValidateSudokuMoveView(APIView):
         # result = validate_sudoku_move(game_state, user, index, value)
         result = async_to_sync(validate_sudoku_move)(game_state.id, user, index, value)
 
-        if result['is_correct']:
+        # Handle ignored moves (cell already correctly filled)
+        if result.get('type') == 'ignored':
+            return Response({
+                'success': True,
+                'result': 'ignored',
+                'puzzle': game_state.puzzle,
+                'completed': False
+            }, status=200)
+
+        if result.get('is_correct'):
             return Response({
                 'success': True,
                 'result': 'correct',
@@ -3055,7 +3065,7 @@ class ValidatePatternMoveView(APIView):
         if "scores" in result and result["scores"] is not None:
             payload["scores"] = result["scores"]
 
-        if result.get("is_correct"):
+        if result.get('is_correct'):
             return Response({"success": True, "result": "correct", **payload}, status=status.HTTP_200_OK)
         else:
             return Response({"success": False, "result": "incorrect", **payload}, status=status.HTTP_200_OK)
@@ -3089,28 +3099,9 @@ class CreateWordleGameView(APIView):
             Challenge.objects.get(id=challenge_id)
         except Challenge.DoesNotExist:
             return Response({"error": "Challenge not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        try:
-            gs = WordleGameState.objects.filter(challenge_id=challenge_id).order_by('-id').first()
-            if gs:
-                today = timezone.localdate()
-                # If any GamePerformance exists for today for this challenge+game, consider it ended
-                if GamePerformance.objects.filter(challenge_id=challenge_id, game_id=gs.game_id, date=today).exists():
-                    return Response(
-                        {'code': 'GAME_ENDED', 'detail': 'This game has already finished for today.'},
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-                now = timezone.now()
-                if gs.joins_closed or (gs.join_deadline_at and now > gs.join_deadline_at):
-                    return Response(
-                        {'code': 'JOINS_CLOSED', 'detail': 'The join window has closed. Please join next time.'},
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-        except Exception:
-            # best-effort gating; proceed if checks fail
-            pass
         
         # Use utils to create or get a Wordle game state
+        # The helper now uses proper get_or_create with unique constraints to prevent race conditions
         game_data = get_or_create_game_wordle(challenge_id, user)
 
         return Response(game_data, status=status.HTTP_200_OK)
@@ -3133,44 +3124,150 @@ class ValidateWordleMoveView(APIView):
     """
 
     def post(self, request):
-        game_id = request.data.get("game_state_id")
+        game_state_id = request.data.get("game_state_id")
         row = request.data.get("row")
         guess = request.data.get("guess")
         user = request.user
 
-        if game_id is None or row is None or guess is None:
+        if game_state_id is None or row is None or guess is None:
             return Response({"error": "Missing parameters"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Ensure the game state exists
+        # Ensure the game state exists and load relations for gating/persistence
         try:
-            WordleGameState.objects.get(id=game_id)
+            gs = WordleGameState.objects.select_related("challenge", "game").get(id=game_state_id)
         except WordleGameState.DoesNotExist:
             return Response({"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND)
 
+        # Best-effort gating tied to this game state (avoid undefined challenge_id)
         try:
-            gs = WordleGameState.objects.filter(challenge_id=challenge_id).order_by('-id').first()
-            if gs:
-                today = timezone.localdate()
-                # If any GamePerformance exists for today for this challenge+game, consider it ended
-                if GamePerformance.objects.filter(challenge_id=challenge_id, game_id=gs.game_id, date=today).exists():
-                    return Response(
-                        {'code': 'GAME_ENDED', 'detail': 'This game has already finished for today.'},
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-                now = timezone.now()
-                if gs.joins_closed or (gs.join_deadline_at and now > gs.join_deadline_at):
-                    return Response(
-                        {'code': 'JOINS_CLOSED', 'detail': 'The join window has closed. Please join next time.'},
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
+            today = timezone.localdate()
+            if GamePerformance.objects.filter(challenge=gs.challenge, game=gs.game, date=today).exists():
+                return Response(
+                    {'code': 'GAME_ENDED', 'detail': 'This game has already finished for today.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            now = timezone.now()
+            if gs.joins_closed or (gs.join_deadline_at and now > gs.join_deadline_at):
+                return Response(
+                    {'code': 'JOINS_CLOSED', 'detail': 'The join window has closed. Please join next time.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         except Exception:
             # best-effort gating; proceed if checks fail
             pass
-        # Call utils to validate the move and update state
-        # result = async_to_sync(validate_wordle_move)(game_id, user, guess, row)
-        result = validate_wordle_move(game_id, user, guess, row)
+
+        # Validate move and compute leaderboard
+        result = validate_wordle_move(game_state_id, user, guess, row)
+
+        # Persist immediately for single-player so ChallDetails can show Recent Performances right away
+        try:
+            is_multiplayer = bool(getattr(gs.game, 'isMultiplayer', False))
+        except Exception:
+            is_multiplayer = False
+
+        if result.get('is_complete') and not is_multiplayer:
+            # Try to extract this user's final score from the returned scores list
+            score_list = result.get('scores') or []
+            my_score = 0
+            for s in score_list:
+                if s.get('username') == user.username:
+                    try:
+                        my_score = int(s.get('score', 0))
+                    except Exception:
+                        my_score = 0
+                    break
+            # Fallback to score_awarded if correct on this move
+            if my_score == 0 and result.get('is_correct'):
+                try:
+                    my_score = int(result.get('score_awarded') or 0)
+                except Exception:
+                    my_score = 0
+
+            GamePerformance.objects.update_or_create(
+                challenge=gs.challenge,
+                game=gs.game,
+                user=user,
+                date=timezone.localdate(),
+                defaults={"score": my_score, "auto_generated": False},
+            )
 
         return Response(result, status=status.HTTP_200_OK)
+
+class FinalizeWordleResultView(APIView):
+    """
+    Client-side validation finalization endpoint.
+    Frontend submits final results after local validation.
+    
+    Request:
+      - game_state_id: ID of the WordleGameState
+      - guesses: array of {row, guess, evaluation}
+      - is_complete: boolean
+      - is_correct: boolean (did user win)
+      - attempts_used: number of attempts used
+    
+    Response:
+      - scores: leaderboard for all players
+    """
+    def post(self, request):
+        game_state_id = request.data.get('game_state_id')
+        guesses = request.data.get('guesses', [])
+        is_complete = request.data.get('is_complete', False)
+        is_correct = request.data.get('is_correct', False)
+        attempts_used = request.data.get('attempts_used', 0)
+        user = request.user
+
+        if not game_state_id:
+            return Response({'error': 'Missing game_state_id'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            gs = WordleGameState.objects.select_related('challenge', 'game').get(id=game_state_id)
+        except WordleGameState.DoesNotExist:
+            return Response({'error': 'Game not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        is_multiplayer = bool(getattr(gs.game, 'isMultiplayer', False))
+        play_date = timezone.localdate()
+
+        # Compute score based on game mode
+        score = 0
+        if is_complete and is_correct:
+            if not is_multiplayer:
+                # Single-player: score based on attempts (fewer attempts = higher score)
+                max_attempts = 5
+                base_score = 100 // max_attempts
+                score = max(0, 100 - ((attempts_used - 1) * base_score))
+            else:
+                # Multiplayer: score will be computed based on ranking
+                # For now, just mark completion
+                score = 0
+
+        # Save or update GamePerformance
+        GamePerformance.objects.update_or_create(
+            challenge=gs.challenge,
+            game=gs.game,
+            user=user,
+            date=play_date,
+            defaults={'score': score, 'auto_generated': False}
+        )
+
+        print(f'[Wordle][Finalize] user={user.username} gs={game_state_id} complete={is_complete} correct={is_correct} score={score}')
+
+        # Build leaderboard
+        scores = []
+        performances = GamePerformance.objects.filter(
+            challenge=gs.challenge,
+            game=gs.game,
+            date=play_date
+        ).select_related('user')
+
+        for perf in performances:
+            scores.append({
+                'username': perf.user.username,
+                'score': perf.score,
+            })
+
+        scores = sorted(scores, key=lambda x: x['score'], reverse=True)
+
+        return Response({'scores': scores}, status=status.HTTP_200_OK)
 
 class ValidateSudokuMoveView(APIView):
     def post(self, request):
@@ -3190,7 +3287,16 @@ class ValidateSudokuMoveView(APIView):
         # result = validate_sudoku_move(game_state, user, index, value)
         result = async_to_sync(validate_sudoku_move)(game_state.id, user, index, value)
 
-        if result['is_correct']:
+        # Handle ignored moves (cell already correctly filled)
+        if result.get('type') == 'ignored':
+            return Response({
+                'success': True,
+                'result': 'ignored',
+                'puzzle': game_state.puzzle,
+                'completed': False
+            }, status=200)
+
+        if result.get('is_correct'):
             return Response({
                 'success': True,
                 'result': 'correct',
@@ -4914,3 +5020,128 @@ class FinalizeTypingRaceResultView(APIView):
         )
 
         return Response(result, status=status.HTTP_200_OK)
+
+
+class GameTimerExpiredView(APIView):
+    """
+    Frontend-driven finalization: when the 5-minute UI timer ends,
+    the client POSTs here to finalize the game state.
+
+    Body:
+      - model: one of 'SudokuGameState' | 'WordleGameState' | 'PatternMemorizationGameState'
+      - game_state_id: int
+    Effects:
+      - For Sudoku: reconcile scores from SudokuGamePlayer, then zero-fill missing participants
+      - For others: zero-fill missing participants
+      - Mark joins_closed = True, broadcast 'timer.expired' and current leaderboard
+    """
+    def post(self, request):
+        model_name = request.data.get('model')
+        gs_id = request.data.get('game_state_id')
+        if not model_name or not gs_id:
+            return Response({'error': 'Missing model or game_state_id'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            Model = globals()[model_name]
+        except KeyError:
+            return Response({'error': 'Unknown model'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            gs = Model.objects.select_related('challenge', 'game').get(pk=gs_id)
+        except Model.DoesNotExist:
+            return Response({'error': 'Game state not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        play_date = timezone.localdate()
+        # Reconcile Sudoku scores first (mirror tasks.broadcast_leaderboard)
+        if model_name == 'SudokuGameState':
+            try:
+                players = (
+                    SudokuGamePlayer.objects
+                    .select_related('player')
+                    .filter(gameState_id=gs_id)
+                )
+                # Denominator: correct + incorrect + empties_remaining (penalize mistakes)
+                total_correct = sum(int(getattr(p, 'accuracyCount', 0) or 0) for p in players)
+                total_incorrect = sum(int(getattr(p, 'inaccuracyCount', 0) or 0) for p in players)
+                try:
+                    empties_remaining = sum(
+                        1 for row in (gs.puzzle or []) for v in (row or []) if v in (0, None)
+                    )
+                except Exception:
+                    empties_remaining = 0
+                denom = max(1, total_correct + total_incorrect + empties_remaining)
+
+                submitted_ids = set()
+                for p in players:
+                    correct = int(getattr(p, 'accuracyCount', 0) or 0)
+                    score = round((correct / denom) * 100, 2)
+                    GamePerformance.objects.update_or_create(
+                        challenge=gs.challenge,
+                        game=gs.game,
+                        user=p.player,
+                        date=play_date,
+                        defaults={"score": score},
+                    )
+                    submitted_ids.add(p.player_id)
+            except Exception:
+                pass
+
+        # Zero-fill remaining participants only for multiplayer games
+        try:
+            is_multiplayer = bool(getattr(gs.game, 'isMultiplayer', False))
+        except Exception:
+            is_multiplayer = False
+        if is_multiplayer:
+            participant_ids = set(
+                ChallengeMembership.objects
+                .filter(challengeID=gs.challenge)
+                .values_list('uID_id', flat=True)
+            )
+            existing_ids = set(
+                GamePerformance.objects
+                .filter(challenge=gs.challenge, game=gs.game, date=play_date)
+                .values_list('user_id', flat=True)
+            )
+            for uid in participant_ids - existing_ids:
+                GamePerformance.objects.update_or_create(
+                    challenge=gs.challenge,
+                    game=gs.game,
+                    user_id=uid,
+                    date=play_date,
+                    defaults={"score": 0, "auto_generated": True},
+                )
+
+        # Lock further joins
+        try:
+            if not getattr(gs, 'joins_closed', False):
+                gs.joins_closed = True
+                gs.save(update_fields=['joins_closed'])
+        except Exception:
+            pass
+
+        # Broadcast timer.expired and current leaderboard
+        leaderboard = list(
+            GamePerformance.objects
+            .filter(challenge=gs.challenge, game=gs.game, date=play_date)
+            .select_related('user')
+            .values('user__username', 'score')
+        )
+        try:
+            prefix = {
+                'SudokuGameState': 'sudoku',
+                'WordleGameState': 'wordle',
+                'PatternMemorizationGameState': 'pattern',
+            }[model_name]
+            group = f"{prefix}_{gs.id}"
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                group,
+                {
+                    'type': 'timer.expired',
+                    'leaderboard': leaderboard,
+                    'auto_completed': True,
+                    'server_now': timezone.now().isoformat(),
+                }
+            )
+        except Exception:
+            pass
+
+        return Response({'success': True, 'finalized': True, 'auto_completed': True, 'leaderboard': leaderboard}, status=status.HTTP_200_OK)
