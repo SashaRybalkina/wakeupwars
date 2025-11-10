@@ -135,7 +135,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
   const [maxAttempts, setMaxAttempts] = useState<number>(5);
 
   // 5-minute game timer
-  const [gameTimeLeft, setGameTimeLeft] = useState<number>(30); // 5 minutes in seconds
+  const [gameTimeLeft, setGameTimeLeft] = useState<number>(300); // 5 minutes in seconds
   const gameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerExpiredSentRef = useRef(false);
 
@@ -197,7 +197,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
     if (gameTimerRef.current) {
       clearInterval(gameTimerRef.current);
     }
-    setGameTimeLeft(30);
+    setGameTimeLeft(300);
     timerExpiredSentRef.current = false;
     gameTimerRef.current = setInterval(() => {
       setGameTimeLeft((prev) => {

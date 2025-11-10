@@ -75,6 +75,8 @@ const ChallSchedule = ({ navigation }: { navigation: NavigationProp<any> }) => {
   const [isPublic, setIsPublic] = useState<boolean>()
   const [isMember, setIsMember] = useState<boolean>()
   const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [joining, setJoining] = useState(false)
+  const [settingAlarms, setSettingAlarms] = useState(false)
 
   const { user } = useUser()
 
@@ -299,54 +301,57 @@ const addGameToDay = async (game: { id: number; name: string }) => {
   }
 
     const handleJoinPublicChallenge = async () => {
-  
-          try {
+      if (joining) return;
+      setJoining(true);
+      try {
+        const payload = {
+          challenge_id: challId,
+          user_average_skill_level: userAverageSkillLevel,
+        };
 
-            const payload = {
-              challenge_id: challId,
-              user_average_skill_level: userAverageSkillLevel
-            }
-  
-                const accessToken = await getAccessToken();
-                if (!accessToken) {
-                  throw new Error("Not authenticated");
-                }
-          const res = await fetch(endpoints.joinPublicChallenge(Number(user?.id)), {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                "Authorization": `Bearer ${accessToken}`,
-              },
-              body: JSON.stringify(payload),
-          });
-  
-          if (!res.ok) {
-              const error = await res.json();
-              throw new Error(error.message || 'Failed to join challenge');
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+        const res = await fetch(endpoints.joinPublicChallenge(Number(user?.id)), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            "Authorization": `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.message || 'Failed to join challenge');
+        }
+
+        // Prevent 'Set My Alarms' flicker by marking immediately
+        setHasSetAlarms(true);
+        setIsPending(false);
+
+        try {
+          if (challId) {
+            await scheduleAlarmsForUser(challId, challName, Number(user?.id));
           }
-  
-          setIsPending(false)
-            try {
-                if (challId) {
-                console.log(challId)
-                await scheduleAlarmsForUser(challId, challName, Number(user?.id));
-                setHasSetAlarms(true)
-                }
-            } catch (e) {
-                console.warn('Failed to schedule alarms for new challenge', e);
-            }
-          Alert.alert('Success', 'Joined Challenge', [
-              { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
-          ]);
-          } catch (err: any) {
-              Alert.alert('Error', err.message);
-          }
-  
+        } catch (e) {
+          console.warn('Failed to schedule alarms for new challenge', e);
+        }
+
+        Alert.alert('Success', 'Joined Challenge', [
+          { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
+        ]);
+      } catch (err: any) {
+        Alert.alert('Error', err.message);
+      } finally {
+        setJoining(false);
       }
+    }
 
 
       //   const handleFinalizePublicChallenge = async () => {
-  
+
       //     try {
 
       //       const payload = {
@@ -357,7 +362,7 @@ const addGameToDay = async (game: { id: number; name: string }) => {
       //   if (!accessToken) {
       //     throw new Error("Not authenticated");
       //   }
-  
+
           
       //     const res = await fetch(endpoints.finalizePublicChallenge(), {
       //         method: 'POST',
@@ -367,12 +372,12 @@ const addGameToDay = async (game: { id: number; name: string }) => {
       //         },
       //         body: JSON.stringify(payload),
       //     });
-  
+
       //     if (!res.ok) {
       //         const error = await res.json();
       //         throw new Error(error.message || 'Failed to finalize challenge');
       //     }
-  
+
       //     const data = await res.json();
       //     Alert.alert('Success', 'Finalized Challenge', [
       //         { text: 'OK', onPress: () => navigation.navigate('PublicChallenges') },
@@ -380,7 +385,7 @@ const addGameToDay = async (game: { id: number; name: string }) => {
       //     } catch (err: any) {
       //         Alert.alert('Error', err.message);
       //     }
-  
+
       // }
 
 
@@ -625,12 +630,16 @@ const getInitials = (name: string): string => {
 </View>
 
 {fromSearch === true && (
-  <TouchableOpacity style={styles.createButton} onPress={handleJoinPublicChallenge}>
+  <TouchableOpacity
+    style={[styles.createButton, joining && { opacity: 0.6 }]}
+    onPress={handleJoinPublicChallenge}
+    disabled={joining}
+  >
     <LinearGradient
       colors={['#FFD700', '#FFC107']}
       style={styles.createButtonGradient}
     >
-      <Text style={styles.createButtonText}>Join Challenge</Text>
+      <Text style={styles.createButtonText}>{joining ? 'Joining...' : 'Join Challenge'}</Text>
     </LinearGradient>
   </TouchableOpacity>
 )}
@@ -647,24 +656,19 @@ const getInitials = (name: string): string => {
 )} */}
 
 {!isLoading && !isPending && !hasSetAlarms && !fromInvite && (
-  <Button
-    title="Set My Alarms"
+  <TouchableOpacity
+    style={[styles.createButton, (settingAlarms || joining) && { opacity: 0.6 }]}
     onPress={async () => {
-      // if (!allDaysHaveGames) {
-      //   Alert.alert("Error", "Select at least one game for each scheduled alarm");
-      //   return;
-      // }
-
+      if (settingAlarms || joining) return;
+      setSettingAlarms(true);
       try {
-        // 1. Schedule alarms locally
         await scheduleAlarmsForUser(challId, challName, Number(user?.id));
 
-              const accessToken = await getAccessToken();
-              if (!accessToken) {
-                throw new Error("Not authenticated");
-              }
-        // 2. Mark in backend that user has set their alarms
-        const res = await fetch(
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+        await fetch(
           endpoints.setUserHasSetAlarms(challId, Number(user?.id)),
           {
             method: 'POST',
@@ -681,11 +685,22 @@ const getInitials = (name: string): string => {
         Alert.alert("Failed", "Failed to schedule alarms for new challenge", [
           { text: "OK" },
         ]);
+      } finally {
+        setSettingAlarms(false);
       }
     }}
-    // disabled={!allDaysHaveGames}
-  />
-
+    disabled={settingAlarms || joining}
+  >
+    <LinearGradient
+      colors={["#FFD700", "#FFA500"]}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 0.5, y: 1 }}
+      style={[styles.createButtonGradient, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+    >
+      <Ionicons name="alarm-outline" size={18} color="#333" style={{ marginRight: 8 }} />
+      <Text style={styles.createButtonText}>{settingAlarms ? 'Setting...' : 'Set My Alarms'}</Text>
+    </LinearGradient>
+  </TouchableOpacity>
 )}
 
 
@@ -948,8 +963,7 @@ const styles = StyleSheet.create({
   gameTitle: {
     color: "#FFF",
     fontWeight: "700",
-    fontSize: 14,
-    marginBottom: 6,
+    fontSize: 13,
   },
   gameDetail: {
     color: "#DDD",
@@ -957,20 +971,9 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   sudokuImage: {
-    width: 55,
-    height: 55,
+    width: 65,
+    height: 65,
     marginTop: 4,
-  },
-  playIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 5,
-  },
-  playText: {
-    color: "#FFD700",
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 4,
   },
   emptyGamesContainer: {
     backgroundColor: "rgba(30, 30, 40, 0.6)",
@@ -1034,7 +1037,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
     createButton: {
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: 'hidden',
     marginTop: 10,
   },
