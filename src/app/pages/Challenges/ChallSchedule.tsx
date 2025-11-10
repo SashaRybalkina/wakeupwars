@@ -948,7 +948,7 @@ const styles = StyleSheet.create({
   gameTitle: {
     color: "#FFF",
     fontWeight: "700",
-    fontSize: 12,
+    fontSize: 14,
     marginBottom: 6,
   },
   gameDetail: {
@@ -957,8 +957,8 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   sudokuImage: {
-    width: 50,
-    height: 50,
+    width: 55,
+    height: 55,
     marginTop: 4,
   },
   playIndicator: {

@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, Animated, Alert } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, Animated, Alert, Dimensions } from 'react-native';
 import { SkillLevel, useUser } from '../../context/UserContext';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { BASE_URL, endpoints } from '../../api';
 import { Svg, Circle } from 'react-native-svg';
 import { getAccessToken } from '../../auth';
+
+const CARD_WIDTH = Math.min(320, Dimensions.get('window').width * 0.9);
 
 type Props = {
   name: string;
@@ -218,7 +220,7 @@ const PulsingBadge = ({ badge, onPress }) => {
           <Ionicons name="pencil" size={18} color="#fff" />
         </TouchableOpacity>
         </View>
-            <Text style={styles.profileName}>{name}</Text>
+            <Text style={styles.profileName} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
             <Text style={styles.coinText}>{numCoins} 🪙</Text>
             <View style={styles.actionsRow}>
               <TouchableOpacity style={[styles.actionItem, styles.actionItemLeft]} onPress={() => navigation.navigate('Friends1')}>
@@ -235,8 +237,8 @@ const PulsingBadge = ({ badge, onPress }) => {
         </View>
       ) : (
         <View style={styles.headerWrap}>
-          <View style={styles.headerCard}>
-            <Text style={styles.profileName}>{name}</Text>
+          <View style={[styles.headerCard, styles.friendHeaderCard]}>
+            <Text style={styles.profileName} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
             <Text style={styles.coinText}>{numCoins} 🪙</Text>
           </View>
       <View style={styles.avatarWrapper}>
@@ -278,7 +280,7 @@ const PulsingBadge = ({ badge, onPress }) => {
           {tab === 'skills' ? (
             <View style={styles.skillsSection}>
               {rows.map((row, idx) => (
-                <View key={idx} style={[styles.skillsRow, row.length === 3 ? styles.row3 : styles.row2]}> 
+                <View key={idx} style={[styles.skillsRow, row.length === 3 ? styles.row3 : styles.row2]}>
                   {row.map((sl, j) => {
                     const categoryId = sl?.category?.id;
                     const categoryName = sl?.category?.categoryName ?? 'Unknown';
@@ -446,6 +448,11 @@ headerCard: {
   borderWidth: 1,
   borderColor: 'rgba(255,255,255,0.28)',
   alignItems: 'center', // center children horizontally
+},
+
+friendHeaderCard: {
+  width: CARD_WIDTH,
+  alignSelf: 'center',
 },
 
   avatarOnCard: {
