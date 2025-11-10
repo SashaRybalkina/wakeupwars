@@ -549,8 +549,28 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
 
       if (j.success && j.result === 'correct') {
         if (j.is_complete) {
+          try {
+            if (!isMultiplayer && gameStateId) {
+              const token2 = await getAccessToken();
+              if (token2) {
+                await fetch(endpoints.gameTimerExpired, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token2}`,
+                  },
+                  body: JSON.stringify({
+                    model: 'PatternMemorizationGameState',
+                    game_state_id: gameStateId,
+                  }),
+                });
+              }
+            }
+          } catch (e) {
+            console.error('[Pattern] finalize on complete failed', e);
+          }
           Alert.alert('🎉 Finished', `Great job! +${j.round_score}`, [
-            { text: 'OK', onPress: () => navigation.goBack() },
+            { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
           ]);
         } else {
           if (Platform.OS === 'android')  // NEW

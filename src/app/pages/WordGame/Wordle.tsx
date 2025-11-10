@@ -639,6 +639,28 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
           const data = await response.json();
           console.log('[Wordle] Final results submitted:', data);
           
+          // Finalize single-player game so performances update
+          if (!isMultiplayer && gameStateId) {
+            try {
+              const token2 = await getAccessToken();
+              if (token2) {
+                await fetch(endpoints.gameTimerExpired, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token2}`,
+                  },
+                  body: JSON.stringify({
+                    model: 'WordleGameState',
+                    game_state_id: gameStateId,
+                  }),
+                });
+              }
+            } catch (e) {
+              console.error('[Wordle] finalize on complete failed', e);
+            }
+          }
+          
           // Show result alert for single-player
           if (!isMultiplayer && !hasShownResultRef.current) {
             const leaderboard = data.scores

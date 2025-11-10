@@ -709,13 +709,33 @@ const SudokuScreen: React.FC<Props> = ({ navigation }) => {
               setGameCompleted(true);
 
               (async () => {
-                if (user?.username) {
-                  try {
-                    await refreshSkills();
-                  } catch (e) {
-                    console.error("submit score failed", e);
+                try {
+                  if (!isMultiplayer && gameStateId) {
+                    const accessToken = await getAccessToken();
+                    if (accessToken) {
+                      await fetch(endpoints.gameTimerExpired, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${accessToken}`,
+                        },
+                        body: JSON.stringify({
+                          model: 'SudokuGameState',
+                          game_state_id: gameStateId,
+                        }),
+                      });
+                    }
                   }
+                } catch (e) {
+                  console.error('[Sudoku] finalize on complete failed', e);
                 }
+
+                try {
+                  await refreshSkills();
+                } catch (e) {
+                  console.error('skill refresh failed', e);
+                }
+
                 Alert.alert("🎉 Puzzle Complete!", "", [
                   { text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) },
                 ]);
