@@ -577,11 +577,14 @@ const [hasShownResult, setHasShownResult] = useState(false);
             case 'game_complete': {
               const { scores } = data;
               console.log("game complete score: ", scores);
-
+              ToastAndroid.show("🧮 Calculating final scores...", ToastAndroid.SHORT);
+              
               (async () => {
                 try {
                   //await refreshSkills();
                   // Auto-navigate to ChallDetails after 2s to allow backend to finalize
+                  
+
                   setTimeout(() => {
                     navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall });
                   }, 2000);
