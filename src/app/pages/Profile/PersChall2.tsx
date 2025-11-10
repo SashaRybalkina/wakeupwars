@@ -312,7 +312,7 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
 
 
   return (
-    <ImageBackground source={require("../../images/secondary.png")} style={styles.background} resizeMode="cover">
+    <ImageBackground source={require("../../images/cgpt.png")} style={styles.background} resizeMode="cover">
       <View style={styles.container}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={28} color="#FFF" />

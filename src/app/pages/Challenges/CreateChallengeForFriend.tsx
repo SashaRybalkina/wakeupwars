@@ -186,7 +186,7 @@ const CreateChallengeForFriend: React.FC<Props> = ({ navigation }) => {
   }
 
   return (
-    <ImageBackground source={require("../../images/secondary.png")} style={styles.background} resizeMode="cover">
+    <ImageBackground source={require("../../images/cgpt.png")} style={styles.background} resizeMode="cover">
       <View style={styles.container}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={28} color="#FFF" />
@@ -360,11 +360,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "700",
     color: "#FFF",
     textAlign: "center",
     marginBottom: 20,
+    marginTop: 10,
+    textShadowColor: "rgba(0,0,0,0.2)",
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 3,
   },
   scrollContainer: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 100 },

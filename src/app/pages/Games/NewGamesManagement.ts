@@ -58,7 +58,7 @@ export const GAME_NAME_ALIAS: Record<string, GameKey> = {
  * even if a game isn't found in our maps. This prevents the app from crashing.
  */
 export const DEFAULT_META = {
-  image: require('../../images/secondary.png'),
+  image: require('../../images/cgpt.png'),
   desc: '[Error]  The game description is unavailable. Please select another game.',
 };
 //   ----- UPDATE NEW GAME----

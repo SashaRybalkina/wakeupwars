@@ -897,11 +897,16 @@ const styles = StyleSheet.create({
   },
   scheduleIcon: {
     marginRight: 8,
+    color: "#333",
+    
   },
   scheduleButtonText: {
-    color: "#FFF",
-    fontWeight: "600",
+    color: "#333",
+    fontWeight: "700",
     fontSize: 16,
+    textShadowColor: "rgba(0, 0, 0, 0.1)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   leaderboardCard: {
     backgroundColor: "rgba(50, 50, 60, 0.3)",

@@ -26,6 +26,7 @@ import VerifyAvailability from './pages/Challenges/VerifyAvailability';
 import PublicChallSearch1 from './pages/Challenges/PublicChallSearch1';
 import PublicChallSearch2 from './pages/Challenges/PublicChallSearch2';
 import PublicChallenges from './pages/Challenges/PublicChallenges';
+import PastChallenges from './pages/Challenges/PastChallenges';
 import Wordle from './pages/WordGame/Wordle';
 import Categories from './pages/Games/Categories';
 import SomeCategories from './pages/Games/SomeCategories';
@@ -503,6 +504,12 @@ function App() {
         <Stack.Screen
           name="TypingRace"
           component={TypingRace}
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="PastChallenges"
+          component={PastChallenges}
           options={{ headerShown: false }}
         />
 

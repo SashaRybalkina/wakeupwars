@@ -183,7 +183,7 @@ const Conversation: React.FC<Props> = ({ route }) => {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ImageBackground 
-        source={require("../images/messages.png")}
+        source={require("../images/cgpt4.png")}
         resizeMode="cover"
         style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>

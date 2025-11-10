@@ -58,7 +58,7 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
 
   return (
     <ImageBackground
-      source={require('../../images/secondary.png')}
+      source={require('../../images/cgpt.png')}
       style={styles.background}
       resizeMode="cover"
     >
