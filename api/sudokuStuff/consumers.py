@@ -2,7 +2,7 @@ import json
 import random
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
-from api.sudokuStuff.utils import validate_sudoku_move
+#from api.sudokuStuff.utils import validate_sudoku_move
 from api.models import SudokuGameState, SudokuGamePlayer, User, ChallengeMembership
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
@@ -333,7 +333,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             username = self.user.username
             game_id = self.game_state_id
 
-            # 若該 cell 被其他玩家鎖住 → 拒絕操作
+            # If the cell is locked by someone else → deny move
             if (game_id in CELL_LOCKS and
                 CELL_LOCKS[game_id].get(index) not in (None, username)):
                 await self.send(text_data=json.dumps({
@@ -532,7 +532,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         # broadcast to group
         from asgiref.sync import async_to_sync
         from api.tasks import close_join_window
-        close_join_window.delay('SudokuGameState', self.game_state_id)
+        #close_join_window.delay('SudokuGameState', self.game_state_id)
         async_to_sync(self.channel_layer.group_send)(
             self.group_name,
             {

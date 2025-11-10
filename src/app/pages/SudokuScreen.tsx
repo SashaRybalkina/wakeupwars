@@ -166,6 +166,8 @@ const [solution, setSolution] = useState<number[][]>([]);
 // 🧮 Local stats tracking
 const [accuracyCount, setAccuracyCount] = useState(0);
 const [inaccuracyCount, setInaccuracyCount] = useState(0);
+const [leaderboard, setLeaderboard] = useState<PlayerScore[]>([]);
+const [hasShownResult, setHasShownResult] = useState(false);
 
   const canStartNow = useMemo(() => {
     return readyCount >= 1;
@@ -426,37 +428,76 @@ const [inaccuracyCount, setInaccuracyCount] = useState(0);
             return;
           }
 
-          if (data.type === 'cell_locked') {
-            setCellLocks(prev => ({ ...prev, [data.cell]: data.player }));
+          // if (data.type === 'cell_locked') {
 
-            setCellBorderColors(prev => {
-              const updated = [...prev];
-              updated[data.cell] = data.color;
-              console.log('[DEBUG cell_locked] border color for cell', data.cell, 'set to', data.color);
-              return updated;
-            });
-            return;
-          }
+          //   setCellLocks(prev => ({ ...prev, [data.cell]: data.player }));
 
-          if (data.type === 'cell_unlocked') {
-            setCellLocks(prev => {
-              const updated = { ...prev };
-              delete updated[data.cell];
-              return updated;
-            });
+          //   setCellBorderColors(prev => {
+          //     const updated = [...prev];
+          //     updated[data.cell] = data.color;
+          //     console.log('[DEBUG cell_locked] border color for cell', data.cell, 'set to', data.color);
+          //     return updated;
+          //   });
+          //   return;
+          // }
 
-            // reset border color to black if not locked by anyone else
-            setCellBorderColors(prev => {
-              const updated = [...prev];
-              updated[data.cell] = 'black';
-              console.log('[DEBUG cell_unlocked] border color reset for cell', data.cell);
-              return updated;
-            });
-            return;
-          }
+          // if (data.type === 'cell_unlocked') {
+          //   setCellLocks(prev => {
+          //     const updated = { ...prev };
+          //     delete updated[data.cell];
+          //     return updated;
+          //   });
+
+          //   // reset border color to black if not locked by anyone else
+          //   setCellBorderColors(prev => {
+          //     const updated = [...prev];
+          //     updated[data.cell] = 'black';
+          //     console.log('[DEBUG cell_unlocked] border color reset for cell', data.cell);
+          //     return updated;
+          //   });
+          //   return;
+          // }
 
 
           switch (data.type) {
+            case "cell_locked": {
+              const { cell, player, color } = data;
+              setCellLocks(prev => ({ ...prev, [cell]: player }));
+              setCellBorderColors(prev => {
+                const updated = [...prev];
+                updated[cell] = color;
+                return updated;
+              });
+              if (player === user?.username) {
+                setSelectedIndex(cell);
+              }
+              break;
+            }
+
+            case "cell_unlocked": {
+              setCellLocks(prev => {
+                const updated = { ...prev };
+                delete updated[data.cell];
+                return updated;
+              });
+              setCellBorderColors(prev => {
+                const updated = [...prev];
+                updated[data.cell] = "black";
+                return updated;
+              });
+              break;
+            }
+
+            case "lock_failed": {
+              const { cell } = data;
+              ToastAndroid.show("⚠️ Cell already locked by another player", ToastAndroid.SHORT);
+              setCellBorderColors(prev => {
+                const updated = [...prev];
+                updated[cell] = "black";
+                return updated;
+              });
+              break;
+            }
 
             case 'broadcast_move': {
               const { cell, value, color, valid } = data;
@@ -659,7 +700,7 @@ const [inaccuracyCount, setInaccuracyCount] = useState(0);
         setGrid(newGrid);
         setCellColors(prev => {
           const updated = [...prev];
-          updated[index] = is_correct ? 'white' : 'red';
+          updated[index] = is_correct ? (playerColor || 'white') : 'red';
           return updated;
         });
 
@@ -686,32 +727,32 @@ const [inaccuracyCount, setInaccuracyCount] = useState(0);
           const total = Math.max(accuracyCount + inaccuracyCount, 1);
           const score = Math.round((accuracyCount / total) * 100);
 
-          // Show result instantly (no need to wait for backend)
-          Alert.alert(
-            "🎉 Puzzle Complete!",
-            `✅ Correct: ${accuracyCount}\n❌ Incorrect: ${inaccuracyCount}\n⭐ Score: ${score}`,
-            [
-              {
-                text: "OK",
-                onPress: () => {
-                  navigation.navigate("ChallDetails", {
-                    challId: challengeId,
-                    challName,
-                    whichChall,
-                  });
+            // Show result instantly (no need to wait for backend)
+            Alert.alert(
+              "🎉 Puzzle Complete!",
+              `✅ Correct: ${accuracyCount}\n❌ Incorrect: ${inaccuracyCount}\n⭐ Score: ${score}`,
+              [
+                {
+                  text: "OK",
+                  onPress: () => {
+                    navigation.navigate("ChallDetails", {
+                      challId: challengeId,
+                      challName,
+                      whichChall,
+                    });
+                  },
                 },
-              },
-            ]
-          );
+              ]
+            );
 
-          // Send final results to backend asynchronously (non-blocking)
-          finalizeSudokuResult({
-            game_state_id: gameStateId,
-            accuracyCount,
-            inaccuracyCount,
-            is_complete: true,
-            score,
-          }).catch(err => console.warn('Finalize failed:', err));
+            // Send final results to backend asynchronously (non-blocking)
+            finalizeSudokuResult({
+              game_state_id: gameStateId,
+              accuracyCount,
+              inaccuracyCount,
+              is_complete: true,
+              score,
+            }).catch(err => console.warn('Finalize failed:', err));
         }
       }
     } catch (err) {
@@ -1064,6 +1105,12 @@ const [inaccuracyCount, setInaccuracyCount] = useState(0);
                       // 🧭 Step 3: If not locked → lock this cell
                       if (!lockedBy && socketRef.current) {
                         socketRef.current.send(JSON.stringify({ type: 'lock_cell', index }));
+                        // show a temporary "pending" state visually (optional)
+                        setCellBorderColors(prev => {
+                          const updated = [...prev];
+                          updated[index] = '#AAAAAA'; // gray to show "pending lock"
+                          return updated;
+                        });
                       }
 
                       // 🧭 Step 4: Update current selection
