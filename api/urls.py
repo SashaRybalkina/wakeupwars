@@ -129,7 +129,7 @@ from .views import (
     RespondGroupInviteView,
     CreateTypingRaceGameView,
     FinalizeTypingRaceResultView,
-    GameTimerExpiredView,,
+    GameTimerExpiredView,
     CollectBetRefundView,
     GetPersonalChallengesView,
     CollectChallengeCoinsView,
