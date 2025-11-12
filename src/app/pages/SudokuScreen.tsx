@@ -1123,10 +1123,9 @@ const [hasShownResult, setHasShownResult] = useState(false);
         )}
         <View style={styles.header}>
           <TouchableOpacity style={styles.exitButton} onPress={() => {
-            if (gameCompleted) navigation.navigate('ChallDetails', {
+            navigation.navigate('ChallDetails', {
               challId: challengeId, challName: challName,
               whichChall: whichChall,});
-            else Alert.alert('Game in Progress', 'You cannot exit while a game is in progress.', [{ text: 'OK', style: 'cancel' }]);
           }}>
             <Text style={styles.exitText}>Exit</Text>
           </TouchableOpacity>
@@ -1305,7 +1304,7 @@ const styles = StyleSheet.create({
 
   // header styles
   header: { position: 'relative', flexDirection: 'row', justifyContent: 'space-between', width: '92%', paddingTop: 40, paddingBottom: 8, marginTop: 10, alignItems: 'center' },
-  exitButton: { backgroundColor: 'white', padding: 5, borderRadius: 5 },
+  exitButton: { backgroundColor: 'white', padding: 5, borderRadius: 5, marginLeft: 10, marginTop: -10, },
   exitText: { fontWeight: 'bold' },
   title: { fontSize: 32, fontWeight: '900', color: 'white', textAlign: 'center' },
   timer: { fontSize: 18, color: 'white', marginVertical: 5, marginTop: 50, marginRight: 105, },
