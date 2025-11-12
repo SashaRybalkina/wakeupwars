@@ -610,6 +610,19 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
     }
 
     if (isComplete) {
+      if (isMultiplayer) {
+        // multiplayer letting websocket know that this player has finished
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
+            type: 'player_finished',
+            player: user?.username,
+            attempts_used: selectedRow + 1,
+          }));
+        }
+        console.log('[Wordle] Multiplayer mode - waiting for others...');
+        return; 
+      }
+      
       setGameOver(true);
       
       if (finalizeSentRef.current) {

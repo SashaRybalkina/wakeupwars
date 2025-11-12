@@ -141,6 +141,19 @@ class WordleConsumer(AsyncWebsocketConsumer):
             conns.remove(self.user.id)
         cache.set(_conns_key(self.game_state_id), list(conns), timeout=3600)
 
+        # --- Mark disconnected player as "finished" for fairness ---
+        finished_key = f"wordlefinished{self.game_state_id}"
+        finished = cache.get(finished_key) or {}
+
+        if username not in finished:
+            finished[username] = {
+                "attempts": None,
+                "finished_at": timezone.now().isoformat(),
+                "disconnected": True,
+            }
+            cache.set(finished_key, finished, timeout=3600)
+            print(f"[Wordle][DISCONNECT] {username} marked as finished (disconnected). total_finished={len(finished)}")
+            
         if not conns:
             print(f"[WebSocket][CLEANUP] All players left. Cleaning up cache for game_state={self.game_state_id}")
             cache.delete(_conns_key(self.game_state_id))
@@ -246,6 +259,42 @@ class WordleConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps({
                 'type': 'join_window_closed',
             }))
+            
+        elif data.get('type') == 'player_finished':
+            # === New: player_finished handler ===
+            attempts = data.get("attempts_used", 999)
+            username = getattr(self.user, "username", "unknown")
+
+            finished_key = f"wordlefinished{self.game_state_id}"
+            finished = cache.get(finished_key) or {}
+            finished[username] = {
+                "attempts": attempts,
+                "finished_at": timezone.now().isoformat(),
+            }
+            cache.set(finished_key, finished, timeout=3600)
+            print(f"[Wordle][FINISHED] {username} finished ({len(finished)} total)")
+
+            # Check current users finished or not
+            # === Use cache for expected player count ===
+            conns = set(cache.get(_conns_key(self.game_state_id)) or [])
+            expected_count = len(conns)
+            print(f"[Wordle][FINISHED] {username} finished ({len(finished)}/{expected_count}) based on active connections")
+
+
+            print(f"[Wordle][FINISHED] Progress: {len(finished)}/{expected_count}")
+
+            # === If everyone finished, broadcast game_complete ===
+            if len(finished) >= expected_count:
+                print(f"[Wordle][GAME COMPLETE TRIGGERED] All players finished for game_state={self.game_state_id}")
+
+                # broadcast to all clients
+                await self.channel_layer.group_send(
+                    self.group_name,
+                    {
+                        "type": "game.complete",
+                        "scores": finished,
+                    }
+                )
 
 
     # ===== Group event handlers =====
