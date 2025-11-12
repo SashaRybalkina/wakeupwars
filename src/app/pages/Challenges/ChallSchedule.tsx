@@ -543,6 +543,8 @@ return (
         // If the alarm includes all currently enrolled challenge members -> "All"
         const isAll = users.length > 0 && members.length > 0 && users.length === members.length;
         const label = isAll ? "All" : users.map((u) => getInitials(u)).join(", ");
+        console.log("label", label)
+        console.log("is all?", isAll)
 
         return (
           <View key={i} style={{ alignItems: "center", marginVertical: 6 }}>
@@ -575,20 +577,24 @@ return (
                                 width: 43,
                                 height: 43,
                                 borderRadius: 25,
-                                backgroundColor: openAlarmKey === `${dayData?.dayOfWeek}-${time}` ? "#1E90FF" : "rgba(255, 255, 255, 0.15)",
+                                backgroundColor: openAlarmKey === `${dayData?.dayOfWeek}-${alarm.alarmTime}` ? "#1E90FF" : "rgba(255, 255, 255, 0.15)",
                                 justifyContent: "center",
                                 alignItems: "center",
                                 marginVertical: 2,
                                 padding: 4,
                               }}
                               onPress={() => {
-                                const key = `${dayData?.dayOfWeek}-${time}`;
+                                const key = `${dayData?.dayOfWeek}-${alarm.alarmTime}`;
                                 const dow = dayData?.dayOfWeek ?? null;
+                                console.log("alarm time", alarm.alarmTime)
+                                console.log("dow", dow)
+                                console.log("key", key)
                                 setSelectedDay(dow);
                                 setOpenAlarmKey(prev => {
                                   const next = prev === key ? null : key;
                                   if (next && dow != null) {
-                                    setSelectedAlarm({ dayOfWeek: dow, time, usersCount: users.length });
+                                    setSelectedAlarm({ dayOfWeek: dow, time: alarm.alarmTime, usersCount: users.length });
+                                    console.log("selected alarm", selectedAlarm)
                                   } else {
                                     setSelectedAlarm(null);
                                   }
@@ -598,7 +604,7 @@ return (
                             >
                               <Ionicons name="alarm" size={14} color="#FFD700" />
                               <Text style={{ fontSize: 10, color: "#FFF", textAlign: "center" }}>
-                                {time.replace(" ", "\n")}
+                                {alarm.alarmTime.replace(" ", "\n")}
                               </Text>
                             </TouchableOpacity>
                           </View>
@@ -617,7 +623,7 @@ return (
               <Text style={styles.sectionTitle}>
                 {selectedDay ? `Games for ${DayOfWeekLabels[selectedDay]}` : "Select a day"}
               </Text>
-              {selectedAlarm && selectedAlarm.dayOfWeek === selectedDay && selectedAlarm.usersCount === 1 && visibleGames.length > 0 && (
+              {selectedAlarm && selectedAlarm.dayOfWeek === selectedDay && visibleGames.length > 0 && (
                 <View style={styles.alarmGamesRow}>
                   {visibleGames.map((game, index) => {
                     // const name = (game[0] || "").trim();
