@@ -153,8 +153,8 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                         device = FCMDevice.objects.filter(user_id=winner_user.id).first()
                         recipient_id = winner_user.id
                         if device:
-                            title="Lone Wolf Badge Unlocked!",
-                            body="You unlocked the Lone Wolf badge. Check your Badges page!",
+                            title="Lone Wolf Badge Unlocked!"
+                            body="You unlocked the Lone Wolf badge. Check your Badges page!"
                             data={
                                 "screen": "Notifications",
                                 "type": "badge_unlocked",
@@ -184,8 +184,8 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                             device = FCMDevice.objects.filter(user_id=winner_user.id).first()
                             recipient_id = winner_user.id
                             if device:
-                                title="Public Champion Badge Unlocked!",
-                                body="You unlocked the Public Champion badge. Check your Badges page!",
+                                title="Public Champion Badge Unlocked!"
+                                body="You unlocked the Public Champion badge. Check your Badges page!"
                                 data={
                                     "screen": "Notifications",
                                     "type": "badge_unlocked",
@@ -209,8 +209,8 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                 device = FCMDevice.objects.filter(user_id=member.id).first()
                                 recipient_id = member.id
                                 if device:
-                                    title="Community Member Badge Unlocked!",
-                                    body="You unlocked the Community Member badge. Check your Badges page!",
+                                    title="Community Member Badge Unlocked!"
+                                    body="You unlocked the Community Member badge. Check your Badges page!"
                                     data={
                                         "screen": "Notifications",
                                         "type": "badge_unlocked",
@@ -272,8 +272,8 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                 device = FCMDevice.objects.filter(user_id=u.id).first()
                                 recipient_id = u.id
                                 if device:
-                                    title=f"Bets Completed",
-                                    body=f"Check your results!",
+                                    title=f"Bets Completed"
+                                    body=f"Check your results!"
                                     data={
                                         "screen": "Notifications",
                                         "type": "bet_result",
@@ -298,8 +298,8 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                 device = FCMDevice.objects.filter(user_id=user_id).first()
                                 recipient_id = user_id
                                 if device:
-                                    title="First Blood Badge Unlocked!",
-                                    body="You unlocked the First Blood badge. Check your Badges page!",
+                                    title="First Blood Badge Unlocked!"
+                                    body="You unlocked the First Blood badge. Check your Badges page!"
                                     data={
                                         "screen": "Notifications",
                                         "type": "badge_unlocked",
@@ -324,8 +324,8 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                             device = FCMDevice.objects.filter(user_id=winner_user.id).first()
                             recipient_id = winner_user.id
                             if device:
-                                title="Squad Leader Badge Unlocked!",
-                                body="You unlocked the Squad Leader badge. Check your Badges page!",
+                                title="Squad Leader Badge Unlocked!"
+                                body="You unlocked the Squad Leader badge. Check your Badges page!"
                                 data={
                                     "screen": "Notifications",
                                     "type": "badge_unlocked",
@@ -349,8 +349,8 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                 device = FCMDevice.objects.filter(user_id=member.id).first()
                                 recipient_id = member.id
                                 if device:
-                                    title="Team Player Badge Unlocked!",
-                                    body="You unlocked the Team Player badge. Check your Badges page!",
+                                    title="Team Player Badge Unlocked!"
+                                    body="You unlocked the Team Player badge. Check your Badges page!"
                                     data={
                                         "screen": "Notifications",
                                         "type": "badge_unlocked",
@@ -407,8 +407,8 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                 device = FCMDevice.objects.filter(user_id=user_id).first()
                                 recipient_id = user_id
                                 if device:
-                                    title="First Blood Badge Unlocked!",
-                                    body="You unlocked the First Blood badge. Check your Badges page!",
+                                    title="First Blood Badge Unlocked!"
+                                    body="You unlocked the First Blood badge. Check your Badges page!"
                                     data={
                                         "screen": "Notifications",
                                         "type": "badge_unlocked",

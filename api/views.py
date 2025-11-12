@@ -1830,8 +1830,8 @@ class RespondToBetInviteView(APIView):
         device = FCMDevice.objects.filter(user_id=bet.initiator.id).first()
         recipient_id = bet.initiator.id
         if device:
-            title=f"Bet {response}",
-            body=f"{bet.recipient.name or bet.recipient.username} has {response.lower} the bet invite.",
+            title=f"Bet {response}"
+            body=f"{bet.recipient.name or bet.recipient.username} has {response.lower} the bet invite."
             data={
                 "screen": "Notifications",
                 "type": "bet_invite_response",
@@ -1888,8 +1888,8 @@ class RespondToBetInviteView(APIView):
         device = FCMDevice.objects.filter(user_id=user.id).first()
         recipient_id = user.id
         if device:
-            title="New Badge!",
-            body="You unlocked a new badge. Check your Badges page!",
+            title="New Badge!"
+            body="You unlocked a new badge. Check your Badges page!"
             data={
                 "screen": "Notifications",
                 "type": "badge_unlocked",
