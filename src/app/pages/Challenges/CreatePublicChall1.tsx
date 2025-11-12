@@ -20,42 +20,69 @@ type Props = {
   navigation: NavigationProp<any>;
 };
 
+type Category = {
+  id: number;
+  categoryName: string;
+};
+
+
+const STATIC_CATEGORIES: Category[] = [
+  {
+    id: 12,
+    categoryName: "Math",
+  },
+  {
+    id: 14,
+    categoryName: "Memory",
+  },
+  {
+    id: 16,
+    categoryName: "Misc",
+  },
+  {
+    id: 17,
+    categoryName: "Word",
+  },
+];
+
+
 const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
   const { logout } = useUser();
   const [singOrMult, setSingOrMult] = useState<"Singleplayer" | "Multiplayer" | null>(null);
-  const [categories, setCategories] = useState<{ id: number; categoryName: string }[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<{ id: number; name: string }[]>([]);
-  // const [miscSelected, setMiscSelected] = useState(false);
+  const [categories, setCategories] = useState<Category[]>(STATIC_CATEGORIES);
+  const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
+  // const [categories, setCategories] = useState<{ id: number; categoryName: string }[]>([]);
+  // const [selectedCategories, setSelectedCategories] = useState<{ id: number; name: string }[]>([]);
 
-  useEffect(() => {
-    if (singOrMult) {
-    const fetchCats = async () => {
-      try {
-              const accessToken = await getAccessToken();
-              if (!accessToken) {
-                      await logout();
-                      navigation.reset({
-                        index: 0,
-                        routes: [{ name: "Login" }],
-                      });
-              }
-        // TODO: fetch only the categories for multiplayer/singleplayer (whatever was selected)
-        const response = await fetch(endpoints.cats(), {
-                headers: {
-                  Authorization: `Bearer ${accessToken}`
-                }
-              });
-        const data = await response.json();
-        setCategories(data);
-        console.log("Data2: " + JSON.stringify(data));
-      } catch (error) {
-        console.error('Failed to fetch categories:', error);
-      }
-    };
+  // useEffect(() => {
+  //   if (singOrMult) {
+  //   const fetchCats = async () => {
+  //     try {
+  //             const accessToken = await getAccessToken();
+  //             if (!accessToken) {
+  //                     await logout();
+  //                     navigation.reset({
+  //                       index: 0,
+  //                       routes: [{ name: "Login" }],
+  //                     });
+  //             }
+  //       // TODO: fetch only the categories for multiplayer/singleplayer (whatever was selected)
+  //       const response = await fetch(endpoints.cats(), {
+  //               headers: {
+  //                 Authorization: `Bearer ${accessToken}`
+  //               }
+  //             });
+  //       const data = await response.json();
+  //       setCategories(data);
+  //       console.log("Data2: " + JSON.stringify(data));
+  //     } catch (error) {
+  //       console.error('Failed to fetch categories:', error);
+  //     }
+  //   };
   
-    fetchCats();
-    }
-  }, [singOrMult]);
+  //   fetchCats();
+  //   }
+  // }, [singOrMult]);
 
   const handleNext = () => {
     if (!singOrMult) {
@@ -167,7 +194,7 @@ const CreatePublicChall: React.FC<Props> = ({ navigation }) => {
               return prev.filter(c => c.id !== cat.id);
             } else {
               // add if not selected
-              return [...prev, { id: cat.id, name: cat.categoryName }];
+              return [...prev, { id: cat.id, categoryName: cat.categoryName }];
             }
           });
         }}

@@ -32,7 +32,8 @@ type Props = {
 type Game = {
   id: number;
   name: string;
-  route?: string | null;
+  route: string;
+  isMultiplayer: boolean | null;
 };
 
 type Category = {
@@ -40,6 +41,47 @@ type Category = {
   categoryName: string;
   games: Game[];
 };
+
+
+const STATIC_CATEGORIES: Category[] = [
+  {
+    id: 12,
+    categoryName: "Math",
+    games: [
+      { id: 9,  name: "Singleplayer Sudoku", route: "Sudoku", isMultiplayer: false },
+      { id: 10, name: "Group Sudoku", route: "Sudoku", isMultiplayer: true },
+      { id: 43, name: "Sudoku", route: "Sudoku", isMultiplayer: null },
+    ],
+  },
+  {
+    id: 14,
+    categoryName: "Memory",
+    games: [
+      { id: 11, name: "Singleplayer Pattern Memorization", route: "PatternGame", isMultiplayer: false },
+      { id: 12, name: "Group Pattern Memorization", route: "PatternGame", isMultiplayer: true },
+      { id: 44, name: "Pattern Memorization", route: "PatternGame", isMultiplayer: null },
+    ],
+  },
+  {
+    id: 16,
+    categoryName: "Misc",
+    games: [
+      { id: 46, name: "Singleplayer Typing Race", route: "TypingRace", isMultiplayer: false },
+      { id: 47, name: "Group Typing Race", route: "TypingRace", isMultiplayer: true },
+      { id: 48, name: "Typing Race", route: "TypingRace", isMultiplayer: null },
+    ],
+  },
+  {
+    id: 17,
+    categoryName: "Word",
+    games: [
+      { id: 30, name: "Group Wordle", route: "Wordle", isMultiplayer: true },
+      { id: 32, name: "Singleplayer Wordle", route: "Wordle", isMultiplayer: false },
+      { id: 45, name: "Wordle", route: "Wordle", isMultiplayer: null },
+    ],
+  },
+];
+
 
 const GameSelection: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
@@ -50,41 +92,64 @@ const GameSelection: React.FC<Props> = ({ navigation }) => {
     singOrMult: string;
   };
 
+
+const filteredCats = STATIC_CATEGORIES
+  // Step 1: Filter categories if specified
+  .filter(cat =>
+    !categories || categories.some(c => c.id === cat.id)
+  )
+  // Step 2: Filter games based on singOrMult
+  .map(cat => ({
+    ...cat,
+    games: cat.games.filter(game => {
+      if (singOrMult === "Singleplayer") return game.isMultiplayer === false;
+      if (singOrMult === "Multiplayer") return game.isMultiplayer === true;
+      if (singOrMult === "Neither") return game.isMultiplayer === null;
+      return true; // fallback if something unexpected is passed in
+    }),
+  }))
+  // Step 3: Only keep categories that still have games
+  .filter(cat => cat.games.length > 0);
+
+
+
   const { logout } = useUser();
-  const [cats, setCats] = useState<Category[]>([]);
-//   const [selectedCatId, setSelectedCatId] = useState<number | null>(null);
-  const [selectedCat, setSelectedCat] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [cats, setCats] = useState<Category[]>(filteredCats);
+  const [selectedCat, setSelectedCat] = useState<number>(filteredCats[0]?.id ?? 0);
+
+  const [loading, setLoading] = useState(false);
+
   const [modalGame, setModalGame] = useState<Game | null>(null);
 
-  useEffect(() => {
-    const fetchCats = async () => {
-      try {
-        const accessToken = await getAccessToken();
-        if (!accessToken) {
-                                await logout();
-                      navigation.reset({
-                        index: 0,
-                        routes: [{ name: "Login" }],
-                      });
-        }
 
-        const response = await fetch(
-          endpoints.someCats(categories ? categories.map(c => c.id) : [], singOrMult),
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
-        const data: Category[] = await response.json();
-        setCats(data);
-        // Select first category by default
-        if (data.length > 0) setSelectedCat(data[0].id);
-      } catch (err) {
-        console.error("Failed to fetch categories:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCats();
-  }, []);
+  // useEffect(() => {
+  //   const fetchCats = async () => {
+  //     try {
+  //       const accessToken = await getAccessToken();
+  //       if (!accessToken) {
+  //                               await logout();
+  //                     navigation.reset({
+  //                       index: 0,
+  //                       routes: [{ name: "Login" }],
+  //                     });
+  //       }
+
+  //       const response = await fetch(
+  //         endpoints.someCats(categories ? categories.map(c => c.id) : [], singOrMult),
+  //         { headers: { Authorization: `Bearer ${accessToken}` } }
+  //       );
+  //       const data: Category[] = await response.json();
+  //       setCats(data);
+  //       // Select first category by default
+  //       if (data.length > 0) setSelectedCat(data[0].id);
+  //     } catch (err) {
+  //       console.error("Failed to fetch categories:", err);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+  //   fetchCats();
+  // }, []);
 
 
   const handleSelect = (id: number, name: string, categoryId: number) => {
@@ -111,7 +176,7 @@ const GameSelection: React.FC<Props> = ({ navigation }) => {
 
   return (
 <ImageBackground
-  source={require('../../images/cgpt4.png')}
+  source={require('../../images/tertiary.png')}
   style={styles.background}
   resizeMode="cover"
 >
@@ -121,35 +186,29 @@ const GameSelection: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
 
           <Text style={styles.pageTitle}>Select Game</Text>
-
 {/* Tabs */}
-<View style={styles.tabsWrapper}>
-  <ScrollView
-    horizontal
-    showsHorizontalScrollIndicator={false}
-    contentContainerStyle={styles.categoriesScroll}
-  >
-    {cats.map((cat) => (
-      <TouchableOpacity
-        key={cat.id}
+<View style={[styles.tabsWrapper, { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' }]}>
+  {cats.map((cat) => (
+    <TouchableOpacity
+      key={cat.id}
+      style={[
+        styles.choiceButton,
+        selectedCat === cat.id && styles.choiceButtonSelected,
+      ]}
+      onPress={() => setSelectedCat(cat.id)}
+    >
+      <Text
         style={[
-          styles.choiceButton,
-          selectedCat === cat.id && styles.choiceButtonSelected,
+          styles.tabButtonText,
+          selectedCat === cat.id && styles.tabButtonTextActive,
         ]}
-        onPress={() => setSelectedCat(cat.id)}
       >
-        <Text
-          style={[
-            styles.tabButtonText,
-            selectedCat === cat.id && styles.tabButtonTextActive,
-          ]}
-        >
-          {cat.categoryName}
-        </Text>
-      </TouchableOpacity>
-    ))}
-  </ScrollView>
+        {cat.categoryName}
+      </Text>
+    </TouchableOpacity>
+  ))}
 </View>
+
 
 
 {/* Game list */}
