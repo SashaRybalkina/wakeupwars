@@ -18,9 +18,38 @@ def get_or_create_game(challenge_id, user, allow_join: bool = True, alarm_dateti
     """
     challenge = Challenge.objects.select_for_update().get(id=challenge_id)
     sched_ids = list(GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
-    assoc = (GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids)
-             .select_related('game').order_by('game_order', 'id').first())
-    sudokuGame = assoc.game if assoc else Game.objects.filter(name__icontains='sudoku').order_by('id').first()
+    
+    # Get all Sudoku games scheduled for this challenge, ordered by game_order
+    sudoku_assocs = (GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids)
+                     .select_related('game').filter(game__name__icontains='sudoku').order_by('game_order', 'id'))
+    
+    # Find the first Sudoku game that this user hasn't completed today
+    from api.models import GamePerformance
+    today = timezone.localdate()
+    sudokuGame = None
+    
+    print(f"[SUDOKU][get_or_create] Found {sudoku_assocs.count()} scheduled Sudoku games")
+    print(f"[SUDOKU][get_or_create] Checking for user={user.username} (id={user.id}), challenge={challenge.id}, date={today}")
+    for assoc in sudoku_assocs:
+        perf_count = GamePerformance.objects.filter(
+            challenge=challenge,
+            game=assoc.game,
+            user=user,
+            date=today
+        ).count()
+        has_completed = perf_count > 0
+        print(f"[SUDOKU][get_or_create] Game '{assoc.game.name}' (id={assoc.game.id}): completed={has_completed} (found {perf_count} records)")
+        # Check if user has already completed this specific game today
+        if not has_completed:
+            sudokuGame = assoc.game
+            print(f"[SUDOKU][get_or_create] Selected game '{sudokuGame.name}' (id={sudokuGame.id})")
+            break
+    
+    # Fallback: if all scheduled games are completed, use the first one or any Sudoku game
+    if not sudokuGame:
+        assoc = sudoku_assocs.first()
+        sudokuGame = assoc.game if assoc else Game.objects.filter(name__icontains='sudoku').order_by('id').first()
+        print(f"[SUDOKU][get_or_create] Fallback: selected '{sudokuGame.name if sudokuGame else 'None'}' (all games completed)")
     is_multiplayer = bool(getattr(sudokuGame, 'isMultiplayer', False))
     print("is multiplayer: ", is_multiplayer)
     print("game name: ", sudokuGame.name)

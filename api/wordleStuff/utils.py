@@ -30,7 +30,8 @@ def get_or_create_game_wordle(challenge_id, user, allow_join: bool = True, alarm
     """
     challenge = Challenge.objects.select_for_update().get(id=challenge_id)
     sched_ids = list(GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
-    assoc = (GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids).select_related('game').order_by('game_order', 'id').first())
+    # Filter for Wordle games specifically to avoid mixing with other game types
+    assoc = (GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids).select_related('game').filter(game__name__icontains='wordle').order_by('game_order', 'id').first())
     wordleGame = assoc.game if assoc else Game.objects.filter(name__icontains='wordle').order_by('id').first()
     is_multiplayer = bool(getattr(wordleGame, 'isMultiplayer', False))
     print("is multiplayer: ", is_multiplayer)

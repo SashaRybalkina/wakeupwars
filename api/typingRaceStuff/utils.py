@@ -155,10 +155,11 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
     cache_hit = typing_game is not None
 
     if not typing_game:
+        # Filter for Typing Race games specifically to avoid mixing with other game types
         assoc = (
             GameScheduleGameAssociation.objects
             .select_related("game", "game_schedule")
-            .filter(game_schedule__challenge_id=challenge_id)
+            .filter(game_schedule__challenge_id=challenge_id, game__name__icontains="typing")
             .order_by("game_order", "id")
             .first()
         )

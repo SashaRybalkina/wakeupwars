@@ -134,10 +134,7 @@ class WordleConsumer(AsyncWebsocketConsumer):
         username = self.user.username
         print(f"[WebSocket][DISCONNECT] user={username} left game_state={self.game_state_id} (code={close_code})")
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
-
-        # --- Save zero score if player disconnects before game ends ---
-        await self.save_zero_score_if_needed()
-
+        
         # --- Update cache for online players ---
         conns = set(cache.get(_conns_key(self.game_state_id)) or [])
         if self.user.id in conns:
@@ -392,74 +389,4 @@ class WordleConsumer(AsyncWebsocketConsumer):
             .select_related('player')
         )
         return [p.player.username for p in players]
-
     
-    
-    @sync_to_async
-    def _persist_scores_once(self, scores):
-        # Prevent duplicate writes
-        if not cache.add(_saved_key(self.game_state_id), True, timeout=3600):
-            print(f"[Wordle][SCORES] Skipping duplicate save for game_state={self.game_state_id}")
-            return
-
-        gs = WordleGameState.objects.select_related("challenge", "game").get(id=self.game_state_id)
-        play_date = date.today()
-
-        submitted_ids = set()
-        for row in scores:
-            try:
-                u = User.objects.get(username=row["username"])
-            except User.DoesNotExist:
-                print(f"[Wordle][SCORES] User {row['username']} not found in DB")
-                continue
-            GamePerformance.objects.update_or_create(
-                challenge=gs.challenge,
-                game=gs.game,
-                user=u,
-                date=play_date,
-                defaults={"score": int(row.get("score", 0))}
-            )
-            submitted_ids.add(u.id)
-            print(f"[Wordle][SCORES] Saved score for {u.username}: {row}")
-
-        # Fill zero score for missing players
-        participant_ids = set(
-            ChallengeMembership.objects.filter(challengeID=gs.challenge).values_list("uID_id", flat=True)
-        )
-        for uid in participant_ids - submitted_ids:
-            GamePerformance.objects.update_or_create(
-                challenge=gs.challenge,
-                game=gs.game,
-                user_id=uid,
-                date=play_date,
-                defaults={"score": 0, "auto_generated": True}
-            )
-            print(f"[Wordle][SCORES] Auto-generated 0 score for user_id={uid}")
-
-        gs.joins_closed = True
-        gs.save(update_fields=["joins_closed"])
-        print(f"[Wordle][SCORES] Final scores persisted for game_state={self.game_state_id}")
-
-    @sync_to_async
-    def save_zero_score_if_needed(self):
-        gs = WordleGameState.objects.select_related("challenge", "game").get(id=self.game_state_id)
-        today = date.today()
-
-        # Check if the player already has a GamePerformance record
-        exists = GamePerformance.objects.filter(
-            challenge=gs.challenge,
-            game=gs.game,
-            user=self.user,
-            date=today
-        ).exists()
-
-        if not exists:
-            GamePerformance.objects.update_or_create(
-                challenge=gs.challenge,
-                game=gs.game,
-                user=self.user,
-                date=today,
-                defaults={"score": 0, "auto_generated": True}
-            )
-            print(f"[Wordle][SCORES] Auto-saved 0 score for disconnected player {self.user.username}")
-

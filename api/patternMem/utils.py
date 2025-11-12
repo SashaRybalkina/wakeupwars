@@ -51,8 +51,9 @@ def get_or_create_pattern_game(challenge_id: int, user, allow_join: bool = True,
     """
     challenge = Challenge.objects.select_for_update().get(id=challenge_id)
     sched_ids = list(GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
+    # Filter for Pattern games specifically to avoid mixing with other game types
     assoc = (GameScheduleGameAssociation.objects.filter(game_schedule_id__in=sched_ids)
-             .select_related('game').order_by('game_order', 'id').first())
+             .select_related('game').filter(game__name__icontains='pattern').order_by('game_order', 'id').first())
     patternMemGame = assoc.game if assoc else Game.objects.filter(name__icontains='pattern').order_by('id').first()
     is_multiplayer = bool(getattr(patternMemGame, 'isMultiplayer', False))
     print("is multiplayer: ", is_multiplayer)

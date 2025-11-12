@@ -566,31 +566,23 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         gs = SudokuGameState.objects.select_related('challenge', 'game').get(id=self.game_state_id)
         play_date = dj_tz.localdate()
 
-        # Compute scores using progress-based denominator = filled_so_far + empties_remaining
+        # Compute scores using accuracy formula = correct / (correct + incorrect)
         players = SudokuGamePlayer.objects.select_related('player').filter(gameState_id=self.game_state_id)
-        total_correct = 0
-        try:
-            total_correct = sum(int(getattr(p, 'accuracyCount', 0) or 0) for p in players)
-        except Exception:
-            total_correct = 0
-        try:
-            def _is_empty(v):
-                return v in (0, None, '') or (isinstance(v, str) and v.strip() == '')
-            empties_remaining = sum(1 for row in (gs.puzzle or []) for v in (row or []) if _is_empty(v))
-        except Exception:
-            empties_remaining = 0
-        denom = max(1, total_correct + empties_remaining)
 
         submitted_ids = set()
         for p in players:
             correct = int(getattr(p, 'accuracyCount', 0) or 0)
-            score = round((correct / denom) * 100, 2)
-            GamePerformance.objects.update_or_create(
+            incorrect = int(getattr(p, 'inaccuracyCount', 0) or 0)
+            attempts = max(1, correct + incorrect)
+            score = round((correct / attempts) * 100, 2)
+
+            # Do not overwrite existing rows (e.g., client finalize result)
+            perf, created = GamePerformance.objects.get_or_create(
                 challenge=gs.challenge,
                 game=gs.game,
                 user=p.player,
                 date=play_date,
-                defaults={"score": score},
+                defaults={"score": score, "auto_generated": True},
             )
             submitted_ids.add(p.player_id)
 
@@ -611,42 +603,3 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         if not gs.joins_closed:
             gs.joins_closed = True
             gs.save(update_fields=["joins_closed"])
-
-    @sync_to_async
-    def _get_scores(self):
-        """
-        Compute and return current player scores for this game.
-        Used when broadcasting 'game_complete' event.
-        """
-        players = SudokuGamePlayer.objects.select_related('player').filter(gameState_id=self.game_state_id)
-        scores = []
-
-        for p in players:
-            correct = int(getattr(p, 'accuracyCount', 0) or 0)
-            incorrect = int(getattr(p, 'inaccuracyCount', 0) or 0)
-            attempts = max(1, correct + incorrect)
-            score = round((correct / attempts) * 100, 2)
-
-            scores.append({
-                'username': p.player.username,
-                'accuracy': correct,
-                'inaccuracy': incorrect,
-                'score': score,
-            })
-        return scores
-
-
-    # ─── Lock / unlock event handlers ─────────────────────────────
-    async def cell_locked(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'cell_locked',
-            'cell': event['cell'],
-            'player': event['player'],
-            'color': event['color']
-        }))
-
-    async def cell_unlocked(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'cell_unlocked',
-            'cell': event['cell']
-        }))

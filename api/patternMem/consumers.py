@@ -5,7 +5,7 @@ from asgiref.sync import sync_to_async
 from django.core.cache import cache
 from datetime import date
 
-from api.models import PatternMemorizationGameState, User, ChallengeMembership, GamePerformance
+from api.models import PatternMemorizationGameState, PatternMemorizationGamePlayer, User, ChallengeMembership, GamePerformance
 from api.patternMem.utils import validate_pattern_move
 from api.tasks import close_join_window, broadcast_leaderboard
 
@@ -341,11 +341,11 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
             )
             submitted_ids.add(u.id)
 
-        # auto-zero missing participants
-        participant_ids = set(
-            ChallengeMembership.objects.filter(challengeID=gs.challenge).values_list("uID_id", flat=True)
+        # auto-zero missing participants of THIS session only (players who joined this game_state)
+        session_player_ids = set(
+            PatternMemorizationGamePlayer.objects.filter(game_state=gs).values_list("player_id", flat=True)
         )
-        for uid in participant_ids - submitted_ids:
+        for uid in session_player_ids - submitted_ids:
             GamePerformance.objects.update_or_create(
                 challenge=gs.challenge, game=gs.game, user_id=uid, date=play_date,
                 defaults={"score": 0, "auto_generated": True}

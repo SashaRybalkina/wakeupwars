@@ -2752,9 +2752,9 @@ class CreateSudokuGameView(APIView):
         # Gate if the join window is closed or the game already ended
         try:
             gs = SudokuGameState.objects.filter(challenge_id=challenge_id).order_by('-id').first()
-            if gs:
-                today = timezone.localdate()
-                # If any GamePerformance exists for today for this challenge+game, consider it ended
+            today = timezone.localdate()
+            if gs and getattr(gs.game, 'isMultiplayer', False):
+                # Multiplayer: gate if the game has ended for today or joins window closed
                 if GamePerformance.objects.filter(challenge_id=challenge_id, game_id=gs.game_id, date=today).exists():
                     return Response(
                         {'code': 'GAME_ENDED', 'detail': 'This game has already finished for today.'},
@@ -2766,6 +2766,32 @@ class CreateSudokuGameView(APIView):
                         {'code': 'JOINS_CLOSED', 'detail': 'The join window has closed. Please join next time.'},
                         status=status.HTTP_403_FORBIDDEN,
                     )
+            else:
+                # Singleplayer: allow creating another Sudoku game as long as the user hasn't
+                # completed ALL scheduled Sudoku games for today in this challenge.
+                sched_ids = list(GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
+                sudoku_game_ids = list(
+                    GameScheduleGameAssociation.objects.filter(
+                        game_schedule_id__in=sched_ids,
+                        game__name__icontains='sudoku'
+                    ).values_list('game_id', flat=True)
+                )
+                if sudoku_game_ids:
+                    completed_distinct = (GamePerformance.objects
+                        .filter(
+                            challenge_id=challenge_id,
+                            user=user,
+                            date=today,
+                            game_id__in=sudoku_game_ids,
+                        )
+                        .values('game_id')
+                        .distinct()
+                        .count())
+                    if completed_distinct >= len(set(sudoku_game_ids)):
+                        return Response(
+                            {'code': 'GAME_ENDED', 'detail': 'You have already completed all Sudoku games today.'},
+                            status=status.HTTP_403_FORBIDDEN,
+                        )
         except Exception:
             # best-effort gating; proceed if checks fail
             pass
@@ -2801,9 +2827,9 @@ class ValidateSudokuMoveView(APIView):
         
         try:
             gs = SudokuGameState.objects.filter(challenge_id=challenge_id).order_by('-id').first()
-            if gs:
-                today = timezone.localdate()
-                # If any GamePerformance exists for today for this challenge+game, consider it ended
+            today = timezone.localdate()
+            if gs and getattr(gs.game, 'isMultiplayer', False):
+                # Multiplayer: gate if game finished for today or joins window closed
                 if GamePerformance.objects.filter(challenge_id=challenge_id, game_id=gs.game_id, date=today).exists():
                     return Response(
                         {'code': 'GAME_ENDED', 'detail': 'This game has already finished for today.'},
@@ -2815,6 +2841,31 @@ class ValidateSudokuMoveView(APIView):
                         {'code': 'JOINS_CLOSED', 'detail': 'The join window has closed. Please join next time.'},
                         status=status.HTTP_403_FORBIDDEN,
                     )
+            else:
+                # Singleplayer: allow creating as long as the user hasn't completed ALL scheduled Sudoku games today
+                sched_ids = list(GameSchedule.objects.filter(challenge_id=challenge_id).values_list('id', flat=True))
+                sudoku_game_ids = list(
+                    GameScheduleGameAssociation.objects.filter(
+                        game_schedule_id__in=sched_ids,
+                        game__name__icontains='sudoku'
+                    ).values_list('game_id', flat=True)
+                )
+                if sudoku_game_ids:
+                    completed_distinct = (GamePerformance.objects
+                        .filter(
+                            challenge_id=challenge_id,
+                            user=user,
+                            date=today,
+                            game_id__in=sudoku_game_ids,
+                        )
+                        .values('game_id')
+                        .distinct()
+                        .count())
+                    if completed_distinct >= len(set(sudoku_game_ids)):
+                        return Response(
+                            {'code': 'GAME_ENDED', 'detail': 'You have already completed all Sudoku games today.'},
+                            status=status.HTTP_403_FORBIDDEN,
+                        )
         except Exception:
             # best-effort gating; proceed if checks fail
             pass
@@ -2906,12 +2957,45 @@ class FinalizeSudokuResultView(APIView):
 
         print(f'[Sudoku][Finalize] user={user.username} gs={game_state_id} score={score} acc={accuracy} inacc={inaccuracy}')
 
+        # Determine participants for THIS scheduled game instance
+        local_dt = timezone.localtime(gs.alarmDateTime) if gs.alarmDateTime else timezone.localtime()
+        target_day = local_dt.isoweekday()
+        target_time = local_dt.time().replace(second=0, microsecond=0)
+
+        # Ensure this game is scheduled for that weekday
+        has_game_today = GameScheduleGameAssociation.objects.filter(
+            game_schedule__challenge=gs.challenge,
+            game_schedule__dayOfWeek=target_day,
+            game=gs.game,
+        ).exists()
+
+        # Primary: exact match for this minute
+        scheduled_qs = ChallengeAlarmSchedule.objects.filter(
+            challenge=gs.challenge,
+            alarm_schedule__dayOfWeek=target_day,
+        ).select_related('alarm_schedule')
+        scheduled_user_ids = set(
+            scheduled_qs.filter(
+                alarm_schedule__alarmTime=target_time,
+            ).values_list('alarm_schedule__uID_id', flat=True).distinct()
+        )
+
+        # Users who actually joined this session
+        joined_user_ids = set(
+            SudokuGamePlayer.objects.filter(gameState=gs).values_list('player_id', flat=True)
+        )
+
+        # Use scheduled users if the game is on today's schedule; always include any joiners
+        session_player_ids = (scheduled_user_ids if has_game_today else set()) | joined_user_ids
+        print(f'[Sudoku][Finalize] scheduled_user_ids={scheduled_user_ids}, joined_user_ids={joined_user_ids}, session_player_ids={session_player_ids}')
+
         # 🏆 Build leaderboard
         scores = []
         performances = GamePerformance.objects.filter(
             challenge=gs.challenge,
             game=gs.game,
-            date=play_date
+            date=play_date,
+            user_id__in=session_player_ids,
         ).select_related('user')
 
         for perf in performances:
@@ -3389,38 +3473,148 @@ class FinalizeWordleResultView(APIView):
                 base_score = 100 // max_attempts
                 score = max(0, 100 - ((attempts_used - 1) * base_score))
             else:
-                # Multiplayer: score will be computed based on ranking
-                # For now, just mark completion
-                score = 0
+                # Multiplayer: simple attempts-based score for now
+                max_attempts = 5
+                base_score = 100 // max_attempts
+                score = max(0, 100 - ((attempts_used - 1) * base_score))
 
-        # Save or update GamePerformance
-        GamePerformance.objects.update_or_create(
+        # Save or update GamePerformance without downgrading existing scores
+        existing = GamePerformance.objects.filter(
             challenge=gs.challenge,
             game=gs.game,
             user=user,
             date=play_date,
-            defaults={'score': score, 'auto_generated': False}
-        )
+        ).first()
+
+        if existing:
+            # Only update if the new score is higher; never downgrade to 0
+            if score is not None and int(score) > int(existing.score or 0):
+                existing.score = int(score)
+                existing.auto_generated = False
+                existing.save(update_fields=['score', 'auto_generated'])
+        else:
+            # Create only if there's a positive score; otherwise let zero-fill handle missing
+            if score and int(score) > 0:
+                GamePerformance.objects.update_or_create(
+                    challenge=gs.challenge,
+                    game=gs.game,
+                    user=user,
+                    date=play_date,
+                    defaults={'score': int(score), 'auto_generated': False}
+                )
 
         print(f'[Wordle][Finalize] user={user.username} gs={game_state_id} complete={is_complete} correct={is_correct} score={score}')
+
+        # Determine participants for THIS scheduled game instance
+        # - primary: users scheduled at gs.alarmDateTime for this challenge and game
+        # - union: any users who actually joined
+        local_dt = timezone.localtime(gs.alarmDateTime) if gs.alarmDateTime else timezone.localtime()
+        target_day = local_dt.isoweekday()
+        target_time = local_dt.time().replace(second=0, microsecond=0)
+
+        # Ensure this game is scheduled for that weekday
+        has_game_today = GameScheduleGameAssociation.objects.filter(
+            game_schedule__challenge=gs.challenge,
+            game_schedule__dayOfWeek=target_day,
+            game=gs.game,
+        ).exists()
+
+        # Primary: exact match for this minute
+        scheduled_qs = ChallengeAlarmSchedule.objects.filter(
+            challenge=gs.challenge,
+            alarm_schedule__dayOfWeek=target_day,
+        ).select_related('alarm_schedule')
+        scheduled_user_ids = set(
+            scheduled_qs.filter(
+                alarm_schedule__alarmTime=target_time,
+            ).values_list('alarm_schedule__uID_id', flat=True).distinct()
+        )
+        # Fallback: nearest scheduled alarm time within 15 minutes on this day
+        if not scheduled_user_ids:
+            times = list(scheduled_qs.values_list('alarm_schedule__alarmTime', flat=True).distinct())
+            if times:
+                today_date = timezone.localdate()
+                target_dt = datetime.combine(today_date, target_time)
+                def _abs_secs(t):
+                    return abs((datetime.combine(today_date, t) - target_dt).total_seconds())
+                times_sorted = sorted(times, key=_abs_secs)
+                nearest_time = times_sorted[0]
+                nearest_diff = _abs_secs(nearest_time)
+                if nearest_diff <= 15 * 60:  # within 15 minutes
+                    scheduled_user_ids = set(
+                        scheduled_qs.filter(alarm_schedule__alarmTime=nearest_time)
+                        .values_list('alarm_schedule__uID_id', flat=True)
+                        .distinct()
+                    )
+                    print(f"[Wordle][Finalize] fallback matched nearest_time={nearest_time} (diff={nearest_diff}s)")
+
+        # Users who actually joined this session
+        joined_user_ids = set(
+            WordleGamePlayer.objects.filter(gameState=gs).values_list('player_id', flat=True)
+        )
+
+        # Use scheduled users if the game is on today's schedule; always include any joiners
+        session_player_ids = (scheduled_user_ids if has_game_today else set()) | joined_user_ids
+        print(f'[Wordle][Finalize] scheduled_user_ids={scheduled_user_ids}, joined_user_ids={joined_user_ids}, session_player_ids={session_player_ids}')
+
+        submitted_ids = set(
+            GamePerformance.objects.filter(
+                challenge=gs.challenge,
+                game=gs.game,
+                date=play_date,
+                user_id__in=session_player_ids,
+            ).values_list('user_id', flat=True)
+        )
+        print(f'[Wordle][Finalize] submitted_ids={submitted_ids}')
+        for uid in (session_player_ids - submitted_ids):
+            GamePerformance.objects.update_or_create(
+                challenge=gs.challenge,
+                game=gs.game,
+                user_id=uid,
+                date=play_date,
+                defaults={'score': 0, 'auto_generated': True}
+            )
+
+        # Lock further joins for this game state
+        try:
+            gs.joins_closed = True
+            gs.save(update_fields=['joins_closed'])
+        except Exception:
+            pass
 
         # Build leaderboard
         scores = []
         performances = GamePerformance.objects.filter(
             challenge=gs.challenge,
             game=gs.game,
-            date=play_date
+            date=play_date,
+            user_id__in=session_player_ids,
         ).select_related('user')
 
         for perf in performances:
             scores.append({
                 'username': perf.user.username,
-                'score': perf.score,
+                'score': int(perf.score or 0),
             })
+        print(f'[Wordle][Finalize] scores={scores}')
 
         scores = sorted(scores, key=lambda x: x['score'], reverse=True)
 
+        # Broadcast to all connected clients so they can dismiss the game screen
+        try:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'wordle_{game_state_id}',
+                {
+                    'type': 'game.complete',  # handled by WordleConsumer.game_complete
+                    'scores': scores,
+                },
+            )
+        except Exception:
+            logger.exception('[Wordle][Finalize] Failed to broadcast game_complete')
+
         return Response({'scores': scores}, status=status.HTTP_200_OK)
+
 
 class ValidateSudokuMoveView(APIView):
     def post(self, request):
