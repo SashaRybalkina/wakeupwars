@@ -163,7 +163,6 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
     return `${y}-${m}-${day}`
   }
 
-
   const handleCreateChallenge = async () => {
     if (submitting) return;
     console.log("hello")
@@ -176,7 +175,6 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
       Alert.alert("Error", "Please select at least one day and set an alarm time");
       return;
     }
-
 
     const alarmSchedule = Object.entries(dayTimeMapping)
       .filter(([day, time]) => time && dayToInt[day])
@@ -219,7 +217,6 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
       })
       .filter(Boolean)
 
-
     const getNextAlarmDate = (alarmDays: number[]): Date | null => {
       if (alarmDays.length === 0) return null;
       const today = new Date();
@@ -235,7 +232,6 @@ const PersChall2: React.FC<Props> = ({ navigation }) => {
       }
       return null;
     };
-
 
     // collect day numbers of scheduled alarms
     const alarmDays = alarmSchedule

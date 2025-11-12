@@ -108,6 +108,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
   const [submittedRows, setSubmittedRows] = useState<Set<number>>(new Set());
   const [players, setPlayers] = useState<string[]>([]);
   const hasShownResultRef = useRef(false);
+  const finalizeSentRef = useRef(false);
   const [isMultiplayer, setIsMultiplayer] = useState(false);
   const [playerColors, setPlayerColors] = useState<{ [key: string]: string }>({});
 
@@ -275,6 +276,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
     setGameOver(false);
     setOpponentRows({});
     hasShownResultRef.current = false;
+    finalizeSentRef.current = false;
     initGame();
   };
 
@@ -303,7 +305,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
           'Content-Type': 'application/json',
           "Authorization": `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ challenge_id: challengeId }),
+        body: JSON.stringify({ challenge_id: challengeId, game_id: routeGameId }),
       });
 
       if (res.status === 403) {
@@ -610,6 +612,12 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
     if (isComplete) {
       setGameOver(true);
       
+      if (finalizeSentRef.current) {
+        console.log('[Wordle] finalize already sent, skipping');
+        return;
+      }
+      finalizeSentRef.current = true;
+      
       // Submit final results to backend
       try {
         const accessToken = await getAccessToken();
@@ -646,6 +654,24 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
           const data = await response.json();
           console.log('[Wordle] Final results submitted:', data);
           
+          if (isMultiplayer && gameStateId) {
+            // Wait for WebSocket 'game_complete' to navigate (preferred),
+            // but add a fallback navigate if no event within ~2s:
+            const leaderboard = data.scores
+              ?.map((p: { username: string; score: number }) => `${p.username}: ${p.score}`)
+              .join('\n') || 'No scores yet';
+
+            Alert.alert(
+              isCorrect ? '🎉 You Win!' : '❌ Game Over',
+              `Leaderboard:\n${leaderboard}`,
+              [
+                { text: 'OK', onPress: () => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }) },
+              ],
+            );
+            setTimeout(() => {
+              navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall });
+            }, 2000);
+          }
           // Finalize single-player game so performances update
           if (!isMultiplayer && gameStateId) {
             try {
