@@ -435,6 +435,19 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             'player': event['player'],
         }))
 
+    async def cell_locked(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'cell_locked',
+            'cell': event.get('cell'),
+            'player': event.get('player'),
+            'color': event.get('color'),
+        }))
+
+    async def cell_unlocked(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'cell_unlocked',
+            'cell': event.get('cell'),
+        }))
 
     async def game_complete(self, event):
         await self.send(text_data=json.dumps({
