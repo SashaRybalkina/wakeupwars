@@ -352,7 +352,7 @@ useEffect(() => {
   }
 
   return (
-    <ImageBackground source={require("../../images/secondary.png")} style={styles.background} resizeMode="cover">
+    <ImageBackground source={require("../../images/cgpt4.png")} style={styles.background} resizeMode="cover">
       <View style={styles.container}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={28} color="#FFF" />

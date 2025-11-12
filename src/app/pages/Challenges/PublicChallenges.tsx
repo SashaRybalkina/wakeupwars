@@ -170,17 +170,13 @@ const PublicChallenges: React.FC<Props> = ({ navigation }) => {
   return (
     <ImageBackground source={require("../../images/cgpt.png")} style={styles.background} resizeMode="cover">
       <View style={styles.container}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={28} color="#FFF" />
-        </TouchableOpacity>
-
         <ScrollView
           style={styles.scrollContainer}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.headerSection}>
-            <Text style={styles.sectionTitle}>Public Challenges</Text>
+            <Text style={styles.sectionTitleMain}>Public Challenges</Text>
             <View style={styles.decorativeLine} />
           </View>
 
@@ -327,16 +323,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 50,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 20,
-    marginBottom: 10,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -383,7 +369,7 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: "#FFD700",
     borderRadius: 2,
-    marginTop: 10,
+    marginTop: 5,
   },
   groupImageContainer: {
     alignItems: "center",
@@ -399,6 +385,16 @@ const styles = StyleSheet.create({
   membersSection: {
     marginBottom: 25,
     paddingHorizontal: 20,
+  },
+  sectionTitleMain: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#FFF",
+    marginTop: 30,
+    marginBottom: 15,
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   sectionTitle: {
     fontSize: 24,
