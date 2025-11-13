@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import date
 from django.utils import timezone
@@ -303,16 +304,39 @@ class WordleConsumer(AsyncWebsocketConsumer):
             if len(finished) >= expected_count:
                 print(f"[Wordle][GAME COMPLETE TRIGGERED] All players finished for game_state={self.game_state_id}")
 
-                # broadcast to all clients
+                ## avoid double run
+                final_key = f"wordle_final_started_{self.game_state_id}"
+                if cache.get(final_key):
+                    return
+                cache.set(final_key, True, timeout=3600)
+
+                # compute scores from attempts (SAME formula as finalize view)
+                max_attempts = 5
+                base_score = 100 // max_attempts
+
+                scores = []
+                for username, info in finished.items():
+                    attempts = info.get("attempts")
+                    if attempts is None:
+                        score = 0
+                    else:
+                        score = max(0, 100 - ((attempts - 1) * base_score))
+                    scores.append({"username": username, "score": int(score)})
+
+                scores = sorted(scores, key=lambda x: x["score"], reverse=True)
+                print(f"[Wordle][GAME COMPLETE] Final scores (from finished cache) for game_state={self.game_state_id}: {scores}")
+
                 await self.channel_layer.group_send(
                     self.group_name,
                     {
                         "type": "game.complete",
-                        "scores": finished,
+                        "final": True,
+                        "scores": scores,
                     }
                 )
-
-
+              
+    
+    
     # ===== Group event handlers =====
     async def player_left(self, event):
         if event['player'] != self.user.username:
@@ -364,8 +388,9 @@ class WordleConsumer(AsyncWebsocketConsumer):
     async def game_complete(self, event):
         print(f"[WebSocket][GAME COMPLETE EVENT] {self.user.username} received scores: {event['scores']}")
         await self.send(text_data=json.dumps({
-            'type': 'game_complete',
-            'scores': event['scores'],
+            "type": "game_complete",
+            "final": event.get("final", False),
+            "scores": event["scores"],
         }))
 
     async def join_window_closed(self, event):

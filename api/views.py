@@ -25,6 +25,7 @@ from datetime import time
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate, get_user_model
+from django.core.cache import cache
 
 from api.chat_consumer import ACTIVE_CHAT_USERS
 from api.middleware import get_user_from_token
@@ -3658,20 +3659,24 @@ class FinalizeWordleResultView(APIView):
                 'username': perf.user.username,
                 'score': int(perf.score or 0),
             })
-        print(f'[Wordle][Finalize] scores={scores}')
+        logger.warning(f'[Wordle][Finalize] scores={scores}')
 
         scores = sorted(scores, key=lambda x: x['score'], reverse=True)
 
         # Broadcast to all connected clients so they can dismiss the game screen
         try:
             channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f'wordle_{game_state_id}',
-                {
-                    'type': 'game.complete',  # handled by WordleConsumer.game_complete
-                    'scores': scores,
-                },
-            )
+            # async_to_sync(channel_layer.group_send)(
+            #     f'wordle_{game_state_id}',
+            #     {
+            #         'type': 'game.complete',  # handled by WordleConsumer.game_complete
+            #         'scores': scores,
+            #     },
+            # )
+            # Save computed scores into cache for later broadcasting
+            cache_key = f"wordle_final_scores_{game_state_id}"
+            cache.set(cache_key, scores, timeout=3600)
+            logger.warning(f"[Wordle][Finalize] Scores in cache for game_state={game_state_id}: {scores}")
         except Exception:
             logger.exception('[Wordle][Finalize] Failed to broadcast game_complete')
 

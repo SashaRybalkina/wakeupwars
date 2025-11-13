@@ -58,6 +58,7 @@ type ServerToClientMessage =
         accuracy: number;
         inaccuracy: number;
         score: number;
+        final: boolean;
       }[];
     };
 
@@ -454,6 +455,13 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
           }
 
           if (msg.type === 'game_complete') {
+            console.log("RAW:", msg);
+            // ignore if not final
+            if (msg.final !== true) {
+                console.log("[WS] Ignored intermediate leaderboard:", msg);
+                return;
+            }
+            console.log(`[WS ${new Date().toISOString()}] Received FINAL leaderboard:`, msg.scores);
             if (hasShownResultRef.current) return; // prevent multiple alerts
             
             // `scores` can be either an array (from finalize endpoint) OR an object keyed by username (from consumer)
@@ -479,10 +487,12 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
             }
             console.log("[DEBUG] Winner check", { user: user?.username, myScore: myScoreVal, isWinner });
             console.log('[WebSocket] Game complete:', scoresArr);
-            setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
+            //setTimeout(() => navigation.navigate("ChallDetails", { challId: challengeId, challName, whichChall }), 2000);
             Alert.alert(
               isWinner ? '🏆 You Win!' : '❌ Game Over',
               scoresArr.map((s: { username: string; score: number }) => `${s.username}: ${s.score}`).join('\n'),
+              // 'Game Complete',
+              // 'Everyone has finished! Check the leaderboard for final scores.',
               [
                 {
                   text: 'OK', onPress: () => {
