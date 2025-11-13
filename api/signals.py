@@ -269,7 +269,6 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                     challengeId=bet.challenge.id,
                                     challName=bet.challenge.name,
                                     isCompleted=bet.challenge.isCompleted,
-                                    challengeMembers=bet.challenge.members,
                                 )
                                         
                                 device = FCMDevice.objects.filter(user_id=u.id).first()

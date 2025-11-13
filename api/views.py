@@ -1819,7 +1819,7 @@ class RespondToBetInviteView(APIView):
         UserNotification.objects.create(
             user=bet.initiator,
             title=f"Bet {response}",
-            body=f"{bet.recipient.name or bet.recipient.username} has {response.lower} the bet invite.",
+            body=f"{bet.recipient.name or bet.recipient.username} has {response.lower()} the bet invite.",
             type="bet_response",
             screen="Bets",
             challengeId=bet.challenge.id,
@@ -1831,7 +1831,7 @@ class RespondToBetInviteView(APIView):
         recipient_id = bet.initiator.id
         if device:
             title=f"Bet {response}"
-            body=f"{bet.recipient.name or bet.recipient.username} has {response.lower} the bet invite."
+            body=f"{bet.recipient.name or bet.recipient.username} has {response.lower()} the bet invite."
             data={
                 "screen": "Notifications",
                 "type": "bet_invite_response",
