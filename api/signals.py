@@ -128,21 +128,26 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                 elif ch.endDate and play_date >= ch.endDate:
                     should_complete = True
                 if should_complete and not ch.isCompleted:
+                    print("COMPLETED CHALLENGE")
                     Challenge.objects.filter(pk=ch.id, isCompleted=False).update(isCompleted=True)
                     # mark challenge winner/bet winners/check for badges here
 
                     # mark the challenge winner (if personal, will be the single member)
+                    print("MARKING WINNER")
                     winner_user = ch.get_winner_user()
-                    print(winner_user.id)
+                    print("WINNER USER: ", winner_user)
                     if winner_user:
+                        print("WINNER")
                         Challenge.objects.filter(pk=ch.id).update(winner=winner_user)
 
                     # if a personal challenge, just check the one badge
                     if ch.groupID == None and ch.isPublic == False:
+                        print("PERSONAL CHALLENGE")
                         lone_wolf_badge = Badge.objects.get(name="Lone Wolf")
                         user_badge, created = UserBadge.objects.get_or_create(user=winner_user, badge=lone_wolf_badge)
                         
                         if created:
+                            print("CREATED BADGE")
                             UserNotification.objects.create(
                                 user_id=winner_user.id,
                                 title="Lone Wolf Badge Unlocked!",
@@ -175,6 +180,7 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                             user_badge, created = UserBadge.objects.get_or_create(user=winner_user, badge=public_champion_badge)
                             
                             if created:
+                                print("CREATED PUBLIC CHAMPION BADGE")
                                 UserNotification.objects.create(
                                     user_id=winner_user.id,
                                     title="Public Champion Badge Unlocked!",
@@ -197,10 +203,11 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                             community_member_badge = Badge.objects.get(name="Community Member")
                             members = ch.members.all()
                             for member in members:
-                                print(member)
+                                print("MEMBER: ", member)
                                 user_badge, created = UserBadge.objects.get_or_create(user=member, badge=community_member_badge)
                                 
                                 if created:
+                                    print("CREATED COMMUNITY MEMBER BADGE")
                                     UserNotification.objects.create(
                                         user_id=member.id,
                                         title="Community Member Badge Unlocked!",
@@ -223,7 +230,7 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                             bets = ChallengeBet.objects.filter(challenge=ch, isPending=False)
                             bet_participants = []
                             for bet in bets:
-                                print(bet.id)
+                                print("BET: ", bet.id)
                                 bet.isCompleted = True
                                 
                                 if (bet.initiator not in bet_participants):
@@ -256,7 +263,7 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                     # User.objects.filter(pk=bet.initiator.pk).update(numCoins=F('numCoins') + bet.betAmount)
                                     # User.objects.filter(pk=bet.recipient.pk).update(numCoins=F('numCoins') + bet.betAmount)
                                 bet.save()
-                                print(bet.winner)
+                                print("BET WINNER: ", bet.winner)
                                
                                
                             for u in bet_participants:
@@ -286,7 +293,7 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                             first_blood_badge = Badge.objects.get(name="First Blood")
                             winners = bets.filter(winner__isnull=False).values_list('winner', flat=True)
                             for user_id in winners:
-                                print(user_id)
+                                print("USER ID: ", user_id)
                                 user_badge, created = UserBadge.objects.get_or_create(user_id=user_id, badge=first_blood_badge)
                                 
                                 if created:
