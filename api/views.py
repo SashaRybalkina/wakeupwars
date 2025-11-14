@@ -35,7 +35,7 @@ from .serializers import (UserSerializer, RegisterSerializer, GroupSerializer, U
                           RewardSettingSerializer, ExternalHandleSerializer,ObligationSerializer, CashPaymentCreateSerializer,
                           ExternalPaymentCreateSerializer, PaymentSerializer, PendingPublicChallengeSummarySerializer, PublicChallengeSummarySerializer,
                           ChallengeBetSerializer)
-from .models import (FCMDevice, Group, GroupInvite, UserNotification, PersonalChallengeInvite, PushToken, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule,
+from .models import (FCMDevice, Group, GroupInvite, PatternMemorizationGamePlayer, UserNotification, PersonalChallengeInvite, PushToken, User, Message, Challenge, ChallengeMembership, GroupMembership, GameCategory, Game, GameSchedule,
                      AlarmSchedule, ChallengeAlarmSchedule, GameScheduleGameAssociation, Friendship, GroupMembership, FriendRequest,
                      SkillLevel, PendingGroupChallengeAvailability, GroupChallengeInvite, WordleMove, PublicChallengeConfiguration,
                      UserAvailability, PublicChallengeCategoryAssociation, ChallengeBet, Badge, UserBadge, Memoji, UserMemoji)
@@ -3358,6 +3358,8 @@ class ValidatePatternMoveView(APIView):
 
         try:
             gs = PatternMemorizationGameState.objects.filter(challenge_id=challenge_id).order_by('-id').first()
+            # gs = PatternMemorizationGameState.objects.get(id=game_state_id)
+            # challenge_id = gs.challenge_id
             if gs:
                 today = timezone.localdate()
                 # If any GamePerformance exists for today for this challenge+game, consider it ended
@@ -3395,6 +3397,28 @@ class ValidatePatternMoveView(APIView):
         }
         if "scores" in result and result["scores"] is not None:
             payload["scores"] = result["scores"]
+
+        # # ⭐⭐ GAME PERFORMANCE WRITE HERE ⭐⭐
+        # if result.get("is_complete"):   # only on final round
+        #     today = timezone.localdate()
+
+        #     # get accumulated score
+        #     player_rec = PatternMemorizationGamePlayer.objects.get(
+        #         game_state=gs,
+        #         player=user,
+        #     )
+        #     final_score = player_rec.score  # <-- correct (100)
+
+        #     GamePerformance.objects.update_or_create(
+        #         challenge=gs.challenge,
+        #         game=gs.game,
+        #         user=user,
+        #         date=today,
+        #         defaults={
+        #             "score": final_score,
+        #             "auto_generated": False
+        #         }
+        #     )
 
         if result.get('is_correct'):
             return Response({"success": True, "result": "correct", **payload}, status=status.HTTP_200_OK)

@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  ToastAndroid,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -142,6 +143,7 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
   const timerExpiredSentRef = useRef(false);
 
   const canStartNow = useMemo(() => readyCount >= 1, [readyCount]);
+  const hasFinishedAlertShownRef = useRef(false);
 
   // Local Wordle validation function
   const evaluateGuess = (guess: string, answer: string): GuessResult[] => {
@@ -675,6 +677,17 @@ const WordleScreen: React.FC<Props> = ({ navigation }) => {
           attempts_used: selectedRow + 1,
         }));
         console.log('[Wordle] Multiplayer mode - notified others of completion');
+
+        // Friendly early finisher alert
+        if (!hasFinishedAlertShownRef.current) {
+          hasFinishedAlertShownRef.current = true;
+
+          // Alert.alert(
+          //   "🎉 You finished!",
+          //   "Please wait for final results..."
+          // );
+          ToastAndroid.show("🎉 You finished! Please wait for final results...", ToastAndroid.SHORT);
+        }
       }
       
       // Prevent duplicate finalize calls

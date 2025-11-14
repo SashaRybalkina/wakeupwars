@@ -23,7 +23,7 @@ import styles from './Styles'
 // ===============================
 // ⚙️ Game Config
 // ===============================
-const GAME_SECONDS = 60; // total game time
+const GAME_SECONDS = 120; // total game time
 const CAR_SIZE = 24;
 const COUNTDOWN_START = 3; // pre-game countdown
 
@@ -107,8 +107,8 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
   const whichChall = params.whichChall ?? 'Public';
   const { user, logout } = useUser();
 
-  console.log("[DEBUG] TypingRace route params:", params);
-  console.log("[DEBUG] challId resolved:", challId);
+  // console.log("[DEBUG] TypingRace route params:", params);
+  // console.log("[DEBUG] challId resolved:", challId);
 
   // ===============================
   // 🧠 Helper: Save scores to backend
@@ -334,10 +334,10 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
           //   if (msg.winner) log("👑 Winner:", msg.winner);
           //   break;
 
-          case "game_complete":
-            log("🏁 Final results:", msg.leaderboard);
-            log("👑 Winner:", msg.winner);
-            break;
+          // case "game_complete":
+          //   log("🏁 Final results:", msg.leaderboard);
+          //   log("👑 Winner:", msg.winner);
+          //   break;
 
           // default:
           //   log("⚙️ Other message:", msg);
@@ -468,6 +468,18 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
           // );
 
           const p = msg.player;
+
+          // notification for early finisher
+          if (p.username === user?.username && p.is_completed) {
+            if (!hasFinished) {
+              setHasFinished(true);
+              Alert.alert(
+                "🎉 You finished!",
+                "Please wait for final results..."
+              );
+            }
+          }
+
           if (p.username === user?.username) return;
           //console.log(`[CLIENT][RECV] ${p.username} progress=${p.progress.toFixed(2)}%`);
           setPlayerProgress(prev =>

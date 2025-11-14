@@ -1296,17 +1296,18 @@ const [hasShownResult, setHasShownResult] = useState(false);
                     style={[
                       styles.cell,
                       { 
-                        // singleplayer & multiplayer color handling
-                        ...(selected
-                          ? (playerColor
-                              ? { borderColor: playerColor, borderWidth: 2 }  // multiplayer mode
-                              : styles.selectedCell)                           // singleplayer mode
-                          : { borderColor: cellBorderColors[index], borderWidth: cellLocks[index] ? 3 : BORDER_WIDTH_THIN }),
+                        backgroundColor: cellColors[index], 
+                        // use player color when selected, otherwise keep the border color
+                        borderColor: selected
+                          ? (playerColor || '#ffbf00') // :yellow_circle: fallback to yellow if no player color
+                          : cellBorderColors[index],
+                        borderWidth: selected
+                          ? 2 // highlight selection
+                          : (cellLocks[index] ? 3 : BORDER_WIDTH_THIN),
                       },
                       rowIndex % 3 === 0 && rowIndex !== 0 ? styles.thickTopBorder : {},
                       colIndex % 3 === 0 && colIndex !== 0 ? styles.thickLeftBorder : {},
-                      // highlight incorrect move as a red box
-                      cellColors[index] === 'red' ? { borderColor: 'red', backgroundColor: '#ff3333ff' } : {},
+
                     ]}>
                     <Text style={styles.cellText}>{grid[index]}</Text>
                   </TouchableOpacity>

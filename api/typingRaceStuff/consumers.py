@@ -273,7 +273,72 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             },
         )
 
+        # Check if all players finished (early complete)
+        await self._check_if_everyone_finished()
+
+
         #logger.warning(f"[PROGRESS][SENT] {self.user.username} done broadcast")
+
+    async def _check_if_everyone_finished(self):
+        """
+        Trigger early game end if all *online* players have finished.
+        Offline/absent players will receive 0 score automatically at the end.
+        """
+
+        # Prevent double triggers
+        timeout_key = f"typing_timeout_done_{self.game_id}"
+        if cache.get(timeout_key):
+            return
+
+        # Get connected online IDs
+        conns = set(cache.get(_conns_key(self.game_id)) or [])
+
+        if not conns:
+            return  # no online players = do nothing
+
+        all_done = True
+        for uid in conns:
+            progress_key = f"typing_progress_{self.game_id}_{uid}"
+            cached = cache.get(progress_key)
+
+            if not cached or not cached.get("is_completed"):
+                all_done = False
+                break
+
+        if not all_done:
+            return
+
+        # Mark timeout as completed so no double-end
+        cache.set(timeout_key, True, timeout=60)
+        logger.warning(f"[Typing][EARLY END] All ONLINE players finished game_id={self.game_id}")
+
+        # Step 1 — Persist leaderboard cache to DB
+        await sync_to_async(_save_leaderboard_cache_to_db)(self.game_id)
+
+        # Step 2 — Compute final leaderboard
+        leaderboard, _ = await self._get_game_leaderboard()
+        sorted_lb = sorted(leaderboard, key=lambda x: (x.get("rank") or 9999, -x["score"]))
+        winner = sorted_lb[0]["username"] if sorted_lb else None
+
+        # Step 3 — Broadcast result
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                "type": "game_complete",
+                "leaderboard": sorted_lb,
+                "winner": winner,
+                "is_complete": True,
+            },
+        )
+
+        # Step 4 — Save GamePerformance records for all players
+        await asyncio.gather(
+            self._save_game_performance_from_typing_results()
+        )
+
+        logger.warning(f"[Typing][EARLY END] Fully synced and broadcasted (game_id={self.game_id})")
+
+
 
     @database_sync_to_async
     def _get_game_leaderboard(self):
@@ -385,7 +450,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
 
         # ✅ Persist both TypingRaceGamePlayer + GamePerformance (parallel for speed)
         await asyncio.gather(
-            sync_to_async(_save_leaderboard_cache_to_db)(self.game_id),
+            #sync_to_async(_save_leaderboard_cache_to_db)(self.game_id),
             self._save_game_performance_from_typing_results(),
         )
         logger.warning(f"[Typing][TIMEOUT] Game {self.game_id} fully synced to DB")
