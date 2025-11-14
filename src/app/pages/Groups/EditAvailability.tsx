@@ -686,7 +686,7 @@ return (
           const image = isSudoku
             ? require("../../images/sudoku.png")
             : isPattern
-            ? require("../../images/patterngame.png")
+            ? require("../../images/patternGame.png")
             : null;
 
           return (

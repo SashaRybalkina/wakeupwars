@@ -21,7 +21,7 @@ export const GAME_META: Record<GameKey, { image: any; desc: string }> = {
     desc: 'A combinatorial word-guessing puzzle where players deduce a hidden five-letter word using limited attempts and feedback.',
   },
   pattern: {
-    image: require('../../images/patterngame.png'),
+    image: require('../../images/patternGame.png'),
     desc: 'Watch the color sequence, remember it, and repeat!',
   },
   typingrace: {

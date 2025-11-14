@@ -47,6 +47,7 @@ def _gp_deleted(sender, instance, **kwargs):
 def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kwargs):
     def _after_commit():
         try:
+            print("Well it should reach here...")
             ch = instance.challenge
 
             if not ch.groupID and not ch.isPublic and not instance.auto_generated:
@@ -62,6 +63,7 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                 .filter(challengeID=ch)
                 .values_list('uID_id', flat=True)
             )
+            print("Participant IDs: ", participant_ids)
             if not participant_ids:
                 return
 
@@ -82,11 +84,13 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                 .filter(challenge=ch, date=play_date)
                 .values_list('game_id', flat=True)
                 .distinct()
-            )
+            )   
+            print("Played game IDs: ", played_game_ids_qs)
             if game_ids:
                 played_game_ids = [gid for gid in played_game_ids_qs if gid in set(game_ids)]
             else:
                 played_game_ids = list(played_game_ids_qs)
+            print("Played game IDs: ", played_game_ids)
             if not played_game_ids:
                 return
 
@@ -104,6 +108,8 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                 .distinct()
                 .count()
             )
+            print("Expected: ", expected)
+            print("Found: ", found)
             if found < expected:
                 return
 
@@ -119,6 +125,8 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                 .filter(pk=ch.id, daysCompleted__lt=day_index)
                 .update(daysCompleted=day_index)
             )
+            
+            print("So is it updated?it hits here?: ", updated)
 
             if updated:
                 # Optionally complete the challenge if this was the last day
@@ -243,13 +251,13 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                     challenge=ch,
                                     user=bet.initiator
                                 ).aggregate(total_points=Sum("score"))["total_points"] or 0
-                                print(initiator_points)
+                                print("INITIATOR POINTS: ", initiator_points)
 
                                 recipient_points = GamePerformance.objects.filter(
                                     challenge=ch,
                                     user=bet.recipient
                                 ).aggregate(total_points=Sum("score"))["total_points"] or 0
-                                print(recipient_points)
+                                print("RECIPIENT POINTS: ", recipient_points)
                                     
                                 if initiator_points > recipient_points:
                                     bet.winner = bet.initiator

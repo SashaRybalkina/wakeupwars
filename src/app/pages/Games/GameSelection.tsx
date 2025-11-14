@@ -311,25 +311,29 @@ gameContainer: {
 },
 
 gameImg: {
-  width: '90%',          // already good
+  width: '80%',          // already good
   aspectRatio: 2/2,
   alignSelf: 'center',   // ✅ this ensures it's centered within its container
   marginVertical: 10,
   marginLeft: 0,
-  borderColor: '#FFD700',
-  borderBlockStartColor: '#FFD700',
+  borderColor: '#000',
+  borderBlockStartColor: '#000',
   borderWidth: 5,
+  shadowColor: 'rgba(0, 0, 0, 0.5)',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.25,
+  shadowRadius: 3.84,
   borderRadius: 50,
 },
 imageFrame: {
   width: '70%',
   aspectRatio: 1,                
   alignSelf: 'center',
-  borderWidth: 5,
-  borderColor: 'rgba(255, 212, 22, 0.5)',
-  borderRadius: 50,
   overflow: 'hidden',            
   marginBottom: 20,
+  borderColor: 'rgba(0, 0, 0, 0.03)',
+  borderWidth: 3,
+  borderRadius:30,
 },
 imageFill: {
   width: '100%',
@@ -357,16 +361,23 @@ gameName: {
 },
 
   selectButton: {
-    backgroundColor: "#ffd752ff",
-    paddingVertical: 8,
-    borderRadius: 6,
     width: "60%",
     alignItems: "center",
+    backgroundColor: 'rgba(0, 0, 0, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 12,
     marginTop: 20
   },
   selectButtonText: {
-    fontWeight: "bold",
-    color: "#000",
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.35)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 3,
   },
   // Modal
   modalOverlay: {

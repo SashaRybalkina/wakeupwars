@@ -694,7 +694,7 @@ return (
                         ) : isPattern ? (
                           <>
                             <ImageBackground
-                              source={require("../../images/patterngame.png")}
+                              source={require("../../images/patternGame.png")}
                               style={styles.sudokuImage}
                               resizeMode="contain"
                             />
