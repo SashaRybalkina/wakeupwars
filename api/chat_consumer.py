@@ -118,7 +118,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         title = sender_name
         body = message[:100]
         data = {
-            "screen": "Messages",
+            "screen": "Notifications",
         }
         send_fcm_notification(title, body, data, recipient_id)
     
@@ -130,7 +130,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         for member in group_members:
             title = f"{sender.name}, {group.name}"
             body = message[:100]
-            data = {"screen": "Messages"}
+            data = {"screen": "Notifications"}
             send_fcm_notification(title, body, data, member.uID_id)
 
     @database_sync_to_async

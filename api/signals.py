@@ -478,7 +478,7 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                                         title = "Challenge Completed!"
                                         body = f"The challenge '{ch.name}' has ended. You didn’t finish the final game — check your progress!"
                                         data = {
-                                            "screen": "Challenges",
+                                            "screen": "Notifications",
                                             "type": "challenge_update",
                                         }
                                         send_fcm_notification(title, body, data, member.id)

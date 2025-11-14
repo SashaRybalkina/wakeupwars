@@ -4822,7 +4822,7 @@ class SendMessageView(APIView):
             send_fcm_notification(
                 token=device.token,
                 data={
-                    "screen": "Messages",
+                    "screen": "Notifications",
                     "sender_id": sender.id,
                     "recipient_id": recipient.id,
                     "message_id": message.id,
@@ -4888,7 +4888,7 @@ class SendMessageGroupView(APIView):
                     title=f"{sender.name or sender.username}, {group.name}",
                     body=f"{sender.name or sender.username}: {message_text}",
                     data={
-                        "screen": "Messages",
+                        "screen": "Notifications",
                         "type": "group_message",
                         "group_id": group.id,
                         "sender_id": sender.id,
