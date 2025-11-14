@@ -673,7 +673,7 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
 
   if (loading) {
     return (
-      <ImageBackground source={require('../../images/cgpt.png')} style={styles.background} resizeMode="cover">
+      <ImageBackground source={require('../../images/cgpt4.png')} style={styles.background} resizeMode="cover">
         <View style={styles.container}>
           <ActivityIndicator />
         </View>
@@ -683,7 +683,7 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <ImageBackground
-      source={require('../../images/cgpt.png')}
+      source={require('../../images/cgpt4.png')}
       style={styles.background}
       resizeMode="cover"
     >

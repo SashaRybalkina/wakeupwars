@@ -694,7 +694,7 @@ return (
                         ) : isPattern ? (
                           <>
                             <ImageBackground
-                              source={require("../../images/patternGame.png")}
+                              source={require("../../images/patterngame.png")}
                               style={styles.sudokuImage}
                               resizeMode="contain"
                             />
@@ -1112,8 +1112,8 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   sudokuImage: {
-    width: 65,
-    height: 65,
+    width: 85,
+    height: 85,
     marginTop: 4,
   },
   emptyGamesContainer: {

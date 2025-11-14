@@ -239,14 +239,14 @@ const filteredCats = STATIC_CATEGORIES
           onPress={() => setModalGame(game)}
           style={styles.gameContainer}
         >
-<View style={styles.imageWrapper}>
-  <ImageBackground
-    source={meta.image}
-    style={styles.gameImg}
-    imageStyle={styles.gameImgStyle}
-    resizeMode="contain"
-  />
-</View>
+      <View style={styles.imageFrame}>
+        <ImageBackground
+          source={meta.image}
+          style={styles.imageFill}
+          imageStyle={styles.imageFillImg}
+          resizeMode="cover"
+        />
+      </View>
 
           <Text style={styles.gameName}>{game.name}</Text>
         </TouchableOpacity>
@@ -303,32 +303,42 @@ const styles = StyleSheet.create({
   },
 gameItemContainer: {
   alignItems: 'center',
-  justifyContent: 'center',
-  width: '100%',
-  marginBottom: 16,
 },
 
 gameContainer: {
-  width: "100%",
   alignItems: "center",  // ✅ centers the image horizontally
   borderRadius: 12,
-  overflow: "hidden",
-  marginBottom: 8,
 },
 
 gameImg: {
   width: '90%',          // already good
-  aspectRatio: 16 / 9,
+  aspectRatio: 2/2,
   alignSelf: 'center',   // ✅ this ensures it's centered within its container
-  justifyContent: 'flex-end',
   marginVertical: 10,
-  marginLeft: 33
+  marginLeft: 0,
+  borderColor: '#FFD700',
+  borderBlockStartColor: '#FFD700',
+  borderWidth: 5,
+  borderRadius: 50,
 },
-
-
-
+imageFrame: {
+  width: '70%',
+  aspectRatio: 1,                
+  alignSelf: 'center',
+  borderWidth: 5,
+  borderColor: 'rgba(255, 212, 22, 0.5)',
+  borderRadius: 50,
+  overflow: 'hidden',            
+  marginBottom: 20,
+},
+imageFill: {
+  width: '100%',
+  height: '100%',
+},
+imageFillImg: {
+  borderRadius: 20,              // ensures rounded bitmap on Android
+},
 gameImgStyle: {
-  borderRadius: 12,
 },
 
 gameName: {
@@ -336,6 +346,9 @@ gameName: {
   fontSize: 18,
   fontWeight: '600',
   color: 'white',
+  textShadowColor: 'rgba(0, 0, 0, 0.4)',
+  textShadowOffset: { width: 1, height: 1 },
+  textShadowRadius: 1,
 },
 
   tabsWrapper: {
@@ -344,11 +357,12 @@ gameName: {
 },
 
   selectButton: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#ffd752ff",
     paddingVertical: 8,
     borderRadius: 6,
     width: "60%",
     alignItems: "center",
+    marginTop: 20
   },
   selectButtonText: {
     fontWeight: "bold",
@@ -408,23 +422,25 @@ tabButtonTextActive: {
   fontWeight: '700',
 },
   pageTitle: {
-    fontSize: 28,
+    fontSize: 29,
     fontWeight: "700",
     color: "#FFF",
     textAlign: "center",
     marginBottom: 20,
-  },
-  backButtonContainer: {
-    position: 'absolute',
-    top: 40, // slightly higher for better spacing
-    left: 15,
-    zIndex: 10,
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 1,
   },
   backButton: {
     width: 40,
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 5,
+    marginTop: -30,
+    marginBottom: 10,
   },
   container: {
     flex: 1,

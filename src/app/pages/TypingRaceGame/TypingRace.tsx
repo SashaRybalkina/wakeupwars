@@ -104,6 +104,7 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
   const params = (route.params as any) || {};
   const challId = params.challId ?? params.challengeId;
   const challName = params.challName ?? 'Typing Race';
+  const whichChall = params.whichChall ?? 'Public';
   const { user, logout } = useUser();
 
   console.log("[DEBUG] TypingRace route params:", params);
@@ -279,19 +280,19 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
           Alert.alert(
             "Join Deadline Passed",
             "You cannot join this game because the join window has already closed.",
-            [{ text: "OK", onPress: () => navigation.goBack() }]
+            [{ text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challId, challName, whichChall }) }]
           );
         } else if (event.code === 4002) {
           Alert.alert(
             "Game Already Completed",
             "This challenge has already been completed today.",
-            [{ text: "OK", onPress: () => navigation.goBack() }]
+            [{ text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challId, challName, whichChall }) }]
           );
         } else if (event.code !== 1000) { // 1000 = normal close
           Alert.alert(
             "Connection Closed",
             "The connection was closed unexpectedly.",
-            [{ text: "OK", onPress: () => navigation.goBack() }]
+            [{ text: "OK", onPress: () => navigation.navigate("ChallDetails", { challId: challId, challName, whichChall }) }]
           );
         }
       };
@@ -488,18 +489,19 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
             .map((p: any, i: number) => `${i + 1}. ${p.username} — ${p.score}`)
             .join('\n');
 
-          Alert.alert(
-            '🏁 Final Results',
-            `🏆 Winner: ${msg.winner}\n\n${summary}`,
-            [
-              {
+          setTimeout(() => {
+            Alert.alert(
+              '🏁 Final Results',
+              `🏆 Winner: ${msg.winner}\n\n${summary}`,
+              [
+                {
                 text: 'Exit',
-                onPress: () => navigation.goBack(),
+                onPress: () => navigation.navigate("ChallDetails", { challId: challId, challName, whichChall }),
                 style: 'default',
               },
             ]
           );
-
+          }, 2000);
           setGameOver(true);
         }
 
@@ -782,14 +784,16 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
     setGameOver(true);
     
     if (!isMultiplayer) {
+      setTimeout(() => {
       Alert.alert(
         '🎉 Race Finished',
         `Accuracy: ${accuracy}%\nWPM: ${me?.wpm ?? 0}\nErrors: ${errorCount}`,
         [
           { text: 'Play Again', onPress: () => resetRace() },
-          { text: 'Exit', onPress: () => navigation.goBack() },
+          { text: 'Exit', onPress: () => navigation.navigate("ChallDetails", { challId: challId, challName, whichChall }) },
         ]
       );
+      }, 2000);
       try {
         const accessToken = await getAccessToken();
         if (!accessToken) {
@@ -1028,7 +1032,7 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
 
   return (
     <ImageBackground
-      source={require('../../images/cgpt.png')}
+      source={require('../../images/cgpt4.png')}
       style={styles.background}
       resizeMode="cover"
     >
@@ -1153,7 +1157,7 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
         behavior={Platform.select({ ios: 'padding', android: undefined })}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity style={styles.exitButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.exitButton} onPress={() => navigation.navigate("ChallDetails", { challId: challId, challName, whichChall })}>
             <Text style={styles.exitText}>Exit</Text>
           </TouchableOpacity>
 

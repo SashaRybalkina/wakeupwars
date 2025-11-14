@@ -1080,7 +1080,7 @@ const [hasShownResult, setHasShownResult] = useState(false);
   // };
 
   return (
-    <ImageBackground source={require('../images/cgpt.png')} style={styles.background} resizeMode="cover">
+    <ImageBackground source={require('../images/cgpt4.png')} style={styles.background} resizeMode="cover">
       <View style={styles.container}>
       {waitingActive && (
       <View style={styles.waitingOverlay}>
