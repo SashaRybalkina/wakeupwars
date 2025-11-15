@@ -23,6 +23,7 @@ from api.models import (
     Game,
     GameSchedule,
     GameScheduleGameAssociation,
+    PublicChallengeConfiguration,
 )
 
 CACHE_TTL = 300
@@ -85,7 +86,16 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
         raise ValueError(f"Challenge {challenge_id} not found")
 
     is_group = challenge.groupID_id is not None
+    is_public = challenge.isPublic
+    is_public_multiplayer = (
+        PublicChallengeConfiguration.objects
+        .filter(challenge_id=challenge_id)
+        .values_list('isMultiplayer', flat=True)
+        .first()
+    )
     print("is_group is true or not?", is_group)
+    print("is_public is true or not?", is_public)
+    print("is_public_multiplayer is true or not?", is_public_multiplayer)
     logger.warning(f"[TYPING][STEP1] Fetch Challenge took {(time.time()-t1)*1000:.2f}ms")
 
     # Use alarm_datetime if provided, otherwise use now
@@ -96,7 +106,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
 
     # === 2️⃣ Get or cache Typing Game ===
     t2 = time.time()
-    game_cache_key = f"typing_game_cache_{int(is_group)}"
+    game_cache_key = f"typing_game_cache_{int(is_group)}_{challenge_id}"
     typing_game = cache.get(game_cache_key)
     cache_hit = typing_game is not None
 
@@ -105,7 +115,11 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
         assoc = (
             GameScheduleGameAssociation.objects
             .select_related("game", "game_schedule")
-            .filter(game_schedule__challenge_id=challenge_id, game__name__icontains="typing")
+            .filter(
+                game_schedule__challenge_id=challenge_id,
+                game__name__icontains="typing",
+                game__isMultiplayer=1 if is_group or is_public_multiplayer else 0
+            )
             .order_by("game_order", "id")
             .first()
         )
@@ -113,7 +127,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
 
         if not typing_game:
             typing_game = (
-                Game.objects.filter(name__icontains="typing", isMultiplayer=1 if is_group else 0)
+                Game.objects.filter(name__icontains="typing", isMultiplayer=1 if is_group or is_public_multiplayer else 0)
                 .order_by("id")
                 .first()
             )
@@ -148,6 +162,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
                 user=None,
                 defaults=defaults
             )
+            logger.warning(f"[TYPING][multiplayer] Game created: {game_state}")
         except IntegrityError:
             created = False
             game_state = TypingRaceGameState.objects.get(
@@ -166,6 +181,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
                 user=user,
                 defaults=defaults
             )
+            logger.warning(f"[TYPING][singleplayer] Game created: {game_state}")
         except IntegrityError:
             created = False
             game_state = TypingRaceGameState.objects.get(
@@ -220,7 +236,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
     total_elapsed = (time.time() - total_start) * 1000
     logger.warning(
         f"[TYPING][PROFILE] chall={challenge_id} "
-        f"{'multi' if is_group else 'single'}-player TOTAL took {total_elapsed:.2f}ms"
+        f"{'multi' if is_multiplayer else 'single'}-player TOTAL took {total_elapsed:.2f}ms"
     )
 
     return {
@@ -499,5 +515,5 @@ def _save_leaderboard_cache_to_db(game_state_or_id):
 # ===============================
 
 get_or_create_typing_race_game_async = sync_to_async(get_or_create_typing_race_game, thread_sensitive=True)
-apply_progress_update_async = sync_to_async(apply_progress_update, thread_sensitive=True)
+apply_progress_update_async = sync_to_async(apply_progress_update, thread_sensitive=False)
 finalize_single_result_async = sync_to_async(finalize_single_result, thread_sensitive=True)

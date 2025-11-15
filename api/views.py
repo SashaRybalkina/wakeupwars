@@ -5458,6 +5458,8 @@ class CreateTypingRaceGameView(APIView):
         #         )
 
         game_data = get_or_create_typing_race_game(challenge_id, user)
+        logger.warning(f"[TYPING][CREATE] Game created: {game_data}")
+        logger.warning(f"[TYPING][CREATE] User?: {user}")
         return Response(game_data, status=status.HTTP_200_OK)
 
 
@@ -5505,7 +5507,7 @@ class FinalizeTypingRaceResultView(APIView):
             game=game_state.game,
             user=user,
             date=timezone.localdate(),
-            defaults={"score": int(result["final_score"])}
+            defaults={"score": int(result["final_score"]), "auto_generated": False}
         )
 
         return Response(result, status=status.HTTP_200_OK)

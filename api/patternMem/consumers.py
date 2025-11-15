@@ -51,6 +51,8 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
         if not gs.join_deadline_at:
             gs.join_deadline_at = (gs.created_at or now) + timezone.timedelta(seconds=20)
             await sync_to_async(gs.save)(update_fields=["join_deadline_at"])
+        if cache.add(f"pm_deadline_scheduled_{self.game_state_id}", True, timeout=3600):
+            close_join_window.apply_async(args=['PatternMemorizationGameState', self.game_state_id], eta=gs.join_deadline_at)
 
         # closed?
         if gs.joins_closed or now > gs.join_deadline_at:
@@ -91,9 +93,23 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
                     "started": started,
                     "ready_count": len(effective_ready),
                     "expected_count": expected_count,
+                    "created_at": (gs.created_at.isoformat() if getattr(gs, "created_at", None) else None),
+                    "join_deadline_at": (gs.join_deadline_at.isoformat() if getattr(gs, "join_deadline_at", None) else None),
+                    "server_now": timezone.now().isoformat(),
+                    "online_ids": list(conns),
                 }
             )
         )
+        await self.channel_layer.group_send(self.group_name, {
+            "type": "lobby.state",
+            "started": started,
+            "ready_count": len(effective_ready),
+            "expected_count": expected_count,
+            "created_at": (gs.created_at.isoformat() if getattr(gs, "created_at", None) else None),
+            "join_deadline_at": (gs.join_deadline_at.isoformat() if getattr(gs, "join_deadline_at", None) else None),
+            "server_now": timezone.now().isoformat(),
+            "online_ids": list(conns),
+        })
 
     async def disconnect(self, close_code):
         # remove from online users
@@ -113,8 +129,23 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
             cache.delete(_started_key(self.game_state_id))
             cache.delete(_ready_key(self.game_state_id))
             cache.delete(_conns_key(self.game_state_id))
-            # NEW: ensure freeze flag is cleared if room empties
             cache.delete(_freeze_key(self.game_state_id))
+
+        started = bool(cache.get(_started_key(self.game_state_id)) or False)
+        expected_count = await self._get_expected_count()
+        effective_ready = ready & conns
+        gs = await sync_to_async(PatternMemorizationGameState.objects.only("created_at", "join_deadline_at").get)(id=self.game_state_id)
+        from django.utils import timezone
+        await self.channel_layer.group_send(self.group_name, {
+            "type": "lobby.state",
+            "started": started,
+            "ready_count": len(effective_ready),
+            "expected_count": expected_count,
+            "created_at": (gs.created_at.isoformat() if getattr(gs, "created_at", None) else None),
+            "join_deadline_at": (gs.join_deadline_at.isoformat() if getattr(gs, "join_deadline_at", None) else None),
+            "server_now": timezone.now().isoformat(),
+            "online_ids": list(conns),
+        })
 
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
@@ -141,6 +172,19 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
 
         expected = await self._get_expected_count()
         print(f"[DEBUG From Consumers] ready_count={len(ready_ids)}, effective={len(effective_ready)}, expected={expected}", flush=True)
+
+        gs = await sync_to_async(PatternMemorizationGameState.objects.only("created_at", "join_deadline_at").get)(id=self.game_state_id)
+        from django.utils import timezone
+        await self.channel_layer.group_send(self.group_name, {
+            "type": "lobby.state",
+            "started": bool(cache.get(_started_key(self.game_state_id)) or False),
+            "ready_count": len(effective_ready),
+            "expected_count": expected,
+            "created_at": (gs.created_at.isoformat() if getattr(gs, "created_at", None) else None),
+            "join_deadline_at": (gs.join_deadline_at.isoformat() if getattr(gs, "join_deadline_at", None) else None),
+            "server_now": timezone.now().isoformat(),
+            "online_ids": list(conns),
+        })
 
         # Only the first process that flips started can continue
         if expected > 0 and len(effective_ready) >= expected:
@@ -243,6 +287,20 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             "type": "lobby_countdown",
             "seconds": event["seconds"],
+        }))
+
+    async def lobby_state(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "lobby_state",
+            "started": event.get("started", False),
+            "ready_count": event.get("ready_count", 0),
+            "expected_count": event.get("expected_count", 0),
+        }))
+
+    async def join_window_closed(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "join_window_closed",
+            "server_now": event.get("server_now"),
         }))
 
     async def round_countdown(self, event):

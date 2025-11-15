@@ -228,43 +228,39 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
 
     async def _handle_progress_update(self, total_typed, total_errors):
         """Handle player's progress update event."""
-        #print(f"[Typing][PROGRESS] {self.user.username}: typed={total_typed}, errors={total_errors}")
-
-        #  # every 200ms at most to broadcast
-        # throttle_key = f"typing_last_update_{self.game_id}_{self.user.id}"
-        # now = time()
-        # last_time = cache.get(throttle_key, 0)
-        # if now - last_time < 0.2:  
-        #     return
-        # cache.set(throttle_key, now, timeout=2)
-
-        # start_time = time()
-        # logger.debug(f"[TIMING][DB_START] user={self.user.username} typed={total_typed} errors={total_errors}")
-
-        # logger.warning(
-        #     f"[PROGRESS][RECV] user={self.user.username} typed={total_typed} errors={total_errors}"
-        # )
-
-        # Apply progress update and get player's updated data
+        # Apply progress update and get player's updated data (cache-only until finish)
         result = await apply_progress_update_async(self.game_id, self.user, total_typed, total_errors)
 
-        # db_end = time()
-        # db_elapsed = (db_end - start_time) * 1000
-        # logger.debug(f"[TIMING][DB_END] user={self.user.username} db_took={db_elapsed:.2f}ms")
+        # Throttle server broadcasts by time and progress delta
+        throttle_key = f"typing_last_send_{self.game_id}_{self.user.id}"
+        last_prog_key = f"typing_last_progress_sent_{self.game_id}_{self.user.id}"
+
+        now_ts = time()
+        last_ts = cache.get(throttle_key) or 0
+        last_prog = cache.get(last_prog_key) or 0.0
+
+        progress = float(result.get("progress", 0.0) or 0.0)
+        is_completed = bool(result.get("is_completed", False))
+
+        time_ok = (now_ts - last_ts) >= 0.1  # at most ~10 fps per user
+        delta_ok = abs(progress - float(last_prog)) >= 0.5  # only if changed by >= 0.5%
+
+        should_broadcast = is_completed or (time_ok and delta_ok)
+        if not should_broadcast:
+            return
+
+        # Update throttle markers
+        cache.set(throttle_key, now_ts, timeout=2)
+        cache.set(last_prog_key, progress, timeout=60)
 
         player_snapshot = {
             "username": self.user.username,
-            "progress": result.get("progress", 0.0),
+            "progress": round(progress, 2),
             "accuracy": result.get("accuracy", 100.0),
-            "is_completed": result.get("is_completed", False),
-            # "client_sent_at": result.get("client_sent_at", None) or recv_ts,
+            "is_completed": is_completed,
         }
 
-        # logger.warning(
-        #     f"[PROGRESS][SEND] {self.user.username} broadcasting progress={player_snapshot['progress']:.2f}%"
-        # )
-
-        # ✅ Broadcast only this player's update to all connected clients
+        # Broadcast to all connected clients
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -273,11 +269,11 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             },
         )
 
-        # Check if all players finished (early complete)
-        await self._check_if_everyone_finished()
+        # Only run ended-check when a player completes
+        if is_completed:
+            await self._check_if_everyone_finished()
 
-
-        #logger.warning(f"[PROGRESS][SENT] {self.user.username} done broadcast")
+        #logger.warning(f"[PROGRESS][SENT] {self.user.username} broadcast progress={progress:.2f}%")
 
     async def _check_if_everyone_finished(self):
         """
@@ -665,7 +661,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             state = TypingRaceGameState.objects.select_related("challenge", "game").get(id=self.game_id)
             today = date.today()
 
-            if absent_ids:
+            if absent_ids and bool(getattr(state.game, 'isMultiplayer', False)):
                 users = list(User.objects.filter(id__in=absent_ids))
                 for user in users:
                     TypingRaceGamePlayer.objects.get_or_create(
@@ -726,13 +722,22 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
 
     # ===== Helper: ended game check =====
     async def _check_game_not_ended(self, gs):
-        ended = await sync_to_async(
-            GamePerformance.objects.filter(
-                challenge=gs.challenge,
-                game=gs.game,
-                date=timezone.localdate()
-            ).exists
-        )()
+        try:
+            is_multiplayer = bool(getattr(gs.game, "isMultiplayer", False))
+        except Exception:
+            is_multiplayer = False
+
+        q = GamePerformance.objects.filter(
+            challenge=gs.challenge,
+            game=gs.game,
+            date=timezone.localdate()
+        )
+        if not is_multiplayer:
+            owner_id = getattr(gs, "user_id", None)
+            if owner_id:
+                q = q.filter(user_id=owner_id)
+
+        ended = await sync_to_async(q.exists)()
         if ended:
             gs.joins_closed = True
             await sync_to_async(gs.save)(update_fields=["joins_closed"])
@@ -745,6 +750,9 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         gs = await sync_to_async(
             TypingRaceGameState.objects.select_related("challenge", "game").get
         )(id=self.game_id)
+
+        if not bool(getattr(gs.game, "isMultiplayer", False)):
+            return
 
         all_members = await sync_to_async(list)(
             ChallengeMembership.objects.filter(

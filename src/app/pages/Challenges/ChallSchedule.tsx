@@ -357,6 +357,7 @@ const addGameToDay = async (game: { id: number; name: string }) => {
     const handleJoinPublicChallenge = async () => {
       if (joining) return;
       setJoining(true);
+      setSettingAlarms(false);
       try {
         const payload = {
           challenge_id: challId,

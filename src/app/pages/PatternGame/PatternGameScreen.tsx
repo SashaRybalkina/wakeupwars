@@ -49,6 +49,11 @@ type WsRoundCountdown = {
   type: 'round_countdown';
   seconds: number;
 };
+// NEW: join-window closed event
+type WsJoinWindowClosed = {
+  type: 'join_window_closed';
+  server_now?: string;
+};
 
 type WsTimerExpired = { type: 'timer_expired' };
 type WsTimeout = { type: 'timeout' };
@@ -60,6 +65,7 @@ type WsIncoming =
   | WsAnswerResult
   | WsGameOver
   | WsRoundCountdown
+  | WsJoinWindowClosed
   | WsTimerExpired
   | WsTimeout;
 
@@ -97,7 +103,7 @@ const wsUrlFor = (gameStateId: number, accessToken: string) => {
 
 const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
   // Use only the formal route params
-  const challengeId: number | undefined = route?.params?.challengeId;
+  const challengeId: number = route?.params?.challengeId as number;
   const challName: string | undefined = route?.params?.challName;
   const whichChall: string | undefined = route?.params?.whichChall;
 
@@ -120,10 +126,15 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
   const [submitting, setSubmitting] = useState(false);
 
   // Lobby/WS (multiplayer)
-  const [lobbyStatus, setLobbyStatus] = useState<string>(''); // e.g., waiting...
-  const [countdown, setCountdown] = useState<number | null>(null); // shared for lobby & in-game
+  const [lobbyStatus, setLobbyStatus] = useState<string>('');
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [isMultiplayer, setIsMultiplayer] = useState<boolean>(false);
   const wsRef = useRef<WebSocket | null>(null);
+  const [waitingActive, setWaitingActive] = useState<boolean>(false);
+  const [readyCount, setReadyCount] = useState<number>(0);
+  const [expectedCount, setExpectedCount] = useState<number>(0);
+  const [members, setMembers] = useState<{ id: number; name: string }[]>([]);
+  const [onlineIds, setOnlineIds] = useState<number[]>([]);
 
   // 5-minute game timer (mirrors Sudoku)
   const [gameTimeLeft, setGameTimeLeft] = useState<number>(300); // 300 for prod
@@ -273,8 +284,17 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
 
       ws.onopen = () => {
         setLobbyStatus('connected');
-        // Immediately declare ready (could also be manual via button)
+        setWaitingActive(true);
         ws.send(JSON.stringify({ type: 'player_ready' }));
+        (async () => {
+          try {
+            const detailRes = await fetch(endpoints.challengeDetail(challengeId), {
+              headers: { 'Authorization': `Bearer ${accessToken}` },
+            });
+            const detail = await detailRes.json();
+            setMembers(detail?.members || []);
+          } catch {}
+        })();
       };
 
       ws.onmessage = async (ev) => {
@@ -291,7 +311,10 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
               ? 'started'
               : `waiting ${msg.ready_count}/${msg.expected_count}`;
             setLobbyStatus(s);
-            // Start game timer when server indicates game has started
+            setReadyCount((msg as any).ready_count || 0);
+            setExpectedCount((msg as any).expected_count || 0);
+            if (Array.isArray((msg as any).online_ids)) setOnlineIds((msg as any).online_ids);
+            setWaitingActive(!msg.started);
             if (msg.started && !gameTimerStartedRef.current) {
               startGameTimer();
             }
@@ -300,6 +323,12 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
           case 'lobby_countdown': {
             setCountdown(msg.seconds);
             setLobbyStatus(`starting in ${msg.seconds}`);
+            break;
+          }
+          case 'join_window_closed': {
+            setWaitingActive(false);
+            setLobbyStatus('join window closed');
+            if (!gameTimerStartedRef.current) startGameTimer();
             break;
           }
           case 'round_countdown': { // NEW: in-game countdown
@@ -688,10 +717,33 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
       resizeMode="cover"
     >
       <View style={styles.container}>
-        {/* Exit */}
         <TouchableOpacity style={styles.exitButton} onPress={() => { cleanupWs(); navigation.goBack(); }}>
           <Text style={styles.exitText}>Exit</Text>
         </TouchableOpacity>
+
+        {isMultiplayer && waitingActive && (
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 10 }}>
+            <View style={{ width: '80%', padding: 16, backgroundColor: '#222', borderRadius: 12, borderWidth: 1, borderColor: '#444' }}>
+              <Text style={{ color: 'white', fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 8 }}>Waiting Room</Text>
+              <View style={{ marginTop: 8 }}>
+                {members.map(m => {
+                  const isOnline = onlineIds?.some(id => String(id) === String(m.id));
+                  const initials = (m.name || '').split(' ').filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase();
+                  return (
+                    <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, opacity: isOnline ? 1 : 0.5 }}>
+                      <View style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10, justifyContent: 'center', alignItems: 'center', backgroundColor: isOnline ? '#FFD700' : '#999', borderWidth: isOnline ? 2 : 1, borderColor: isOnline ? '#fff' : '#666' }}>
+                        <Text style={{ color: isOnline ? '#333' : '#eee', fontWeight: '700' }}>{initials || '?'}</Text>
+                      </View>
+                      <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>{m.name}</Text>
+                      {isOnline && <View style={{ marginLeft: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: '#00E676' }} />}
+                    </View>
+                  );
+                })}
+              </View>
+              <Text style={{ color: 'white', textAlign: 'center', marginTop: 8 }}>Players: {readyCount}/{expectedCount}</Text>
+            </View>
+          </View>
+        )}
 
         <Text style={styles.title}>🧠 Pattern Memory Game</Text>
         <Text style={styles.subtitle}>Round: {level}/{maxRounds}</Text>

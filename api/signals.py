@@ -71,7 +71,7 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                 .filter(challenge=ch, dayOfWeek=dow)
                 .values_list('id', flat=True)
             )
-            game_ids = list(
+            scheduled_game_ids = list(
                 GameScheduleGameAssociation.objects
                 .filter(game_schedule_id__in=sched_ids)
                 .values_list('game_id', flat=True)
@@ -81,24 +81,24 @@ def _gp_maybe_advance_day(sender, instance: GamePerformance, created: bool, **kw
                 .filter(challenge=ch, date=play_date)
                 .values_list('game_id', flat=True)
                 .distinct()
-            )   
-            print("Played game IDs: ", played_game_ids_qs)
-            if game_ids:
-                played_game_ids = [gid for gid in played_game_ids_qs if gid in set(game_ids)]
+            )
+            # If there are scheduled games for this day, require ALL of them.
+            # Otherwise (no schedule), fall back to whatever was actually played.
+            if scheduled_game_ids:
+                required_game_ids = list(scheduled_game_ids)
             else:
-                played_game_ids = list(played_game_ids_qs)
-            print("Played game IDs: ", played_game_ids)
-            if not played_game_ids:
+                required_game_ids = list(played_game_ids_qs)
+            if not required_game_ids:
                 return
 
             # Expected vs found performances for the day (only games that actually have performances)
-            expected = len(participant_ids) * len(played_game_ids)
+            expected = len(participant_ids) * len(required_game_ids)
             found = (
                 GamePerformance.objects
                 .filter(
                     challenge=ch,
                     date=play_date,
-                    game_id__in=played_game_ids,
+                    game_id__in=required_game_ids,
                     user_id__in=participant_ids,
                 )
                 .values('game_id', 'user_id')
