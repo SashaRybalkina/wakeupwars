@@ -468,7 +468,7 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
 
 
           <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Set Reward 🪙</Text>
+            <Text style={styles.sectionTitle}>Set Participation Fee 🪙</Text>
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
@@ -481,22 +481,6 @@ const GroupChallCollab2: React.FC<Props> = ({ navigation }) => {
             </View>
           </View>
 
-          {/* <View style={styles.rewardHeader}>
-            <Text style={styles.sectionTitle}>Set Reward</Text>
-
-            <View style={styles.inputRow}>
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Amount"
-                placeholderTextColor="rgba(255,255,255,0.6)"
-                keyboardType="numeric"
-                value={participationFee}
-                onChangeText={setParticipationFee}
-              />
-              <Text style={styles.coinEmoji}>🪙</Text>
-            </View>
-          </View> */}
-            
 
 
 

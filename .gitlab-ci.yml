@@ -44,7 +44,7 @@ test_frontend:
     paths:
       - src/coverage/
     when: always
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      when: always
-    - when: never
+  # rules:
+  #   - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  #     when: always
+  #   - when: never
