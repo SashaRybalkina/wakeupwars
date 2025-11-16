@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react"
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ImageBackground } from "react-native"
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ImageBackground, ActivityIndicator } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { NavigationProp } from "@react-navigation/native"
 import { useUser } from "../../context/UserContext"
@@ -14,11 +14,13 @@ type Props = {
 const NotificationsPage: React.FC<Props> = ({ navigation }) => {
   const { user, logout } = useUser()
   const [notifications, setNotifications] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const wsRef = useRef<WebSocket | null>(null)
 
   const fetchNotifications = async () => {
     if (!user?.id) return
     try {
+      setLoading(true)
       const accessToken = await getAccessToken()
       if (!accessToken) {
                   Alert.alert(
@@ -48,6 +50,8 @@ const NotificationsPage: React.FC<Props> = ({ navigation }) => {
       setNotifications(data)
     } catch (e) {
       console.error("Failed to fetch notifications:", e)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -157,6 +161,11 @@ const NotificationsPage: React.FC<Props> = ({ navigation }) => {
                     <Ionicons name="arrow-back" size={24} color="#FFF" />
                   </TouchableOpacity>
         <Text style={styles.title}>Notifications</Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size={100} color="#FFF" />
+          </View>
+        ) : (
         <ScrollView showsVerticalScrollIndicator={false}>
           {notifications.length > 0 ? (
             notifications.map((n, i) => (
@@ -181,6 +190,7 @@ const NotificationsPage: React.FC<Props> = ({ navigation }) => {
             </View>
           )}
         </ScrollView>
+        )}
       </View>
     </ImageBackground>
   )
@@ -211,6 +221,12 @@ const styles = StyleSheet.create({
   body: { color: "#FFF", fontSize: 15, marginTop: 4 },
   empty: { alignItems: "center", marginTop: 100 },
   emptyText: { color: "#FFF", marginTop: 10, fontSize: 16 },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 80,
+  },
 })
 
 export default NotificationsPage

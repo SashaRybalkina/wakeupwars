@@ -1,7 +1,7 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from api.models import Friendship, GroupMembership, Message, User, Group
+from api.models import Friendship, GroupMembership, Message, User, Group, UserNotification
 from api.utils.notifications import send_fcm_notification
 
 ACTIVE_CHAT_USERS = {}
@@ -121,6 +121,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             "screen": "Notifications",
         }
         send_fcm_notification(title, body, data, recipient_id)
+        
+        UserNotification.objects.create(
+            user_id=recipient_id,
+            title=title,
+            body=body,
+            type="message",
+            screen="Messages",
+        )
     
     def send_push_to_group(self, sender, group_id, message):
         """Send push for group chat"""
@@ -132,6 +140,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             body = message[:100]
             data = {"screen": "Notifications"}
             send_fcm_notification(title, body, data, member.uID_id)
+            
+            UserNotification.objects.create(
+                user_id=member.uID_id,
+                title=title,
+                body=body,
+                type="message",
+                screen="Messages",
+            )
 
     @database_sync_to_async
     def get_user_group_ids(self, user_id):
