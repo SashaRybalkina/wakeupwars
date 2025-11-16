@@ -302,12 +302,12 @@ const PublicChallenges: React.FC<Props> = ({ navigation }) => {
             style={styles.pastButtonContainer}
             onPress={() => navigation.navigate("PastChallenges", { type: "Public" })}
           >
-            <LinearGradient
-              colors={["#FFE0B2", "#ffcf4dff"]}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 0.5, y: 1 }}
-              style={styles.pastButtonGradient}
-            >
+              <LinearGradient
+                colors={["#FFD700", "#fdb021ff"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.pastButtonGradient}
+              >
               <View style={styles.pastButtonRow}>
                 <Ionicons name="time-outline" size={18} color="#333" style={{ marginRight: 8 }} />
                 <Text style={styles.pastButtonText}>View past challenges</Text>
@@ -492,8 +492,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.35)",
+    // borderTopWidth: 1,
+    // borderTopColor: "rgba(255, 255, 255, 0.35)",
   },
   pastButtonText: {
     color: "#333",

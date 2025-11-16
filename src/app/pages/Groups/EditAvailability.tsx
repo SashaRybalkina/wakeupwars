@@ -113,7 +113,7 @@ const EditAvailability: React.FC<Props> = ({ navigation }) => {
     pendingChallengeEndDate: string,
     accepted: number };
 
-    console.log(pendingChallengeId)
+  console.log("EditAvailability route params:", route.params);
 
   const { user, logout } = useUser();
 
@@ -828,12 +828,14 @@ return (
             style={styles.createButton}
             onPress={handleSubmit}
           >
-            <LinearGradient
-              colors={["#FFD700", "#FFC107"]}
-              style={styles.createButtonGradient}
-            >
-              <Text style={styles.createButtonText}>Save My Availability</Text>
-            </LinearGradient>
+    <LinearGradient
+      colors={["#FFD700", "#FFA500"]}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 0.5, y: 1 }}
+      style={[styles.createButtonGradient, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+    >
+      <Text style={styles.createButtonText}>Save My Availability</Text>
+    </LinearGradient>
           </TouchableOpacity>
 )}
 
@@ -847,12 +849,14 @@ return (
             style={styles.createButton}
             onPress={handleDecline}
           >
-            <LinearGradient
-              colors={["#FFD700", "#FFC107"]}
-              style={styles.createButtonGradient}
-            >
-              <Text style={styles.createButtonText}>Decline Challenge Invite</Text>
-            </LinearGradient>
+    <LinearGradient
+      colors={["#FFD700", "#FFA500"]}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 0.5, y: 1 }}
+      style={[styles.createButtonGradient, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+    >
+      <Text style={styles.createButtonText}>Decline Challenge Invite</Text>
+    </LinearGradient>
           </TouchableOpacity>
   )}
 
@@ -865,12 +869,14 @@ return (
             style={styles.createButton}
             onPress={handleFinalizeSchedule}
           >
-            <LinearGradient
-              colors={["#FFD700", "#FFC107"]}
-              style={styles.createButtonGradient}
-            >
-              <Text style={styles.createButtonText}>Finalize Challenge</Text>
-            </LinearGradient>
+    <LinearGradient
+      colors={["#FFD700", "#FFA500"]}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 0.5, y: 1 }}
+      style={[styles.createButtonGradient, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+    >
+      <Text style={styles.createButtonText}>Finalize Challenge</Text>
+    </LinearGradient>
           </TouchableOpacity>
   )}
 </ScrollView>

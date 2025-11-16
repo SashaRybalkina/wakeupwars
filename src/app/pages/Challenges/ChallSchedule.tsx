@@ -183,12 +183,26 @@ useEffect(() => {
       });
       
       setSchedule(dedupedSchedule);
-      // setSchedule(data.schedule)
-      console.log(JSON.stringify(data.schedule, null, 2))
 
-      // Select first day that has a schedule by default
-      if (data.schedule.length > 0) {
-        setSelectedDay(data.schedule[0].dayOfWeek)
+      // Auto-select first day + first alarm time
+      if (dedupedSchedule.length > 0) {
+        const firstDay = dedupedSchedule[0];
+
+        setSelectedDay(firstDay.dayOfWeek);
+        console.log("selected " + firstDay?.dayOfWeek)
+
+        // Select the first alarm for that day
+        if (firstDay.alarms && firstDay.alarms.length > 0) {
+          const firstAlarm = firstDay.alarms[0];
+          console.log("first alarm " + firstAlarm)
+
+          setSelectedAlarm({
+            dayOfWeek: firstDay.dayOfWeek,
+            time: firstAlarm.alarmTime,
+            usersCount: firstAlarm.userNames.length,
+          });
+          setOpenAlarmKey(`${firstDay.dayOfWeek}-${firstAlarm.alarmTime}`);
+        }
       }
 
       setHasSetAlarms(alarmsRes.data.hasSetAlarms);
@@ -663,7 +677,7 @@ return (
           <View style={styles.gamesSection}>
             <View style={styles.gamesSectionHeader}>
               <Text style={styles.sectionTitle}>
-                {selectedDay ? `Games for ${DayOfWeekLabels[selectedDay]}` : "Select a day"}
+                {selectedDay ? `Game for ${DayOfWeekLabels[selectedDay]}` : "Select a day"}
               </Text>
               {selectedAlarm && selectedAlarm.dayOfWeek === selectedDay && visibleGames.length > 0 && (
                 <View style={styles.alarmGamesRow}>
