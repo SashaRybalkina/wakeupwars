@@ -1198,6 +1198,7 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
                   >
                     <Text style={styles.playerName} numberOfLines={1} ellipsizeMode="tail">
                       {p.username}
+                      
                     </Text>
                   </View>
 

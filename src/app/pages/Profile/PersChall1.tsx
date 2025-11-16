@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   titleSecondary: { color: "#FFF", fontSize: 38, fontWeight: "800", marginTop: -5, textShadowColor: "rgba(0, 0, 0, 0.2)", textShadowOffset: { width: 2, height: 2 }, textShadowRadius: 3 },
   decorativeLine: { width: 60, height: 4, backgroundColor: "#FFD700", borderRadius: 2, marginTop: 10, marginBottom: 10 },
   scrollContainer: { flex: 1 },
-  scrollContent: { paddingBottom: 30, flexGrow: 1, },
+  scrollContent: { paddingBottom: 140, flexGrow: 1, },
   challengesSection: { marginBottom: 25, paddingHorizontal: 20 },
   sectionTitle: { fontSize: 24, fontWeight: "700", color: "#ffffffff", marginTop: 10, marginBottom: 15 },
   challengeCardsContainer: { width: "100%" },

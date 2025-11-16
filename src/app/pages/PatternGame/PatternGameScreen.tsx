@@ -135,9 +135,12 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
   const [expectedCount, setExpectedCount] = useState<number>(0);
   const [members, setMembers] = useState<{ id: number; name: string }[]>([]);
   const [onlineIds, setOnlineIds] = useState<number[]>([]);
+  const [joinDeadlineISO, setJoinDeadlineISO] = useState<string | null>(null);
+  const [remainingSec, setRemainingSec] = useState<number | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // 5-minute game timer (mirrors Sudoku)
-  const [gameTimeLeft, setGameTimeLeft] = useState<number>(300); // 300 for prod
+  const [gameTimeLeft, setGameTimeLeft] = useState<number>(30); // 300 for prod
   const gameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerExpiredSentRef = useRef(false);
   const gameTimerStartedRef = useRef(false);
@@ -158,6 +161,24 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
 
   // Small sleep helper
   const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+  // Start a local countdown to the join deadline (for waiting room)
+  const startLocalCountdown = useCallback((deadlineISO: string | null) => {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+    setJoinDeadlineISO(deadlineISO);
+    if (!deadlineISO) { setRemainingSec(null); return; }
+    const deadline = new Date(deadlineISO).getTime();
+    const tick = () => {
+      const now = Date.now();
+      const diffMs = Math.max(0, deadline - now);
+      setRemainingSec(Math.floor(diffMs / 1000));
+    };
+    tick();
+    countdownRef.current = setInterval(tick, 1000);
+  }, []);
 
   // Game timer helpers
   const handleTimerExpired = useCallback(async () => {
@@ -193,7 +214,7 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const startGameTimer = useCallback(() => {
     if (gameTimerRef.current) clearInterval(gameTimerRef.current);
-    setGameTimeLeft(300);
+    setGameTimeLeft(30);
     timerExpiredSentRef.current = false;
     gameTimerStartedRef.current = true;
     gameTimerRef.current = setInterval(() => {
@@ -314,6 +335,8 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
             setReadyCount((msg as any).ready_count || 0);
             setExpectedCount((msg as any).expected_count || 0);
             if (Array.isArray((msg as any).online_ids)) setOnlineIds((msg as any).online_ids);
+            // Join window deadline for waiting-room countdown
+            if ((msg as any).join_deadline_at) startLocalCountdown((msg as any).join_deadline_at as any);
             setWaitingActive(!msg.started);
             if (msg.started && !gameTimerStartedRef.current) {
               startGameTimer();
@@ -321,12 +344,22 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
             break;
           }
           case 'lobby_countdown': {
+            // Hide waiting overlay so 3-2-1 can be fully visible
+            setWaitingActive(false);
+            // Stop join-window countdown once 3-2-1 begins
+            if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+            setJoinDeadlineISO(null);
+            setRemainingSec(null);
             setCountdown(msg.seconds);
             setLobbyStatus(`starting in ${msg.seconds}`);
             break;
           }
           case 'join_window_closed': {
             setWaitingActive(false);
+            // Stop join-window countdown immediately when closed
+            if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+            setJoinDeadlineISO(null);
+            setRemainingSec(null);
             setLobbyStatus('join window closed');
             if (!gameTimerStartedRef.current) startGameTimer();
             break;
@@ -510,6 +543,7 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
       wsRef.current?.close();
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
       if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengeId]);
@@ -725,6 +759,9 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 10 }}>
             <View style={{ width: '80%', padding: 16, backgroundColor: '#222', borderRadius: 12, borderWidth: 1, borderColor: '#444' }}>
               <Text style={{ color: 'white', fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 8 }}>Waiting Room</Text>
+              {remainingSec != null && (
+                <Text style={{ color: 'white', textAlign: 'center' }}>Starts in {formatTime(remainingSec)}</Text>
+              )}
               <View style={{ marginTop: 8 }}>
                 {members.map(m => {
                   const isOnline = onlineIds?.some(id => String(id) === String(m.id));
@@ -875,6 +912,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.35)',
+    zIndex: 20, // ensure above waiting room overlay
   },
   countdownText: { fontSize: 64, fontWeight: '900', color: '#fff' },
 

@@ -57,7 +57,7 @@ const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoi
   const rows: any[][] = [];
   const effectiveSkills = Array.isArray(skillLevelsOverride) ? skillLevelsOverride : skillLevels;
   const list = Array.isArray(effectiveSkills) ? effectiveSkills : [];
-  for (let i = 0; i < list.length; i += 3) rows.push(list.slice(i, i + 3));
+  for (let i = 0; i < list.length; i += 2) rows.push(list.slice(i, i + 2));
 
   useEffect(() => {
     setBadges(badgesGiven || []);
@@ -309,7 +309,7 @@ const PulsingBadge = ({ badge, onPress }) => {
     <Text style={styles.coinText}>{numCoins} 🪙</Text>
     <TouchableOpacity
       onPress={() => setCoinInfoVisible(true)}
-      style={{ marginLeft: 6 }}
+      style={{ marginLeft: 4 , marginTop: 5, shadowColor: 'rgba(0, 0, 0, 0.95)', shadowOffset: { width: 2, height: 2 }, shadowRadius: 2 }}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
       <Ionicons name="help-circle" size={22} color="rgba(255,255,255,0.85)" />
@@ -433,7 +433,7 @@ const PulsingBadge = ({ badge, onPress }) => {
                   rows.push(visibleBadges.slice(i, i + 3));
                 }
                 return rows.map((row, idx) => (
-                  <View key={idx} style={[styles.skillsRow, row.length === 3 ? styles.row3 : styles.row2]}>
+                  <View key={idx} style={[styles.skillsRow, row.length === 3 ? styles.row3 : styles.row2Badge]}>
                     {row.map((badge) => (
                       <PulsingBadge
                         key={badge.id}
@@ -759,6 +759,7 @@ avatarContainer: {
     textShadowColor: 'rgba(0, 0, 0, 0.30)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
+    
   },
   infoBackdrop: {
     flex: 1,
@@ -835,12 +836,17 @@ avatarContainer: {
     justifyContent: 'space-between',
   },
   row2: {
-    width: '45%',
+    width: '90%',
+    alignSelf: 'center',
+    justifyContent: 'space-between',
+  },
+  row2Badge: {
+    width: '90%',
     alignSelf: 'center',
     justifyContent: 'space-between',
   },
   skillItem: {
-    width: '30%',
+    width: '48%',
     alignItems: 'center',
   },
   skillBadge: {
