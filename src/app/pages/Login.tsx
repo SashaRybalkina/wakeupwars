@@ -256,10 +256,10 @@ contentContainer: {
   logoContainer: {
     alignItems: 'center',
     marginBottom: 40,
-    marginTop: 70,
+    marginTop: 130,
   },
   logoImage: {
-    width: 300,
+    width: 270,
     height: 70,
   },
   formContainer: {
