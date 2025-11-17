@@ -98,14 +98,15 @@ def open_join_window(challenge_id, game_id, game_code, user_id=None):
     else:
         return  # unknown game type
     
-    # Schedule close_join_window task
-    if not gs.join_deadline_at:
-        gs.join_deadline_at = timezone.now() + timezone.timedelta(seconds=20)
+    # Schedule close_join_window task (refresh stale or missing deadline)
+    now = timezone.now()
+    if not gs.join_deadline_at or gs.join_deadline_at <= now:
+        gs.join_deadline_at = now + timedelta(seconds=20)
         gs.save(update_fields=["join_deadline_at"])
     
     logger.info(
         "[join-window] scheduling close for %s id=%s at %s (now=%s)",
-        Model.__name__, gs.id, gs.join_deadline_at, timezone.now()
+        Model.__name__, gs.id, gs.join_deadline_at, now
     )
     close_join_window.apply_async(
         args=[Model.__name__, gs.id],

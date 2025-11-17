@@ -36,7 +36,7 @@ def _started_key(game_id: int):
 
 
 CACHE_TTL = 360
-JOIN_TIMEOUT_SEC = 30
+JOIN_TIMEOUT_SEC = 20
 
 # ===== Feature switches =====
 ENABLE_JOIN_DEADLINE = True

@@ -48,9 +48,10 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
             PatternMemorizationGameState.objects.select_related("challenge", "game").get
         )(id=self.game_state_id)
 
-        if not gs.join_deadline_at:
-            gs.join_deadline_at = (gs.created_at or now) + timezone.timedelta(seconds=20)
+        if not gs.join_deadline_at or gs.join_deadline_at <= now:
+            gs.join_deadline_at = now + timedelta(seconds=20)
             await sync_to_async(gs.save)(update_fields=["join_deadline_at"])
+            cache.delete(f"pm_deadline_scheduled_{self.game_state_id}")
         if cache.add(f"pm_deadline_scheduled_{self.game_state_id}", True, timeout=3600):
             close_join_window.apply_async(args=['PatternMemorizationGameState', self.game_state_id], eta=gs.join_deadline_at)
 
