@@ -133,6 +133,7 @@ from .views import (
     CollectBetRefundView,
     GetPersonalChallengesView,
     CollectChallengeCoinsView,
+    DeleteChallengeView,
 )
 
 
@@ -186,6 +187,7 @@ urlpatterns = [
     path('join-public-challenge/<int:user_id>/', JoinPublicChallengeView.as_view(), name='join-public-challenge'),
     path('finalize-public-challenge/', FinalizePublicChallengeView.as_view(), name='finalize-public-challenge'),
     path('challenge-detail/<int:chall_id>/', ChallengeDetailView.as_view(), name='challenge-detail'),
+    path('delete-challenge/<int:chall_id>/', DeleteChallengeView.as_view(), name='delete-challenge'),
     path('challenge-schedule/<int:chall_id>/', ChallengeGameScheduleView.as_view(), name='challenge-schedule'),
     path('get-challenge-schedule/<int:chall_id>/', GetChallengeScheduleView.as_view(), name='get-challenge-schedule'),
     path('get-challenge-bets/<int:chall_id>/<int:user_id>/', GetChallengeBetsView.as_view(), name='get-challenge-bets'),

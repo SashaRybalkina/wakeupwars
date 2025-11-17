@@ -150,13 +150,12 @@ const PersChall1: React.FC<Props> = ({ navigation }) => {
         },
       });
 
-            if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.message || "Failed to accept challenge");
-            }
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to accept challenge");
+      }
+      console.log('Challenge accepted:', data);
 
-            const data = await res.json();
-            console.log('Challenge accepted:', data);
 
       // refresh after accepting
       await fetchChallenges()

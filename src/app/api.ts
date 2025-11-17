@@ -48,6 +48,8 @@ export const endpoints = {
     `${BASE_URL}/api/respond-to-bet-invite/`,
   challengeDetail: (challId: number) =>
     `${BASE_URL}/api/challenge-detail/${challId}/`,
+  deleteChallenge: (challId: number) =>
+    `${BASE_URL}/api/delete-challenge/${challId}/`,
   challengeReward: (challId:number)=> `${BASE_URL}/api/challenges/${challId}/reward/`,
   challengeList: (userId: number, whichChall: string) =>
     `${BASE_URL}/api/challenges/${userId}/${whichChall}/`,

@@ -113,7 +113,7 @@ class ChallengeSummarySerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'startDate', 'endDate', 'totalDays',
             'isGroupChallenge', 'daysOfWeek', 'daysCompleted',
-            'isCompleted',
+            'isCompleted'
         ]
 
     def get_isGroupChallenge(self, obj):

@@ -603,7 +603,15 @@ class GroupDetailsView(APIView):
         }, status=status.HTTP_200_OK)
     
 
+class DeleteChallengeView(APIView):
+    @transaction.atomic
+    def post(self, request, chall_id):
+        challenge = get_object_or_404(Challenge, id=chall_id)
 
+        # Delete the challenge (CASCADE will handle related objects)
+        challenge.delete()
+
+        return Response({'detail': 'Challenge deleted successfully.'}, status=status.HTTP_200_OK)
     
 
 class GetChallengeInvitesView(APIView):
@@ -620,7 +628,8 @@ class GetChallengeInvitesView(APIView):
                 "name": invite.chall.name,
                 "startDate": invite.chall.startDate,
                 "endDate": invite.chall.endDate,
-                "accepted": invite.accepted
+                "accepted": invite.accepted,
+                "initiatorId": invite.chall.initiator.id if invite.chall.initiator else None, 
             }
             for invite in invites
         ]
@@ -1538,11 +1547,12 @@ class ChallengeDetailView(APIView):
             'daysOfWeek': days_of_week,
             'initiator_id': initiator_id,
             'winner': (
-                {"username": challenge.winner.username, "id": challenge.winner.id}
+                {"name": challenge.winner.name, "id": challenge.winner.id}
                 if challenge.winner
                 else None
             ),
             'unlockedCoins': challenge.unlockedCoins,
+            'rewardAmount': challenge.participationFee * challenge.members.count(),
             'reward_setting': RewardSettingSerializer(getattr(challenge,'reward_setting',None)).data if hasattr(challenge,'reward_setting') else None
         })
         

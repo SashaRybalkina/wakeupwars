@@ -35,6 +35,7 @@ type PendingChallenge = {
   startDate: string
   endDate: string
   accepted: number
+  initiatorId: number | null
 }
 
 type LeaderRow = { name: string; points: number; rank: number }
@@ -171,6 +172,7 @@ useFocusEffect(
               startDate: item.startDate,
               endDate: item.endDate,
               accepted: item.accepted,
+              initiatorId: item.initiatorId,
             })
           );
           setPendingChallenges(formatted);
@@ -188,6 +190,58 @@ useFocusEffect(
     fetchGroupData();
   }, [user?.id, groupId])
 );
+
+
+  const handleDelete = async (challId: number) => {
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+                  Alert.alert(
+                    "Session expired",
+                    "Your login session has expired. Please log in again.",
+                    [
+                      {
+                        text: "OK",
+                        onPress: async () => {
+                          await logout();
+                          navigation.reset({
+                            index: 0,
+                            routes: [{ name: "Login" }],
+                          });
+                        },
+                      },
+                    ],
+                    { cancelable: false }
+                  );
+
+                  return;
+      }
+
+      const res = await fetch(endpoints.deleteChallenge(challId), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+        },
+      });
+
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.message || "Failed to delete challenge");
+          }
+          console.log('Challenge deleted:', data);
+
+                // Remove from local state
+                setPendingChallenges((prev) =>
+                  prev.filter((c) => c.id !== challId)
+                );
+
+
+    } catch (err) {
+      console.error("Failed to delete challenge:", err)
+      Alert.alert("Error", "Failed to delete challenge.")
+    }
+  }
 
     
   const goToMessages = () => navigation.navigate("Messages")
@@ -341,28 +395,30 @@ useFocusEffect(
                 <>
                   <Text style={styles.sectionTitle}>Pending Challenges</Text>
                   <View style={styles.challengeCardsContainer}>
-                    {pendingChallenges.map((challenge) => (
-                      <TouchableOpacity
-                        key={challenge.id}
-                        style={styles.challengeCardWrapper}
-                        onPress={() =>
-                          navigation.navigate("EditAvailability", {
-                            pendingChallengeId: challenge.id,
-                            pendingChallengeName: challenge.name,
-                            pendingChallengeStartDate: challenge.startDate,
-                            pendingChallengeEndDate: challenge.endDate,
-                            accepted: challenge.accepted,
-                            groupId
-                          })
-                        }
-                      >
-                        <PendingChallengeCard
-                          title={challenge.name}
-                          icon={require("../../images/school.png")}
-                          showInvite={challenge.accepted === 2}
-                        />
-                      </TouchableOpacity>
-                    ))}
+      {pendingChallenges.map((challenge) => (
+        <TouchableOpacity
+          key={challenge.id}
+          style={styles.challengeCardWrapper}
+          onPress={() =>
+            navigation.navigate("EditAvailability", {
+              pendingChallengeId: challenge.id,
+              pendingChallengeName: challenge.name,
+              pendingChallengeStartDate: challenge.startDate,
+              pendingChallengeEndDate: challenge.endDate,
+              accepted: challenge.accepted,
+              groupId
+            })
+          }
+        >
+          <PendingChallengeCard
+            title={challenge.name}
+            icon={require("../../images/school.png")}
+            showInvite={challenge.accepted === 2}
+            isOwner={user?.id === challenge.initiatorId} // Pass ownership
+            onDelete={async () => handleDelete(challenge.id)}
+          />
+        </TouchableOpacity>
+      ))}
                   </View>
                 </>
               )}

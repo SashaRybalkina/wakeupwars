@@ -88,8 +88,9 @@ const ChallDetails: React.FC<Props> = ({ navigation }) => {
   const [members, setMembers] = useState<Member[]>([])
   const [daysOfWeek, setDaysOfWeek] = useState<string[]>([])
   const [isFavorite, setIsFavorite] = useState(false)
-  const [winner, setWinner] = useState<{username: string; id: number} | null>(null)
+  const [winner, setWinner] = useState<{name: string; id: number} | null>(null)
   const [unlockedCoins, setUnlockedCoins] = useState<number>(0)
+  const [rewardAmount, setRewardAmount] = useState<number>(0)
   const [isCollecting, setIsCollecting] = useState(false);
   const [progressAnim] = useState(new Animated.Value(0))
 
@@ -194,6 +195,7 @@ const fetchDetails = useCallback(async () => {
     setDaysComplete(data.daysCompleted);
     setTotalDays(data.totalDays ?? 30);
     setMembers(data.members);
+    setRewardAmount(data.rewardAmount)
 
     const parsedDays = (data.daysOfWeek as string[])
       .filter(d => d in DayOfWeekReverseLabels)
@@ -501,30 +503,38 @@ const loadPerformances = async () => {
 
           </View>
 
-
+{rewardAmount > 0 && (
+  <Text style={[styles.winnerText, { textAlign: "center", marginBottom: 10 }]}>Reward Amount: {rewardAmount} 🪙</Text>
+)}
 
 {/* {(whichChall === "Group" || whichChall === "Public") && winner && ( */}
-{!isPersonal && winner && (
-  <>
-    <Text style={[styles.winnerText, { textAlign: "center", marginBottom: 10 }]}>
-      The winner is {winner.username}! 🏆
-    </Text>
+{isPersonal === null ? null : (
+  !isPersonal && winner && (
+    <>
+      <Text style={[styles.winnerText, { textAlign: "center", marginBottom: 10 }]}>
+        The winner is {winner.name}! 🏆
+      </Text>
 
-    {winner?.id === user?.id && unlockedCoins > 0 && (
-      <TouchableOpacity
-        style={[styles.actionButton, { backgroundColor: "#4CAF50", marginTop: 10, marginBottom: 20 }]}
-        onPress={() => collectWinnings(unlockedCoins)}
-        disabled={isCollecting}
-      >
-        <Text style={[styles.actionButtonText, { textAlign: "center" }]}>
-          {isCollecting
-            ? "Collecting..."
-            : `Collect Winnings: ${unlockedCoins} 🪙`}
-        </Text>
-      </TouchableOpacity>
-    )}
-  </>
+      {winner?.id === user?.id && unlockedCoins > 0 && (
+        <TouchableOpacity
+          style={[
+            styles.actionButton,
+            { backgroundColor: "#4CAF50", marginTop: 10, marginBottom: 20 }
+          ]}
+          onPress={() => collectWinnings(unlockedCoins)}
+          disabled={isCollecting}
+        >
+          <Text style={[styles.actionButtonText, { textAlign: "center" }]}>
+            {isCollecting
+              ? "Collecting..."
+              : `Collect Winnings: ${unlockedCoins} 🪙`}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </>
+  )
 )}
+
 
 {/* {whichChall === "Personal" && unlockedCoins > 0 && ( */}
 {isPersonal && unlockedCoins > 0 && (
