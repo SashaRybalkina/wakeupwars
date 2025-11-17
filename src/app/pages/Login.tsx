@@ -256,7 +256,7 @@ contentContainer: {
   logoContainer: {
     alignItems: 'center',
     marginBottom: 40,
-    marginTop: 130,
+    marginTop: 140,
   },
   logoImage: {
     width: 270,
