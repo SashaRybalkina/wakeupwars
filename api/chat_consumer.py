@@ -32,19 +32,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
         for room in self.room_group_names:
             await self.channel_layer.group_add(room, self.channel_name)
-            if room not in ACTIVE_CHAT_USERS:
-                ACTIVE_CHAT_USERS[room] = set()
-            ACTIVE_CHAT_USERS[room].add(self.user_id)
+        self.viewing_ids = {}
         
         await self.accept()
 
     async def disconnect(self, close_code):
         for room in self.room_group_names:
             await self.channel_layer.group_discard(room, self.channel_name)
-            if room in ACTIVE_CHAT_USERS:
-                ACTIVE_CHAT_USERS[room].discard(self.user_id)
-                if not ACTIVE_CHAT_USERS[room]:
-                    del ACTIVE_CHAT_USERS[room]
+            if hasattr(self, 'viewing_ids'):
+                vid = self.viewing_ids.get(room)
+                if vid is not None and room in ACTIVE_CHAT_USERS:
+                    ACTIVE_CHAT_USERS[room].discard(str(vid))
+                    if not ACTIVE_CHAT_USERS[room]:
+                        del ACTIVE_CHAT_USERS[room]
 
     async def receive(self, text_data): 
         data = json.loads(text_data)
@@ -53,6 +53,37 @@ class ChatConsumer(AsyncWebsocketConsumer):
         recipient_id = data.get('recipient_id')
         group_id = data.get('group_id')
         timestamp = data.get('timestamp')
+
+        action = data.get('action')
+        if action in ('viewing', 'not_viewing'):
+            # Determine room name for presence tracking
+            if group_id:
+                room_name = f'chat_group_{group_id}'
+            elif sender_id and recipient_id:
+                ids = sorted([int(sender_id), int(recipient_id)])
+                room_name = f'chat_user_{ids[0]}_{ids[1]}'
+            else:
+                room_name = None
+
+            viewer_id = data.get('viewer_id') or sender_id or self.user_id
+            if room_name and viewer_id:
+                viewer_id = str(viewer_id)
+                if action == 'viewing':
+                    if room_name not in ACTIVE_CHAT_USERS:
+                        ACTIVE_CHAT_USERS[room_name] = set()
+                    ACTIVE_CHAT_USERS[room_name].add(viewer_id)
+                    # track for disconnect cleanup
+                    if not hasattr(self, 'viewing_ids'):
+                        self.viewing_ids = {}
+                    self.viewing_ids[room_name] = viewer_id
+                elif action == 'not_viewing':
+                    if room_name in ACTIVE_CHAT_USERS:
+                        ACTIVE_CHAT_USERS[room_name].discard(viewer_id)
+                        if not ACTIVE_CHAT_USERS[room_name]:
+                            del ACTIVE_CHAT_USERS[room_name]
+                    if hasattr(self, 'viewing_ids') and room_name in self.viewing_ids:
+                        self.viewing_ids.pop(room_name, None)
+            return
 
         # Save message to DB
         await self.save_message(message, sender_id, recipient_id, group_id, timestamp)
@@ -98,10 +129,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
         active_users_in_room = ACTIVE_CHAT_USERS.get(room_name, set())
 
-        if str(sender_id) in active_users_in_room and str(recipient_id) in active_users_in_room:
-            return
-            
         if recipient_id:
+            if str(recipient_id) in active_users_in_room:
+                return
             await database_sync_to_async(self.send_push_to_user)(sender, recipient_id, message)
         elif group_id:
             await database_sync_to_async(self.send_push_to_group)(sender, group_id, message)
@@ -135,7 +165,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         from api.models import GroupMembership
         group_members = GroupMembership.objects.filter(groupID_id=group_id).exclude(uID_id=sender.id)
         group = Group.objects.filter(id=group_id).first()
+        active_set = ACTIVE_CHAT_USERS.get(f'chat_group_{group_id}', set())
         for member in group_members:
+            if str(member.uID_id) in active_set:
+                continue
             title = f"{sender.name}, {group.name}"
             body = message[:100]
             data = {"screen": "Notifications"}

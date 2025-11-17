@@ -41,6 +41,14 @@ const Conversation: React.FC<Props> = ({ route, navigation }) => {
   const ws = useRef<WebSocket | null>(null)
   const flatListRef = useRef<FlatList>(null)
 
+  const sendPresence = (action: 'viewing' | 'not_viewing') => {
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN || !user?.id) return
+    const payload: any = { action, viewer_id: user.id }
+    if (groupId) payload.group_id = groupId
+    else if (otherUserId) { payload.sender_id = user.id; payload.recipient_id = otherUserId }
+    try { ws.current.send(JSON.stringify(payload)) } catch (e) {}
+  }
+
   // Connect WebSocket
   useEffect(() => {
     if (!user?.id) return
@@ -54,6 +62,10 @@ const Conversation: React.FC<Props> = ({ route, navigation }) => {
     } else return
 
     ws.current = new WebSocket(url)
+
+    ws.current.onopen = () => {
+      sendPresence('viewing')
+    }
 
     ws.current.onmessage = async (event: any) => {
       const data = JSON.parse(event.data);
@@ -75,9 +87,23 @@ const Conversation: React.FC<Props> = ({ route, navigation }) => {
     ws.current.onerror = (err: any) => console.error("WebSocket error:", err)
 
     return () => {
+      if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+        sendPresence('not_viewing')
+      }
       ws.current?.close()
     }
   }, [user, otherUserId, groupId])
+
+  useFocusEffect(
+    React.useCallback(() => {
+      sendPresence('viewing')
+      return () => {
+        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+          sendPresence('not_viewing')
+        }
+      }
+    }, [otherUserId, groupId, user?.id])
+  )
 
   // Fetch other user's profile (for DMs header)
   useEffect(() => {

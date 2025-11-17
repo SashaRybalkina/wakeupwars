@@ -1,5 +1,5 @@
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { BASE_URL } from "../api"
 import { useUser } from "../context/UserContext"
 import {
@@ -17,6 +17,7 @@ import {
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import type { NavigationProp } from "@react-navigation/native"
+import { useFocusEffect } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import axios from "axios"
 import { getAccessToken } from "../auth"
@@ -161,22 +162,24 @@ const Messages: React.FC<Props> = ({ navigation }) => {
   }, [selected])
 
   // WebSocket setup for messages
-  useEffect(() => {
-    if (!user?.id) return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) return;
 
-    const wsUrlPrivate = `${BASE_URL.replace(/^http/, "ws")}/ws/chat/users/${user.id}/`;
-    wsPrivate.current = new WebSocket(wsUrlPrivate);
-    wsPrivate.current.onmessage = () => fetchMessages();
+      const wsUrlPrivate = `${BASE_URL.replace(/^http/, "ws")}/ws/chat/users/${user.id}/`;
+      wsPrivate.current = new WebSocket(wsUrlPrivate);
+      wsPrivate.current.onmessage = () => fetchMessages();
 
-    const wsUrlGroups = `${BASE_URL.replace(/^http/, "ws")}/ws/chat/groups/${user.id}/`;
-    wsGroups.current = new WebSocket(wsUrlGroups);
-    wsGroups.current.onmessage = () => fetchGroupConversations();
+      const wsUrlGroups = `${BASE_URL.replace(/^http/, "ws")}/ws/chat/groups/${user.id}/`;
+      wsGroups.current = new WebSocket(wsUrlGroups);
+      wsGroups.current.onmessage = () => fetchGroupConversations();
 
-    return () => {
-      wsPrivate.current?.close();
-      wsGroups.current?.close();
-    };
-  }, [user, activeConversationId, activeGroupId]);
+      return () => {
+        wsPrivate.current?.close();
+        wsGroups.current?.close();
+      };
+    }, [user?.id])
+  );
 
   const getConversations = (messages: any[]) => {
     const conversations: Record<string, any> = {}
