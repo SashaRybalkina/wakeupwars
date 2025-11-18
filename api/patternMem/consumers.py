@@ -40,6 +40,10 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
     """
 
     async def connect(self):
+        # Replay cache (per connection)
+        self.last_round = None
+        self.last_sequence = None
+
         self.game_state_id = int(self.scope["url_route"]["kwargs"]["game_state_id"])
         self.group_name = f"pattern_{self.game_state_id}"
         self.user: User = self.scope["user"]
@@ -163,6 +167,8 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
             await self._handle_player_answer(data)
         elif msg_type == "start_game":
             await self._handle_manual_start()
+        elif msg_type == "request_replay":
+            await self._handle_request_replay()
 
     # ---------------- HANDLERS ----------------
 
@@ -364,10 +370,20 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
     async def game_start(self, event):
         # read current round and its sequence from DB
         print("[DEBUG] >>> enter game_start handler", flush=True)
+        # game_state = await sync_to_async(PatternMemorizationGameState.objects.get)(id=self.game_state_id)
+        # current_round = game_state.current_round
+        # sequence = game_state.pattern_sequence[current_round - 1]
+        # print(f"[DEBUG] send pattern_sequence round={current_round}, seq={sequence}", flush=True)
         game_state = await sync_to_async(PatternMemorizationGameState.objects.get)(id=self.game_state_id)
         current_round = game_state.current_round
         sequence = game_state.pattern_sequence[current_round - 1]
+
+        # Cache replay info for this player
+        self.last_round = current_round
+        self.last_sequence = sequence
+
         print(f"[DEBUG] send pattern_sequence round={current_round}, seq={sequence}", flush=True)
+
         await self.send(text_data=json.dumps({
             "type": "pattern_sequence",
             "round_number": current_round,
@@ -408,6 +424,39 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
             "leaderboard": event.get("leaderboard", []),
             "server_now": event.get("server_now"),
         }))
+
+    async def _handle_request_replay(self):
+        # Prevent replay during freeze
+        if cache.get(_freeze_key(self.game_state_id)):
+            await self.send(text_data=json.dumps({
+                "type": "answer_result",
+                "is_correct": False,
+                "is_complete": False,
+                "error": "Round frozen",
+            }))
+            return
+
+        await self._send_current_round_sequence()
+
+    async def _send_current_round_sequence(self):
+        # Use cached pattern instead of reading DB again
+        if not self.last_sequence:
+            await self.send(text_data=json.dumps({
+                "type": "answer_result",
+                "is_correct": False,
+                "is_complete": False,
+                "error": "Replay not available yet"
+            }))
+            return
+
+        # IMPORTANT: send only to THIS player, NOT group_send
+        await self.send(text_data=json.dumps({
+            "type": "pattern_sequence",
+            "round_number": self.last_round,
+            "sequence": self.last_sequence,
+        }))
+
+
 
     # ---------------- HELPERS ----------------
 
