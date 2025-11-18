@@ -146,7 +146,7 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // 5-minute game timer (mirrors Sudoku)
-  const [gameTimeLeft, setGameTimeLeft] = useState<number>(30); // 300 for prod
+  const [gameTimeLeft, setGameTimeLeft] = useState<number>(300); // 300 for prod
   const gameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerExpiredSentRef = useRef(false);
   const gameTimerStartedRef = useRef(false);
@@ -247,7 +247,7 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const startGameTimer = useCallback(() => {
     if (gameTimerRef.current) clearInterval(gameTimerRef.current);
-    setGameTimeLeft(30);
+    setGameTimeLeft(300);
     timerExpiredSentRef.current = false;
     gameTimerStartedRef.current = true;
     gameTimerRef.current = setInterval(() => {
