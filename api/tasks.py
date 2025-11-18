@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from celery import shared_task, uuid
 from django.db.models import F
 from django.core.cache import cache
+from django.conf import settings
 from api.sudokuStuff.utils import get_or_create_game as sudoku_init
 from api.wordleStuff.utils import get_or_create_game_wordle as wordle_init
 from api.patternMem.utils import get_or_create_pattern_game as pattern_init
@@ -168,6 +169,23 @@ def close_join_window(model_name, gs_id):
                     )
             else:
                 print("[join-window] no online users; skipping auto 0-scores for TypingRace at join close")
+        elif model_name == 'PatternMemorizationGameState':
+            connected_ids = set(cache.get(f"pm_conns_{gs.id}") or [])
+            print(f"[join-window] pm connected_ids={connected_ids}")
+
+            if connected_ids:
+                absent_ids = (participant_ids - existing_ids) - connected_ids
+                print(f"[join-window] pm absent_ids_to_zero={absent_ids}")
+                for uid in absent_ids:
+                    GamePerformance.objects.get_or_create(
+                        challenge=gs.challenge,
+                        game=gs.game,
+                        user_id=uid,
+                        date=today,
+                        defaults={"score": 0, "auto_generated": True},
+                    )
+            else:
+                print("[join-window] no online users; skipping auto 0-scores for PatternMem at join close")
         else:
             for uid in participant_ids - existing_ids:
                 GamePerformance.objects.get_or_create(

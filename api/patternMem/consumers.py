@@ -3,6 +3,7 @@ import asyncio
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
 from django.core.cache import cache
+from django.conf import settings
 from datetime import date, timedelta
 
 from api.models import PatternMemorizationGameState, PatternMemorizationGamePlayer, User, ChallengeMembership, GamePerformance
@@ -25,6 +26,9 @@ def _freeze_key(game_state_id: int) -> str:
 
 def _saved_key(game_state_id: int) -> str:
     return f"pm_scores_saved_{game_state_id}"
+
+# Feature flag: allow early auto-start when everyone ready
+EARLY_START_ON_ALL_READY = bool(getattr(settings, "EARLY_START_ON_ALL_READY", False))
 
 
 class PatternMemorizationConsumer(AsyncWebsocketConsumer):
@@ -189,7 +193,8 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
         })
 
         # Only the first process that flips started can continue
-        if expected > 0 and len(effective_ready) >= expected:
+        # Guard: only early-start when explicitly enabled and at least 2 participants
+        if EARLY_START_ON_ALL_READY and expected >= 2 and len(effective_ready) >= expected:
             if cache.add(_started_key(self.game_state_id), True, timeout=3600):
                 # clear ready for next lobby use
                 cache.set(_ready_key(self.game_state_id), [], timeout=3600)
@@ -317,16 +322,24 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
         }))
 
     async def join_window_closed(self, event):
-        # Forward event to the client
-        await self.send(text_data=json.dumps({
-            "type": "join_window_closed",
-            "server_now": event.get("server_now"),
-        }))
+        # Forward event to the client (ignore if already closed)
+        try:
+            await self.send(text_data=json.dumps({
+                "type": "join_window_closed",
+                "server_now": event.get("server_now"),
+            }))
+        except Exception:
+            pass
 
         # Auto-start when join window closes (only once across all consumers)
         if cache.add(_started_key(self.game_state_id), True, timeout=3600):
             # Clear ready list for next lobby reuse
             cache.set(_ready_key(self.game_state_id), [], timeout=3600)
+
+            # Optional: only start if at least one connection remains
+            conns = set(cache.get(_conns_key(self.game_state_id)) or [])
+            if not conns:
+                return
 
             # 3-2-1 lobby countdown
             for t in [3, 2, 1]:
@@ -362,10 +375,14 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
         }))
 
     async def game_over(self, event):
-        await self.send(text_data=json.dumps({
-            "type": "game_over",
-            "scores": event["scores"]
-        }))
+        try:
+            await self.send(text_data=json.dumps({
+                "type": "game_over",
+                "scores": event["scores"]
+            }))
+        except Exception:
+            # ignore if connection already closed
+            return
 
     async def player_timeout(self, event):
         if event.get('user_id') == getattr(self.user, 'id', None):
@@ -401,11 +418,12 @@ class PatternMemorizationConsumer(AsyncWebsocketConsumer):
         singleplayer → 1
         """
         try:
-            gs = PatternMemorizationGameState.objects.select_related("challenge").get(id=self.game_state_id)
+            gs = PatternMemorizationGameState.objects.select_related("challenge", "game").get(id=self.game_state_id)
         except PatternMemorizationGameState.DoesNotExist:
             return 1
 
-        if gs.challenge.groupID_id is not None:
+        is_multiplayer = bool(getattr(gs.game, "isMultiplayer", False))
+        if is_multiplayer:
             n = ChallengeMembership.objects.filter(challengeID=gs.challenge).count()
             return max(1, n)
         return 1
