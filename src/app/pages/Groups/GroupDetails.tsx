@@ -842,7 +842,8 @@ pastButtonGradient: {
     alignItems: "center",
   },
   addMemberButton: {
-    marginLeft: 10,
+    marginLeft: 15,
+    marginRight: 3,
     alignItems: "center",
   },
   addMemberCircle: {
