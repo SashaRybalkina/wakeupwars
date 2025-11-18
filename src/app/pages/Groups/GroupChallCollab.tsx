@@ -30,7 +30,7 @@ const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"]
 // const TIMES = Array.from({ length: 12 }, (_, i) => `${i + 6}:00`); // 6am - 5pm 
 
 const TIMES = Array.from({ length: 80 }, (_, i) => {
-  const totalMinutes = 4 * 60 + i * 15; // start at 4:00
+  const totalMinutes = 5 * 60 + i * 15; // start at 4:00
   const hours24 = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
 
