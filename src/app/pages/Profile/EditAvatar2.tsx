@@ -1,3 +1,8 @@
+/**
+ * @file EditAvatar2.tsx
+ * @description This file creates a page that allows users to purchase and upgrade for their avatar.
+ */
+
 import React, { useState } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal, ImageBackground } from 'react-native';
 import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/native';
