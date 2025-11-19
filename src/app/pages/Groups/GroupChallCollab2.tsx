@@ -1,3 +1,11 @@
+/**
+ * @file GroupChallCollab2.tsx
+ * @description Second step of the collaborative group challenge setup. Users pick
+ * which games will be played on each alarm day, manage game assignments, and set a
+ * participation fee. The screen validates the schedule, checks the user’s coin
+ * balance, and then forwards all challenge data to the next setup screen.
+ */
+
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
