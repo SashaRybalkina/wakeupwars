@@ -1,3 +1,8 @@
+/**
+ * @file AppProvider.tsx
+ * @description Wraps the app with FontProvider and ThemeProvider contexts.
+ */
+
 import type { ReactNode } from 'react';
 
 import { FontProvider } from './FontProvider';
