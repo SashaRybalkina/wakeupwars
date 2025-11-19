@@ -207,17 +207,26 @@ def close_join_window(model_name, gs_id):
                     defaults={"score": 0, "auto_generated": True},
                 )
     else:
-        owner_id = getattr(gs, 'user_id', None)
-        if owner_id and not GamePerformance.objects.filter(
-            challenge=gs.challenge, game=gs.game, date=today, user_id=owner_id
-        ).exists():
-                GamePerformance.objects.update_or_create(
-                    challenge=gs.challenge,
-                    game=gs.game,
-                    user_id=owner_id,
-                    date=today,
-                    defaults={"score": 0, "auto_generated": True},
-                )
+        # Singleplayer: zero-fill all challenge members who did not play
+        participant_ids = set(
+            ChallengeMembership.objects.filter(challengeID=gs.challenge)
+                                       .values_list("uID_id", flat=True)
+        )
+        existing_ids = set(
+            GamePerformance.objects.filter(
+                challenge=gs.challenge,
+                game=gs.game,
+                date=today,
+            ).values_list("user_id", flat=True)
+        )
+        for uid in participant_ids - existing_ids:
+            GamePerformance.objects.update_or_create(
+                challenge=gs.challenge,
+                game=gs.game,
+                user_id=uid,
+                date=today,
+                defaults={"score": 0, "auto_generated": True},
+            )
 
     gs.joins_closed = True
     gs.save(update_fields=["joins_closed"])

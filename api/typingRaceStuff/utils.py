@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import List, Dict, Any
 from pathlib import Path
 import random
-from datetime import date
+from datetime import date, datetime
 import logging, time
 import asyncio, contextlib, threading
 logger = logging.getLogger(__name__)
@@ -157,7 +157,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
     defaults = {
         "game": typing_game,
         "text": random.choice(TYPING_PASSAGES),
-        "join_deadline_at": timezone.now() + timedelta(seconds=int(getattr(settings, "JOIN_WINDOW_SECONDS", 20) or 20)),
+        "join_deadline_at": alarm_datetime + timedelta(seconds=int(getattr(settings, "JOIN_WINDOW_SECONDS", 20) or 20)),
     }
 
     # Use get_or_create with proper unique constraint fields
@@ -210,7 +210,9 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
     # === 4️⃣ Ensure join_deadline exists ===
     t4 = time.time()
     if not getattr(game_state, "join_deadline_at", None):
-        game_state.join_deadline_at = timezone.now() + timedelta(seconds=20)
+        base = getattr(game_state, "alarmDateTime", None) or getattr(game_state, "created_at", None) or timezone.now()
+        window = int(getattr(settings, "JOIN_WINDOW_SECONDS", 20) or 20)
+        game_state.join_deadline_at = base + timedelta(seconds=window)
         game_state.save(update_fields=["join_deadline_at"])
     logger.warning(f"[TYPING][STEP4] Ensure join_deadline took {(time.time()-t4)*1000:.2f}ms")
 

@@ -2889,7 +2889,27 @@ class CreateSudokuGameView(APIView):
             # best-effort gating; proceed if checks fail
             pass
 
-        game_data = get_or_create_game(challenge_id, user)
+        game_data = get_or_create_game(challenge_id, user, allow_join=False)
+
+        # Enforce join window for singleplayer at creation time
+        try:
+            gs = SudokuGameState.objects.select_related('game').get(id=game_data.get('game_state_id'))
+            is_multiplayer = bool(getattr(gs.game, 'isMultiplayer', False))
+        except Exception:
+            gs = None
+            is_multiplayer = False
+
+        if not is_multiplayer and gs is not None:
+            now = timezone.now()
+            deadline = getattr(gs, 'join_deadline_at', None)
+            if getattr(gs, 'joins_closed', False) or (deadline and now > deadline):
+                return Response(
+                    {'code': 'JOINS_CLOSED', 'detail': 'The join window has closed. Please join next time.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        # Passed checks; now record player join and return data
+        game_data = get_or_create_game(challenge_id, user, allow_join=True)
 
         # Add game id so that inside the db, they are unique (Right now they're all just 'sudoku')
         try:
@@ -5468,20 +5488,32 @@ class CreateTypingRaceGameView(APIView):
             Challenge.objects.get(id=challenge_id)
         except Challenge.DoesNotExist:
             return Response({"error": "Challenge not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Check if the user has already played this challenge today
-        # gs = TypingRaceGameState.objects.filter(challenge_id=challenge_id).order_by('-id').first()
-        # if gs:
-        #     today = timezone.localdate()
-        #     if GamePerformance.objects.filter(challenge_id=challenge_id, game_id=gs.game_id, date=today, user=user).exists():
-        #         return Response(
-        #             {"code": "GAME_ENDED", "detail": "You have already completed this game today."},
-        #             status=status.HTTP_403_FORBIDDEN,
-        #         )
-
-        game_data = get_or_create_typing_race_game(challenge_id, user)
+                
+        anchor_dt = timezone.now()
+        # Create state without joining yet, anchored to the scheduled slot if present
+        game_data = get_or_create_typing_race_game(challenge_id, user, allow_join=False, alarm_datetime=anchor_dt)
         logger.warning(f"[TYPING][CREATE] Game created: {game_data}")
         logger.warning(f"[TYPING][CREATE] User?: {user}")
+
+        # Enforce join window for singleplayer at creation time
+        try:
+            gs = TypingRaceGameState.objects.select_related("game").get(id=game_data["game_state_id"])
+            is_multiplayer = bool(getattr(gs.game, "isMultiplayer", False))
+        except Exception:
+            is_multiplayer = False
+            gs = None
+
+        if not is_multiplayer and gs is not None:
+            now = timezone.now()
+            deadline = getattr(gs, "join_deadline_at", None)
+            if getattr(gs, "joins_closed", False) or (deadline and now > deadline) or anchor_dt is None:
+                return Response(
+                    {"code": "JOIN_CLOSED", "detail": "Join window has closed for this game."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        # Passed checks; now let singleplayer join (creates player record) and return
+        game_data = get_or_create_typing_race_game(challenge_id, user, allow_join=True, alarm_datetime=anchor_dt)
         return Response(game_data, status=status.HTTP_200_OK)
 
 

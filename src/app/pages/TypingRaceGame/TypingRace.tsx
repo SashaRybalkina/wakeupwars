@@ -448,16 +448,25 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
           }
 
         if (msg.type === 'lobby_countdown') {
-          // Server-driven countdown: stop local timer and show 3-2-1 overlay
+          // Server-driven countdown seconds; keep waiting room visible until last 3 seconds
           if (countdownRef.current) {
             clearInterval(countdownRef.current);
             countdownRef.current = null;
           }
+
+          const secs = Math.max(0, Number(msg.seconds ?? 0));
           setJoinDeadlineISO(null);
-          setRemainingSec(null);
-          setWaitingActive(false);
-          setShowCountdown(true);
-          setCountdownValue(Math.max(0, Number(msg.seconds ?? 0)));
+          setRemainingSec(secs);            // use server as source of truth for overall countdown
+
+          if (secs <= 3) {
+            setShowCountdown(true);         // show big 3-2-1 overlay only at the end
+            setCountdownValue(secs);
+          } else {
+            setShowCountdown(false);
+            setCountdownValue(null);
+          }
+
+          setWaitingActive(secs > 0);       // keep waiting room visible until countdown reaches 0
         }
 
         if (msg.type === 'join_window_closed') {
@@ -643,8 +652,14 @@ const TypingRace: React.FC<Props> = ({ navigation }) => {
           body: JSON.stringify({ challenge_id: challId }),
         });
 
-        if (!res.ok) throw new Error('Failed to create game');
-        const data = await res.json();
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          const msg = data?.detail || 'Join window has closed for this game.';
+          Alert.alert('Join Deadline Passed', msg, [
+            { text: 'OK', onPress: () => navigation.navigate("ChallDetails", { challId: challId, challName, whichChall }) }
+          ]);
+          return;
+        }
 
         setPassage(data.text);
         setGameStateId(data.game_state_id);

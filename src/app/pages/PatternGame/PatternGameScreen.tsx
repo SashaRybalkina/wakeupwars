@@ -165,14 +165,9 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
   useEffect(() => {
     if (!waitingActive) return;
     if (remainingSec != null && remainingSec <= 3 && remainingSec > 0) {
-      setCountdown(remainingSec);
       setLobbyStatus(`starting in ${remainingSec}`);
-      // Hide the waiting overlay so the countdown is visible
-      setWaitingActive(false);
-      // Keep the interval running so remainingSec continues to tick
     }
     if (remainingSec === 0) {
-      // Clear local countdown when it reaches zero; wait for server to start
       setCountdown(null);
     }
   }, [remainingSec, waitingActive]);

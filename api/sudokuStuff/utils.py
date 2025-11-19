@@ -7,6 +7,7 @@ from django.db import IntegrityError
 from asgiref.sync import sync_to_async
 from datetime import timedelta
 from django.utils import timezone
+from django.conf import settings
 
 
 @transaction.atomic
@@ -57,8 +58,14 @@ def get_or_create_game(challenge_id, user, allow_join: bool = True, alarm_dateti
     # Use alarm_datetime if provided, otherwise use now
     if alarm_datetime is None:
         alarm_datetime = timezone.now()
-    # Normalize to minute precision so concurrent calls share the same key
-    alarm_datetime = alarm_datetime.replace(second=0, microsecond=0)
+    # Align to JOIN_WINDOW_SECONDS slot to ensure consistent windowing across processes
+    window = int(getattr(settings, "JOIN_WINDOW_SECONDS", 20) or 20)
+    try:
+        ts = int(alarm_datetime.timestamp())
+        slot_ts = ts - (ts % window)
+        alarm_datetime = timezone.datetime.fromtimestamp(slot_ts, tz=alarm_datetime.tzinfo)
+    except Exception:
+        alarm_datetime = alarm_datetime.replace(second=0, microsecond=0)
 
     # Prepare defaults for creation
     difficulty = 0.1
@@ -69,7 +76,7 @@ def get_or_create_game(challenge_id, user, allow_join: bool = True, alarm_dateti
     defaults = {
         'puzzle': puzzle,
         'solution': solution,
-        'join_deadline_at': timezone.now() + timedelta(seconds=20),
+        'join_deadline_at': alarm_datetime + timedelta(seconds=int(getattr(settings, "JOIN_WINDOW_SECONDS", 20) or 20)),
     }
 
     # Use get_or_create with proper unique constraint fields

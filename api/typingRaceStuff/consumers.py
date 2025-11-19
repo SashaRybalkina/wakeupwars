@@ -612,9 +612,25 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
 
         join_deadline_at = cache.get(_deadline_key(self.game_id))
         if not join_deadline_at:
-            join_deadline_at = (timezone.now() + timedelta(seconds=JOIN_TIMEOUT_SEC)).isoformat()
+            try:
+                # Prefer the DB value to keep all processes/clients consistent
+                if gs and getattr(gs, "join_deadline_at", None):
+                    dl = gs.join_deadline_at
+                else:
+                    # Initialize once if not set
+                    base = getattr(gs, "created_at", None) or timezone.now()
+                    dl = base + timedelta(seconds=JOIN_TIMEOUT_SEC)
+                    try:
+                        await sync_to_async(TypingRaceGameState.objects.filter(id=self.game_id).update)(join_deadline_at=dl)
+                    except Exception:
+                        pass
+                join_deadline_at = dl.isoformat()
+            except Exception:
+                # Fallback to now + window in worst case
+                dl = timezone.now() + timedelta(seconds=JOIN_TIMEOUT_SEC)
+                join_deadline_at = dl.isoformat()
             cache.set(_deadline_key(self.game_id), join_deadline_at, timeout=CACHE_TTL)
-            logger.warning(f"[Typing][DEADLINE] (broadcast) set fresh deadline {join_deadline_at}")
+            logger.warning(f"[Typing][DEADLINE] (broadcast) using join_deadline_at={join_deadline_at}")
 
         message = {
             "type": "lobby_state",
