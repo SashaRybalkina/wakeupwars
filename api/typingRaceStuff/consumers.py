@@ -1,3 +1,12 @@
+"""
+/**
+ * @file consumers.py
+ * @description WebSocket consumer for the Typing Race multiplayer game.
+ * It manages connections, lobby state, countdowns, progress updates,
+ * early endings, timeouts, and final score syncing.
+ */
+"""
+
 from datetime import date, timedelta
 import asyncio
 from django.utils import timezone
