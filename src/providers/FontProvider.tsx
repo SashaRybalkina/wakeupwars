@@ -1,3 +1,8 @@
+/**
+ * @file FontProvider.tsx
+ * @description Loads custom fonts and calls onInitialized once ready or errored.
+ */
+
 import { useEffect, type ReactNode } from 'react';
 import { SafeAreaView, Text, View } from 'react-native';
 import { useFonts } from 'expo-font';

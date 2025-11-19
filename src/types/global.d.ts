@@ -1,3 +1,9 @@
+/**
+ * @file global.d.ts
+ * @description Overrides the types for Object.keys() and Object.entries() to be more 
+ * helpful in cases where the keys are of a known set.
+ */
+
 import '@total-typescript/ts-reset';
 
 declare global {

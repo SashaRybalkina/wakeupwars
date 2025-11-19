@@ -1,3 +1,10 @@
+/**
+ * @file dateUtils.ts
+ * @description Returns the next upcoming alarm date based on a weekly schedule.
+ * Iterates through the next 7 days, checks the scheduled alarms for each day,
+ * and returns the first date/time that is strictly in the future. Returns `null`
+ * if no upcoming alarm exists.
+ */
 
 export const getNextAlarmDate = (
     alarmSchedule: { dayOfWeek: number; time: string }[],

@@ -1,3 +1,9 @@
+/**
+ * @file fonts.ts
+ * @description Sets Tamagui fonts.
+ */
+
+
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 export const fonts = {
   Inter: require('@tamagui/font-inter/otf/Inter-Regular.otf'),

@@ -1,3 +1,8 @@
+/**
+ * @file ThemeProvider.tsx
+ * @description Wraps the app with Tamagui theming using the provided config.
+ */
+
 import type { ReactNode } from 'react';
 import { TamaguiProvider } from 'tamagui';
 

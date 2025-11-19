@@ -1,3 +1,8 @@
+/**
+ * @file tamagui.config.ts
+ * @description Initializes Tamagui with the v2 config and sets up TypeScript typings.
+ */
+
 // The v2 config imports the css driver on web and react-native on native
 // for reanimated: @tamagui/config/v2-reanimated
 // for react-native only: @tamagui/config/v2-native
