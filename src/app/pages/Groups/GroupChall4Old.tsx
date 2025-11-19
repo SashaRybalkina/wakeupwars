@@ -1,3 +1,11 @@
+/**
+ * @file GroupChall4Old.tsx
+ * @description This screen lets the user set extra options for a selected game,
+ * like how many rounds to play and the time gap between them. Once confirmed, it
+ * sends the chosen settings back to the challenge setup flow and returns to the
+ * previous screen.
+ */
+
 import React, { useState } from 'react';
 import { ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
