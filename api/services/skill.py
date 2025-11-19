@@ -1,6 +1,6 @@
 """
 /**
- * @file skill_recompute.py
+ * @file skill.py
  * @description This file recalculates skill levels for users based on their game
  * performances. It applies recency decay to older results. It computes weighted
  * totals for each game category. It updates SkillLevel records. It returns a
