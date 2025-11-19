@@ -1,3 +1,9 @@
+/**
+ * @file index.tsx
+ * @description Handles user authentication.
+ */
+
+
 import * as SecureStore from "expo-secure-store";
 import { BASE_URL, endpoints } from "./api"
 
