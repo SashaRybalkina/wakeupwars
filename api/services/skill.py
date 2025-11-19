@@ -1,3 +1,13 @@
+"""
+/**
+ * @file skill_recompute.py
+ * @description This file recalculates skill levels for users based on their game
+ * performances. It applies recency decay to older results. It computes weighted
+ * totals for each game category. It updates SkillLevel records. It returns a
+ * 1-to-10 skill score for each category.
+ */
+"""
+
 from datetime import datetime, timedelta, timezone
 from itertools import chain
 from typing import Iterable
