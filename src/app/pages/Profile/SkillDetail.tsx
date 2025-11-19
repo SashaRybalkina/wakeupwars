@@ -1,3 +1,8 @@
+/**
+ * @file SkillDetail.tsx
+ * @description This file creates a page that allows users to view the details of a given skill level.
+ */
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, ImageBackground, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import type { NavigationProp, RouteProp, ParamListBase } from '@react-navigation/native';
