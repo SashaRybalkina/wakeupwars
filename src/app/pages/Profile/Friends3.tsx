@@ -1,3 +1,8 @@
+/**
+ * @file Friends3.tsx
+ * @description This file creates a page that allows users to view their friend’s profile.
+ */
+
 import React from "react"
 import { useEffect, useState } from "react"
 import { Alert, ImageBackground, StyleSheet, Text, TouchableOpacity, View, Animated, Modal, ScrollView, Image } from "react-native"
