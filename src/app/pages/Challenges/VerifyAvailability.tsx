@@ -1,3 +1,8 @@
+/**
+ * @file VerifyAvailability.tsx
+ * @description This file creates a page that allows users to edit their availability for public challenges.
+ */
+
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useFocusEffect, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
