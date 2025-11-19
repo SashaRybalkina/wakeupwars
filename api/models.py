@@ -1,3 +1,12 @@
+"""
+/**
+ * @file models.py
+ * @description Core database models.
+ *   Defines users, messaging, challenges, games, rewards,
+ *   and all related M2M relationships and game states.
+ */
+"""
+
 import random
 from django.db import models
 from django.contrib.auth.models import AbstractUser
