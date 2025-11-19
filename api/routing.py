@@ -1,3 +1,11 @@
+"""
+/**
+ * @file routing.py
+ * @description WebSocket URL routes for all real-time features:
+ *   Sudoku, Wordle, Pattern Memory, Typing Race, Chat, Notifications.
+ */
+"""
+
 from django.urls import re_path
 from api.sudokuStuff import consumers
 from api.wordleStuff import consumers as wc
