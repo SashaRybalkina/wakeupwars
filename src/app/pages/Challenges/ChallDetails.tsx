@@ -1,3 +1,8 @@
+/**
+ * @file ChallDetails.tsx
+ * @description This file creates a page where users can view the details of the given challenge (enrolled members, dates, leaderboard, etc)
+ */
+
 "use client"
 
 import type React from "react"
