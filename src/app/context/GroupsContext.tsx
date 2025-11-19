@@ -1,3 +1,8 @@
+/**
+ * @file GroupsContext.tsx
+ * @description This file creates a global context that allows us to avoid unnecessary refetching of  a user’s groups.
+ */
+
 // GroupsContext.tsx
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { getAccessToken } from "../auth";
