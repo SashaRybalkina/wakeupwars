@@ -1,3 +1,10 @@
+/**
+ * @file GroupChallCollab.tsx
+ * @description Screen for setting up a collaborative group challenge. Users enter
+ * a challenge name and mark their availability on a day/time grid. The selected
+ * slots get packaged into an alarm schedule and passed to the next setup step.
+ */
+
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
