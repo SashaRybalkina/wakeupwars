@@ -1,3 +1,11 @@
+"""
+/**
+ * @file test_public_challenge_searching.py
+ * @description This file tests the public challenge matching API. It builds test
+ * challenges and verifies category, time, and skill-based filtering.
+ */
+"""
+
 from datetime import datetime
 import pytz
 from rest_framework.test import APITestCase
