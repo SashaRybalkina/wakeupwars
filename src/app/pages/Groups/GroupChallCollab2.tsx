@@ -528,8 +528,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 30,
-    marginLeft: 10,
+    marginTop: 35,
     marginBottom: 10,
   },
   scrollContainer: {
