@@ -1,3 +1,8 @@
+/**
+ * @file getNextAlarmDate.test.ts
+ * @description Unit tests for `getNextAlarmDate` to verify correct next-alarm calculation.
+ */
+
 import { getNextAlarmDate } from '../utils/dateUtils';
 
 describe('getNextAlarmDate', () => {
