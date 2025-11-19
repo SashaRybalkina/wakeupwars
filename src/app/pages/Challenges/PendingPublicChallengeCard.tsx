@@ -1,3 +1,8 @@
+/**
+ * @file PendingPublicChallengeCard.tsx
+ * @description This file creates a reusable component for pending public challenge cards.
+ */
+
 import type React from "react"
 import { View, Text, Image, StyleSheet, type ImageSourcePropType } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
