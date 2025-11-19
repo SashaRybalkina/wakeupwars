@@ -1,3 +1,8 @@
+/**
+ * @file Perschall1.tsx
+ * @description This file creates a page that allows users to view their current personal challenges.
+ */
+
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import {
