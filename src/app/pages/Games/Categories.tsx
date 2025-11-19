@@ -1,3 +1,10 @@
+/**
+ * @file Categories.tsx
+ * @description Fetches and displays game categories for single-player, multiplayer, 
+ * friend challenges, and scheduled challenges. Allows users to select a category and 
+ * navigate to the game selection screen.
+ */
+
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
