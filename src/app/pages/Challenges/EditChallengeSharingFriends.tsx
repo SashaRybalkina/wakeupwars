@@ -1,3 +1,8 @@
+/**
+ * @file EditChallengeSharingFriends.tsx
+ * @description This file creates a page that allows a user to share a personal challenge with a friend).
+ */
+
 import React, { useState, useEffect } from "react";
 import {
   ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View,
