@@ -1,3 +1,8 @@
+/**
+ * @file PublicChallSearch1.tsx
+ * @description This file creates a page that allows a users to start searching for a public challenge (select multiplayer/singleplayer and the desired game categories)
+ */
+
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useLinkBuilder, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
