@@ -1,3 +1,11 @@
+"""
+/**
+ * @file notifications.py
+ * @description Sends FCM push notifications to user.
+ * It collects tokens, builds the message, and logs send results.
+ */
+"""
+
 from django.conf import settings
 from firebase_admin import messaging
 from api.models import FCMDevice
