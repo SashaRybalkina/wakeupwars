@@ -197,8 +197,41 @@ def close_join_window(model_name, gs_id):
                     date=today,
                     defaults={"score": 0, "auto_generated": True},
                 )
-        else:
-            for uid in participant_ids - existing_ids:
+        elif model_name == 'WordleGameState':
+            connected_ids = set(cache.get(f"wordle_conns_{gs.id}") or [])
+            print(f"[join-window] wordle connected_ids={connected_ids}")
+
+            # Include anyone who joined earlier (DB records)
+            db_player_ids = set(
+                WordleGamePlayer.objects.filter(game_state_id=gs.id).values_list("player_id", flat=True)
+            )
+            present_ids = connected_ids.union(db_player_ids)
+            print(f"[join-window] wordle present_ids (conn ∪ DB)={present_ids}")
+
+            absent_ids = (participant_ids - existing_ids) - present_ids
+            print(f"[join-window] wordle absent_ids_to_zero={absent_ids}")
+            for uid in absent_ids:
+                GamePerformance.objects.get_or_create(
+                    challenge=gs.challenge,
+                    game=gs.game,
+                    user_id=uid,
+                    date=today,
+                    defaults={"score": 0, "auto_generated": True},
+                )
+        elif model_name == 'SudokuGameState':
+            connected_ids = set(cache.get(f"sdk_conns_{gs.id}") or [])
+            print(f"[join-window] sudoku connected_ids={connected_ids}")
+
+            # Include anyone who joined earlier (DB records)
+            db_player_ids = set(
+                SudokuGamePlayer.objects.filter(gameState_id=gs.id).values_list("player_id", flat=True)
+            )
+            present_ids = connected_ids.union(db_player_ids)
+            print(f"[join-window] sudoku present_ids (conn ∪ DB)={present_ids}")
+
+            absent_ids = (participant_ids - existing_ids) - present_ids
+            print(f"[join-window] sudoku absent_ids_to_zero={absent_ids}")
+            for uid in absent_ids:
                 GamePerformance.objects.get_or_create(
                     challenge=gs.challenge,
                     game=gs.game,
@@ -207,23 +240,41 @@ def close_join_window(model_name, gs_id):
                     defaults={"score": 0, "auto_generated": True},
                 )
     else:
-        # Singleplayer: zero-fill all challenge members who did not play
-        participant_ids = set(
-            ChallengeMembership.objects.filter(challengeID=gs.challenge)
-                                       .values_list("uID_id", flat=True)
-        )
-        existing_ids = set(
-            GamePerformance.objects.filter(
-                challenge=gs.challenge,
-                game=gs.game,
-                date=today,
-            ).values_list("user_id", flat=True)
-        )
-        for uid in participant_ids - existing_ids:
+        if model_name == 'TypingRaceGameState' and getattr(gs.challenge, 'isPublic', False):
+            participant_ids = set(
+                ChallengeMembership.objects.filter(challengeID=gs.challenge)
+                                        .values_list("uID_id", flat=True)
+            )
+            existing_ids = set(
+                GamePerformance.objects.filter(
+                    challenge=gs.challenge,
+                    game=gs.game,
+                    date=today
+                ).values_list("user_id", flat=True)
+            )
+            connected_ids = set(cache.get(f"typing_conns_{gs.id}") or [])
+            db_player_ids = set(
+                TypingRaceGamePlayer.objects.filter(game_state_id=gs.id).values_list("player_id", flat=True)
+            )
+            present_ids = connected_ids.union(db_player_ids)
+            absent_ids = (participant_ids - existing_ids) - present_ids
+            for uid in absent_ids:
+                GamePerformance.objects.get_or_create(
+                    challenge=gs.challenge,
+                    game=gs.game,
+                    user_id=uid,
+                    date=today,
+                    defaults={"score": 0, "auto_generated": True},
+                )
+        # Singleplayer: only ensure an entry for the owner; do NOT zero-fill all members
+        owner_id = getattr(gs, 'user_id', None)
+        if owner_id and not GamePerformance.objects.filter(
+            challenge=gs.challenge, game=gs.game, date=today, user_id=owner_id
+        ).exists():
             GamePerformance.objects.update_or_create(
                 challenge=gs.challenge,
                 game=gs.game,
-                user_id=uid,
+                user_id=owner_id,
                 date=today,
                 defaults={"score": 0, "auto_generated": True},
             )

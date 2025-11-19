@@ -1050,96 +1050,10 @@ class SetUserHasSetAlarmsView(APIView):
         logger.info("Initiator ID: %s", initiator_id)
         # challenge diagnostics
         logger.info("Challenge(%s) pending=%s startDate=%r type=%s",
-                    challenge.id, challenge.isPending, challenge.startDate, type(challenge.startDate).__name__)
-
-        # Build (day, time, game_id) tuples from schedule
-        slot_tasks = set()
-        for cas in ChallengeAlarmSchedule.objects.filter(challenge=challenge)\
-                                                .select_related("alarm_schedule"):
-            day = cas.alarm_schedule.dayOfWeek
-            t_obj = cas.alarm_schedule.alarmTime
-            logger.info("Day: %s, Time: %s", day, t_obj)
-            game_ids = (
-                GameScheduleGameAssociation.objects
-                .filter(game_schedule__challenge=challenge,
-                        game_schedule__dayOfWeek=day)
-                .values_list("game_id", flat=True)
-            )
-            logger.info("Game IDs: %s", list(game_ids))
-            for gid in game_ids:
-                slot_tasks.add((day, t_obj, gid))
-
-        logger.info("Total slot_tasks=%d", len(slot_tasks))
-        if not slot_tasks:
-            return Response(
-                {"error": "No schedule found to queue tasks."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        def build_alarm_dt(ch_start, ch_end, day, t_obj):
-            # day is ISO weekday (1=Mon..7=Sun). Choose next occurrence on/after start, ensure within end.
-            from datetime import date as _date, datetime as _dt, timedelta
-            mountain_tz = pytz.timezone("America/Denver")
-
-            # normalize start/end to dates
-            if isinstance(ch_start, _dt):
-                base_date = ch_start.date()
-            else:
-                base_date = ch_start  # assume date
-
-            end_date = ch_end.date() if isinstance(ch_end, _dt) else ch_end
-
-            # compute forward delta to requested weekday
-            current_wd = base_date.isoweekday()
-            delta = (day - current_wd) % 7
-            alarm_date = base_date + timedelta(days=delta)
-
-            if end_date and alarm_date > end_date:
-                return None
-
-            dt = _dt.combine(alarm_date, t_obj)
-            if timezone.is_naive(dt):
-                dt = mountain_tz.localize(dt)
-            return dt
-
-        queued = 0
-        for day, t_obj, game_id in slot_tasks:
-            try:
-                alarm_dt = build_alarm_dt(challenge.startDate, challenge.endDate, day, t_obj)
-                if alarm_dt is None:
-                    logger.info("Skip outside challenge window: day=%s time=%s", day, t_obj)
-                    continue
-                g = Game.objects.get(id=game_id)
-                g_name = (g.name or "").lower()
-                if "sudoku" in g_name:
-                    code = "sudoku"
-                elif "wordle" in g_name:
-                    code = "wordle"
-                elif "pattern" in g_name:
-                    code = "pattern"
-                elif "typing" in g_name:
-                    code = "typing"
-                else:
-                    logger.warning("Unknown game name=%r id=%s; skipping", g.name, g.id)
-                    continue
-
-                logger.info("Queueing open_join_window: chall=%s game_id=%s code=%s eta=%s initiator=%s",
-                            challenge.id, game_id, code, alarm_dt, initiator_id)
-
-                open_join_window.apply_async(
-                    args=[challenge.id, game_id, code, initiator_id],
-                    eta=alarm_dt,
-                    # Optional: dedupe
-                    # taREDACTEDid=f"open-{challenge.id}-{game_id}-{t_obj.strftime('%H%M')}",
-                )
-                queued += 1
-            except Exception as e:
-                logger.exception("Failed to queue slot (t=%s, game_id=%s): %s", t_obj, game_id, e)
-                raise
+                    challenge.id, challenge.isPending, challenge.startDate, type(challenge.startDate).__name__)   
 
         return Response(
-            {"message": "Marked alarm set in backend & background tasks queued.",
-            "queued": True, "count": queued},
+            {"message": "Marked alarm set in backend."},
             status=status.HTTP_200_OK,
         )
 
@@ -3684,7 +3598,7 @@ class FinalizeWordleResultView(APIView):
         target_time = local_dt.time().replace(second=0, microsecond=0)
 
         if is_multiplayer:
-            # Multiplayer: scheduled users for this minute (+ joiners), then zero-fill missing
+            # Multiplayer: determine session participants for display only; do not persist zeros here
             has_game_today = GameScheduleGameAssociation.objects.filter(
                 game_schedule__challenge=gs.challenge,
                 game_schedule__dayOfWeek=target_day,
@@ -3723,23 +3637,6 @@ class FinalizeWordleResultView(APIView):
             )
 
             session_player_ids = (scheduled_user_ids if has_game_today else set()) | joined_user_ids
-
-            submitted_ids = set(
-                GamePerformance.objects.filter(
-                    challenge=gs.challenge,
-                    game=gs.game,
-                    date=play_date,
-                    user_id__in=session_player_ids,
-                ).values_list('user_id', flat=True)
-            )
-            for uid in (session_player_ids - submitted_ids):
-                GamePerformance.objects.update_or_create(
-                    challenge=gs.challenge,
-                    game=gs.game,
-                    user_id=uid,
-                    date=play_date,
-                    defaults={'score': 0, 'auto_generated': True}
-                )
         else:
             # Singleplayer: only this user participates in this session
             session_player_ids = {user.id}

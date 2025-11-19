@@ -624,22 +624,9 @@ class SudokuConsumer(AsyncWebsocketConsumer):
                 game=gs.game,
                 user=p.player,
                 date=play_date,
-                defaults={"score": score, "auto_generated": True},
+                defaults={"score": score, "auto_generated": False},
             )
             submitted_ids.add(p.player_id)
-
-        # Zero-fill missing participants for the day
-        participant_ids = set(
-            ChallengeMembership.objects.filter(challengeID=gs.challenge).values_list('uID_id', flat=True)
-        )
-        for uid in participant_ids - submitted_ids:
-            GamePerformance.objects.update_or_create(
-                challenge=gs.challenge,
-                game=gs.game,
-                user_id=uid,
-                date=play_date,
-                defaults={"score": 0, "auto_generated": True},
-            )
 
         # Mark joins closed
         if not gs.joins_closed:
