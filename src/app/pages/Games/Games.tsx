@@ -1,3 +1,9 @@
+/**
+ * @file Games.tsx
+ * @description Displays all games that are in the category that the user selected,
+ * as well as the mode the user has selected (Singleplayer or Multiplayer).
+ */
+
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
