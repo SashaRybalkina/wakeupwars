@@ -1,3 +1,8 @@
+/**
+ * @file AcceptFInvite.tsx
+ * @description This file creates a page that allows users to accept a friend invite.
+ */
+
 import React from 'react';
 import {
   Image,
