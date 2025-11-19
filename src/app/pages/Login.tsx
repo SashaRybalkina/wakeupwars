@@ -164,7 +164,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.contentContainer}>
           <View style={styles.logoContainer}>
             <Image
-              source={require('../images/wakeupwars.png')}
+              source={require('../images/wuw3.png')}
               style={styles.logoImage}
               resizeMode="contain"
             />
@@ -215,10 +215,6 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={[styles.loginButton, styles.loginButtonBackground]}
               onPress={handleLogin}
@@ -259,8 +255,8 @@ contentContainer: {
     marginTop: 140,
   },
   logoImage: {
-    width: 270,
-    height: 70,
+    width: 320,
+    height: 120,
   },
   formContainer: {
     width: inputWidth,

@@ -16,7 +16,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'name', 'email', 'avatar']
+        fields = ['id', 'username', 'name', 'avatar']
 
     def get_avatar(self, obj):
         if obj.currentMemoji:
@@ -35,7 +35,7 @@ class UserSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'password', 'name', 'email']
+        fields = ['username', 'password', 'name']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):

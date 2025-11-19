@@ -29,7 +29,6 @@ const inputWidth = Math.min(width * 0.85, 400)
 
 const SignUpScreen: React.FC<Props> = ({ navigation }) => {
   const [username, setUsername] = useState("")
-  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [name, setName] = useState("")
@@ -41,64 +40,8 @@ const SignUpScreen: React.FC<Props> = ({ navigation }) => {
     navigation.navigate("Login")
   }
 
-  // const handleSignUp = async () => {
-  //   if (!username || !email || !password || !confirmPassword || !name) {
-  //     Alert.alert("Error", "Please fill out all fields.")
-  //     return
-  //   }
-
-  //   if (password !== confirmPassword) {
-  //     Alert.alert("Error", "Passwords do not match.")
-  //     return
-  //   }
-
-  //   // Basic email validation
-  //   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  //   if (!emailRegex.test(email)) {
-  //     Alert.alert("Error", "Please enter a valid email address.")
-  //     return
-  //   }
-
-  //   try {
-  //     const res = await fetch(`${BASE_URL}/api/csrf-token/`, {
-  //       credentials: 'include',
-  //     });
-  //     const tokenData = await res.json();
-  //     const csrfToken = tokenData.csrfToken;
-
-  //     const response = await fetch(endpoints.register, {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //         'X-CSRFToken': csrfToken,
-  //       },
-  //       credentials: 'include',
-  //       body: JSON.stringify({
-  //         username,
-  //         email,
-  //         password,
-  //         name,
-  //       }),
-  //     })
-
-  //     const data = await response.json()
-
-  //     if (response.ok) {
-  //       Alert.alert("Success", "Account created successfully!", [
-  //         { text: "Login", onPress: () => navigation.navigate("Login") },
-  //       ])
-  //     } else {
-  //       Alert.alert("Error", data.error || "Failed to sign up.")
-  //     }
-  //   } catch (error) {
-  //     console.error("Signup error:", error)
-  //     Alert.alert("Error", "Signup failed. Try again later.")
-  //   }
-  // }
-
-
   const handleSignUp = async () => {
-  if (!username || !email || !password || !confirmPassword || !name) {
+  if (!username || !password || !confirmPassword || !name) {
     Alert.alert("Error", "Please fill out all fields.");
     return;
   }
@@ -108,18 +51,12 @@ const SignUpScreen: React.FC<Props> = ({ navigation }) => {
     return;
   }
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    Alert.alert("Error", "Please enter a valid email address.");
-    return;
-  }
-
   try {
     // 1. Create user
     const res = await fetch(endpoints.register, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, email, password, name }),
+      body: JSON.stringify({ username, password, name }),
     });
 
     const data = await res.json();
@@ -158,7 +95,6 @@ const SignUpScreen: React.FC<Props> = ({ navigation }) => {
     setUser({
       id: userData.id,
       name: userData.name,
-      email: userData.email,
       username: userData.username,
     });
 
@@ -176,11 +112,11 @@ const SignUpScreen: React.FC<Props> = ({ navigation }) => {
       <ImageBackground source={require("../images/cgpt3.png")} style={styles.backgroundImage} resizeMode="cover">
         <View style={styles.contentContainer}>
           <TouchableOpacity style={styles.backButton} onPress={goToLogin}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={34} color="#fff" />
           </TouchableOpacity>
 
           <View style={styles.headerContainer}>
-            <Image source={require("../images/wakeupwars.png")} style={styles.logoImage} resizeMode="contain" />
+            <Image source={require("../images/wuw3.png")} style={styles.logoImage} resizeMode="contain" />
           </View>
 
           <View style={styles.formContainer}>
@@ -203,19 +139,6 @@ const SignUpScreen: React.FC<Props> = ({ navigation }) => {
                 placeholderTextColor="#999"
                 value={username}
                 onChangeText={setUsername}
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor="#999"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
                 autoCapitalize="none"
               />
             </View>
@@ -257,13 +180,6 @@ const SignUpScreen: React.FC<Props> = ({ navigation }) => {
             >
               <Text style={styles.signupButtonText}>Sign Up</Text>
             </TouchableOpacity>
-
-            <View style={styles.termsContainer}>
-              <Text style={styles.termsText}>
-                By signing up, you agree to our <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
-                <Text style={styles.termsLink}>Privacy Policy</Text>
-              </Text>
-            </View>
           </View>
 
           <View style={styles.loginContainer}>
@@ -298,23 +214,23 @@ contentContainer: {
   },
   backButton: {
     position: "absolute",
-    top: 50,
+    top: 60,
     left: 20,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
     justifyContent: "center",
     alignItems: "center",
   },
   headerContainer: {
     alignItems: "center",
     marginBottom: 30,
-    marginTop: 60,
+    marginTop: 100,
   },
   logoImage: {
     width: 220,
-    height: 90,
+    height: 100,
     marginBottom: 10,
   },
   subHeaderText: {

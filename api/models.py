@@ -42,6 +42,10 @@ class User(AbstractUser):
     )
     memojiBgColor = models.CharField(max_length=7, default="#ffffff")
 
+    # Remove inherited email field and mark it non-required
+    email = None
+    REQUIRED_FIELDS = []
+
     class Meta:
         db_table = 'Users'  # Define the table name
 
