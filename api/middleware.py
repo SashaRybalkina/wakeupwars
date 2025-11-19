@@ -1,3 +1,12 @@
+"""
+/**
+ * @file middleware.py
+ * @description JWT WebSocket middleware.
+ *   Extracts token from query string. Validates user.
+ *   Injects authenticated user into scope for Channels.
+ */
+"""
+
 from urllib.parse import parse_qs
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth import get_user_model
