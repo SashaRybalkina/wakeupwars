@@ -1,3 +1,10 @@
+/**
+ * @file GameExpanded.tsx
+ * @description Displays detailed information about a selected game with image and,
+ * description, along with an option to confirm selection and navigate to the appropriate
+ * Challenges page.
+ */
+
 import React from 'react';
 import {
   ImageBackground,
