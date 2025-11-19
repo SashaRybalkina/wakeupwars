@@ -1,3 +1,11 @@
+"""
+/**
+ * @file wordle_consumer.py
+ * @description WebSocket consumer for multiplayer Wordle. It manages player
+ * joins, lobby state, move broadcasting, and score persistence.
+ */
+"""
+
 import asyncio
 import json
 from datetime import date
