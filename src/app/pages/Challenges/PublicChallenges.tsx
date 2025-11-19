@@ -226,7 +226,7 @@ const PublicChallenges: React.FC<Props> = ({ navigation }) => {
                     >
                       <PendingPublicChallengeCard
                         title={challenge.name}
-                        icon={require("../../images/chall.png")}
+                        icon={require("../../images/ytrophy.png")}
                         numEnrolledMembers={challenge.numParticipants}
                         totalDays={challenge.totalDays}
                         daysOfWeek={challenge.daysOfWeek}

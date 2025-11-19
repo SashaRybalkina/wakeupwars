@@ -10,7 +10,7 @@ export type SkillLevel = {
   totalPossible: number;
 };
 
-type User = { id: string | number; name: string; email: string; username: string } | null;
+type User = { id: string | number; name: string; username: string } | null;
 
 type UserCtx = {
   user: User;

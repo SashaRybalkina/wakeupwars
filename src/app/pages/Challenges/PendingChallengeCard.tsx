@@ -66,20 +66,20 @@ contentContainer: {
 },
 
   iconContainer: {
-    width: 75,
-    height: 75,
-    borderRadius: 75 / 2,
-    borderColor: "#fbae33ff",
-    borderWidth: 2,
+    width: 85,
+    height: 85,
+    borderRadius: 40,
+    borderColor: 'rgba(251, 174, 51, 0.5)',
+    borderWidth: 4,
     backgroundColor: "#D1C4E9",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
   },
   icon: {
-    width: 70,
-    height: 70,
-    resizeMode: "contain",
+    width: 80,
+    height: 80,
+    resizeMode: "cover",
   },
 
 detailsContainer: {

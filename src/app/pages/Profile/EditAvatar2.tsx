@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   },
 backButtonWrapper: {
   position: "absolute",
-  top: 40,
+  top: 50,
   left: 16,
   zIndex: 10,
 },
@@ -357,7 +357,7 @@ backButtonWrapper: {
     height: 90,
     borderRadius: 45,
     borderWidth: 2,
-    borderColor: '#000000ff',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   selectedAvatar: {
     borderColor: '#FFD700',
@@ -380,13 +380,13 @@ backButtonWrapper: {
   purchasedLabel: {
     color: '#000000ff',
     marginTop: 5,
-    fontSize: 14,
+    fontSize: 15,
   },
   doneButton: {
-    backgroundColor: '#32CD32',
-    paddingHorizontal: 30,
-    paddingVertical: 10,
-    borderRadius: 15,
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 30,
   },
   doneText: {
     color: '#fff',

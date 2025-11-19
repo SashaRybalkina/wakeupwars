@@ -4,6 +4,7 @@ import type { NavigationProp, RouteProp, ParamListBase } from '@react-navigation
 import { getAccessToken } from '../../auth';
 import { endpoints } from '../../api';
 import { useUser } from '../../context/UserContext';
+import { Ionicons } from '@expo/vector-icons';
 
 type SkillDetailRouteParams = { categoryId: number; categoryName?: string };
 type Props = {
@@ -97,6 +98,9 @@ const SkillDetail: React.FC<Props> = ({ route, navigation }) => {
   return (
     <ImageBackground source={require('../../images/cgpt.png')} style={styles.bg} resizeMode="cover">
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
         <View style={styles.titleWrap}>
           <Text style={styles.title}>{title}</Text>
         </View>
@@ -232,8 +236,20 @@ const styles = StyleSheet.create({
   bg: { flex: 1 },
   container: { flex: 1 },
   content: { padding: 30 },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    top: 25,
+    right: 10,
+    bottom: 20,
+  },
+  backText: { color: '#fff', fontWeight: '700', marginLeft: 4 },
   titleWrap: { alignItems: 'center', marginTop: 38, marginBottom: 30 },
-  title: { color: '#fff', fontSize: 30, fontWeight: '800', textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2 },
+  title: { marginTop: -15, color: '#fff', fontSize: 30, fontWeight: '800', textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2 },
   error: { color: '#ff7070', marginVertical: 8 },
   center: { paddingVertical: 24, alignItems: 'center' },
   card: { backgroundColor: 'rgba(0, 0, 0, 0.25)', borderRadius: 16, padding: 12, marginBottom: 16, borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 },

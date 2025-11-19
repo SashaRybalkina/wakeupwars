@@ -129,10 +129,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 10,
   },
 backButtonWrapper: {
   position: "absolute",
-  top: 40,
+  top: 50,
   left: 16,
   zIndex: 10,
 },
@@ -147,6 +148,10 @@ backButtonWrapper: {
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 20,
+    marginTop: 25,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   gridContainer: {
     justifyContent: 'center',
@@ -179,8 +184,7 @@ backButtonWrapper: {
     paddingVertical: 12,
     paddingHorizontal: 40,
     borderRadius: 30,
-    marginTop: 30,
-    marginBottom: 40,
+    marginBottom: 100,
   },
   nextButtonText: {
     color: '#fff',

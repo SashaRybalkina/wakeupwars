@@ -775,7 +775,7 @@ const [hasShownResult, setHasShownResult] = useState(false);
               const { scores } = data;
               console.log("game complete score: ", scores);
               ToastAndroid.show("🧮 Calculating final scores...", ToastAndroid.SHORT);
-              
+              setGameCompleted(true);
               (async () => {
                 try {
                   //await refreshSkills();

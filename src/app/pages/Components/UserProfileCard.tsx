@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, Animated, Alert } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, Animated, Alert, Dimensions } from 'react-native';
 import { SkillLevel, useUser } from '../../context/UserContext';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
@@ -39,6 +39,9 @@ type Badge = {
   };
 };
 
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.75, 400);
 
 const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoins, isCurrentUser = true, skillLevelsOverride, disableSkillDetail, badgesGiven, changeTab = false }) => {
   const { skillLevels, user, logout } = useUser();
@@ -304,7 +307,7 @@ const PulsingBadge = ({ badge, onPress }) => {
           <Ionicons name="pencil" size={18} color="#fff" />
         </TouchableOpacity>
         </View>
-            <Text style={styles.profileName}>{name}</Text>
+            <Text style={styles.profileName} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
     <Text style={styles.coinText}>{numCoins} 🪙</Text>
     <TouchableOpacity
@@ -330,8 +333,8 @@ const PulsingBadge = ({ badge, onPress }) => {
         </View>
       ) : (
         <View style={styles.headerWrap}>
-          <View style={styles.headerCard}>
-            <Text style={styles.profileName}>{name}</Text>
+          <View style={[styles.headerCard, { width: CARD_WIDTH }]}>
+            <Text style={styles.profileName} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
             <Text style={styles.coinText}>{numCoins} 🪙</Text>
           </View>
       <View style={styles.avatarWrapper}>
