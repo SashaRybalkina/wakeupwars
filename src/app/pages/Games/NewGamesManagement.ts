@@ -1,3 +1,13 @@
+/**
+ * @file NewGamesManagement.ts
+ * @description This file acts as the master list for all the games in the app. It keeps track 
+ * of each game’s main info (like images and descriptions) and connects the backend’s game IDs 
+ * and names to the internal game keys. It also includes a couple helper functions to clean up 
+ * names, look up metadata safely, and provide fallbacks. Used in various places like GameExpanded,
+ * GameSelection, challenge screens, and many others.
+ */
+
+
 /****************** 
  * ----- UPDATE NEW GAME----
  * 
