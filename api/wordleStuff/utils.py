@@ -1,3 +1,11 @@
+"""
+/**
+ * @file utils.py
+ * @description Handles Wordle game creation, puzzle generation, player
+ * registration, guess validation, and leaderboard scoring.
+ */
+"""
+
 from api.models import GameCategory, WordleGameState, Challenge, WordleGamePlayer, User, Game, WordleMove, GameSchedule, GameScheduleGameAssociation
 import random
 from django.db import transaction
