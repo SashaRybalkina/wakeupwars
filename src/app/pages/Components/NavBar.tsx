@@ -1,3 +1,11 @@
+/**
+ * @file NavBar.tsx
+ * @description This is the bottom navigation bar used throughout various pages in the app.
+ * It allows navigation to the Challenges page, Public Challenges page, Groups page, 
+ * Messages page, and Profile page
+ */
+
+
 import React from "react";
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -104,7 +112,7 @@ const styles = StyleSheet.create({
   },
   navButton: {
     alignItems: "center",
-    flex: 1,                   // ✅ helps distribute buttons evenly
+    flex: 1,
   },
   navText: {
     color: "#FFF",
