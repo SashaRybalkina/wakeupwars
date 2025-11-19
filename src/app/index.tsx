@@ -1,3 +1,9 @@
+/**
+ * @file index.tsx
+ * @description Root of the app that handles navigation and other app behavior.
+ */
+
+
 import React, { useEffect, useState } from "react";
 import { NativeEventEmitter, NativeModules, Platform } from 'react-native';
 import {
