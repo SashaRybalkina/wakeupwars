@@ -1,3 +1,9 @@
+/**
+ * @file GroupChall3Old.tsx
+ * @description Shows a list of available games and lets the user navigate to the next
+ * step of the challenge setup once a game option is selected (tapped).
+ */
+
 import React from 'react';
 import {
   ImageBackground,
