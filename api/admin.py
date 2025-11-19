@@ -1,3 +1,11 @@
+"""
+/**
+ * @file admin.py
+ * @description Admin registrations and configurations for rewards,
+ * external handles, obligations, and payments.
+ */
+"""
+
 # Register your models here.
 # api/admin.py
 from django.contrib import admin
