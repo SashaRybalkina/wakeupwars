@@ -1,5 +1,5 @@
 /**
- * @file index.tsx
+ * @file auth.ts
  * @description Handles user authentication.
  */
 
