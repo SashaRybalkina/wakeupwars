@@ -1,3 +1,11 @@
+/**
+ * @file UserProfileCard.tsx
+ * @description Displays a user’s profile, including their avatar, name, coin count, skill levels, 
+ * and earned badges. This page allows users to view their skill details, switch between the Skills 
+ * and Badges tabs, and edit their avatar. This page is also used for viewing other user's
+ * profiles without the ability to edit details.
+ */
+
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, Animated, Alert, Dimensions } from 'react-native';
 import { SkillLevel, useUser } from '../../context/UserContext';
