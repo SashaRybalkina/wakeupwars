@@ -1,3 +1,10 @@
+/**
+ * @file SomeCategories.tsx
+ * @description Shows the list of all game categories, where the categories can be
+ * tapped to navigate to the game selection based on that category.
+ */
+
+
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
