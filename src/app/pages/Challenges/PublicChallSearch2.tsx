@@ -1,3 +1,8 @@
+/**
+ * @file PublicChallSearch2.tsx
+ * @description This file creates a page that allows users to view the public challenges that match their filters.
+ */
+
 import { StyleSheet, ScrollView, TouchableOpacity, ImageBackground, View, Text } from "react-native";
 import { NavigationProp, useLinkBuilder, useRoute } from '@react-navigation/native';
 import PendingPublicChallengeCard from "./PendingPublicChallengeCard"
