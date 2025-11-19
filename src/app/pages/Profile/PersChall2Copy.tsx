@@ -1,3 +1,8 @@
+/**
+ * @file Perschall2Copy.tsx
+ * @description This file creates a page that allows users to select the alarms/games for a new personal challenge.
+ */
+
 import React, { useEffect, useMemo, useState } from "react"
 import {
   Alert,
