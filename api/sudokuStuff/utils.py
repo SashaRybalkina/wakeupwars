@@ -1,6 +1,6 @@
 """
 /**
- * @file sudoku_game_utils.py
+ * @file utils.py
  * @description This file creates or reuses Sudoku game states. It generates puzzles
  * and solutions. It assigns the correct game for the user. It records players who
  * join the game. It validates Sudoku moves. It updates accuracy stats. It checks
