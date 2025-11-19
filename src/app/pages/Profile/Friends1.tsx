@@ -1,3 +1,8 @@
+/**
+ * @file Friends1.tsx
+ * @description This file creates a page that allows users to view their friends list.
+ */
+
 import type React from "react"
 import { useEffect, useState } from "react"
 import * as SecureStore from "expo-secure-store"
