@@ -1,3 +1,13 @@
+"""
+/**
+ * @file sudoku_consumer.py
+ * @description This file defines the WebSocket consumer for the multiplayer Sudoku game.
+ * It manages join windows and lobby states. It tracks online players and
+ * assigns colors. It locks and unlocks cells during edits. It broadcasts
+ * player moves and game events. It updates accuracy records and final scores.
+ */
+"""
+
 import json
 import random
 from channels.generic.websocket import AsyncWebsocketConsumer
