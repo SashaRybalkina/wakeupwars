@@ -1,3 +1,8 @@
+/**
+ * @file PublicChallenges.tsx
+ * @description This file creates a page that allows users to view their current public challenges
+ */
+
 import type React from "react"
 import { useCallback, useEffect, useState } from "react"
 import { endpoints } from "../../api"
