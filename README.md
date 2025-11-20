@@ -1,93 +1,172 @@
 # WakeUpWars
 
+Android-only mobile app with a Django backend and WebSockets (Daphne/Channels). This document explains how to fully build and run the project, which platforms it supports, and extra libraries needed.
 
+- Platform: Android only
+- Backend: Django 5, Django REST Framework, Channels (ASGI), Celery
+- Realtime/Queues: Redis-compatible server (Memurai on Windows)
+- Database: Amazon RDS (MariaDB)
 
-## Getting started
+---
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Prerequisites
+- Windows 10/11
+- Python 3.10+ and pip
+- Node.js 18+ and npm
+- Android Studio with SDK/Platform Tools (for emulator or USB debugging)
+- Java 17 (JDK) for React Native Android builds
+- Git
+- MySQL client (for connecting to RDS)
+- Memurai (Redis-compatible for Windows): https://www.memurai.com/get-memurai
+- Optional: ngrok for public tunneling: https://ngrok.com/download
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+Backend Python dependencies are pinned in `requirements.txt` and include: Django, djangorestframework, channels, daphne, celery, channels_redis, mysqlclient, redis, etc. Frontend uses React Native/Expo (see `package.json`).
 
-## Add your files
+---
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
+## Clone
 ```
-cd existing_repo
-git remote add origin https://capstone.cs.utah.edu/wakeupwars/wakeupwars.git
-git branch -M main
-git push -uf origin main
+git clone https://capstone.cs.utah.edu/wakeupwars/wakeupwars.git
+cd wakeupwars
+git checkout final-release
 ```
 
-## Integrate with your tools
+---
 
-- [ ] [Set up project integrations](https://capstone.cs.utah.edu/wakeupwars/wakeupwars/-/settings/integrations)
+## AWS RDS (MariaDB) setup
+1. In AWS Console: RDS → Databases → Create database
+2. Standard create → MariaDB → Engine version: MariaDB 11.4.5
+3. Template: Dev/Test
+4. DB instance id: e.g. `wake-up-wars-db`
+5. Credentials: master username/password (self-managed)
+6. Instance class: Burstable `db.t3.micro`
+7. Storage: General purpose SSD (gp3), 20 GiB, no autoscaling
+8. High availability: No standby
+9. Connectivity: IPv4, Default VPC, Public access: Yes, Security group: default
+10. Proxy: No, Port: 3306, Auth: Password
+11. Initial DB name: e.g. `wake_up_wars_db`
 
-## Collaborate with your team
+Allow your IP to access the DB:
+- EC2 → Network & Security → Security groups → select Default SG → Edit inbound rules
+- Add rule: MYSQL/Aurora (3306), Source: your IP
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+---
 
-## Test and Deploy
+## Backend configuration
+1. Install backend deps:
+```
+python -m pip install -r requirements.txt
+```
 
-Use the built-in continuous integration in GitLab.
+2. Place Firebase private key at project root and name it `wakeupwars_private_key.json`.
+   - `myserver/settings.py` loads it from project root via `FIREBASE_CRED_PATH`.
+   - Private keys are expected at the project level.
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+3. Configure database in `myserver/settings.py` → `DATABASES` to match your new RDS instance:
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'wake_up_wars_db',            # your DB name
+        'USER': 'myUsername',                 # RDS username
+        'PASSWORD': 'myPassword',             # RDS password
+        'HOST': 'wake-up-wars-db.xxxxxxx.us-east-1.rds.amazonaws.com', # RDS endpoint
+        'PORT': '3306',
+    }
+}
+```
 
-***
+4. Create tables:
+```
+python manage.py makemigrations
+python manage.py migrate
+```
 
-# Editing this README
+5. Seed required data (manual for now):
+- Connect using the MySQL shell to your RDS, then insert the required bootstrap rows for the app to function (e.g., base categories, games, badges, etc.).
+- There are currently no fixtures in the repo; if you need concrete SQL, contact maintainers to obtain the latest seed script and run it against your DB.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+---
 
-## Suggestions for a good README
+## Background jobs (Celery + Memurai)
+1. Install Memurai (Windows Redis) from https://www.memurai.com/get-memurai
+2. Verify it is running:
+```
+"C:\Program Files\memurai\memurai-cli.exe" -h 127.0.0.1 -p 6379 ping
+# Expected output: PONG
+```
+3. Start Celery worker (from project root):
+```
+celery -A myserver worker --pool=solo -l info
+```
+Notes:
+- `myserver/settings.py` defaults to `redis://127.0.0.1:6379/0` for broker/backend and Channels. Override with `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, or `REDIS_URL` if needed.
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+---
 
-## Name
-Choose a self-explaining name for your project.
+## Start the backend (ASGI/Daphne)
+From the project root:
+```
+daphne -b 0.0.0.0 -p 8000 myserver.asgi:application
+```
+Ensure Windows firewall allows inbound traffic to port 8000 if testing on device.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+---
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## Frontend configuration
+1. Install JS deps:
+```
+npm install
+```
+2. Set the API base URL in `src/app/api.ts`:
+```ts
+export const BASE_URL = 'http://<your-LAN-IP>:8000';
+// Or use ngrok: e.g. https://xxxxx.ngrok-free.app
+```
+- If using ngrok: `ngrok http 8000` and use the forwarding URL.
+- Some antivirus/Windows Defender realtime protection can interfere with ngrok; you may need to temporarily disable it.
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+---
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+## Run the Android app
+You can use any Android phone or emulator.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+- Emulator: Start an Android Virtual Device from Android Studio.
+- Physical device: Enable USB debugging, connect via USB, set file transfer mode.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+Then from the project root:
+```
+npx expo run:android
+```
+This will build and install the native Android app and run it connected to your backend.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+---
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+## Testing (optional)
+- Python: `pytest`
+- JS/TS: `npm test`
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+---
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## Troubleshooting
+- Backend not reachable from device: Use your machine's LAN IP in `BASE_URL`, ensure device and PC are on same network, and allow port 8000 in firewall.
+- Missing Firebase key: Ensure `wakeupwars_private_key.json` exists at project root and is valid.
+- Redis connection errors: Confirm Memurai is running and reachable at `127.0.0.1:6379` (or update `REDIS_URL`).
+- MySQL errors: Verify `DATABASES` credentials and that your IP is whitelisted in the RDS security group.
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+---
 
-## License
-For open source projects, say how it is licensed.
+## Key libraries
+Backend (`requirements.txt`):
+- Django, djangorestframework, djangorestframework-simplejwt
+- channels, daphne, channels_redis
+- celery, django-celery-beat
+- mysqlclient, PyMySQL, redis
+- Pillow, requests, firebase-admin
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Frontend: React Native + Expo (see `package.json`).
+
+---
+
+## Notes
+- Android is the only supported platform.
