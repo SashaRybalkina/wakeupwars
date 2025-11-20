@@ -1,3 +1,11 @@
+/**
+ * @file SudokuScreen.tsx
+ * @description Implements the full Sudoku game for both the single-player and 
+ * multiplayer modes, with WebSocket real-time updates, cell locking (for multiplayer 
+ * to ensure players don't overwrite each other's answers), move validation, 
+ * scoring, and a timer.
+ */
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
