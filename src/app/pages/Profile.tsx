@@ -1,3 +1,10 @@
+/**
+ * @file Profile.tsx
+ * @description Renders the user’s profile screen, including avatar display, the
+ * user's earned badges, the user's skill levels in different game categories, 
+ * how many coins the user has, a way to view past notifications, and a logout button.
+ */
+
 import React, { useRef } from 'react';
 import { useEffect, useState } from 'react';
 import * as SecureStore from "expo-secure-store";
