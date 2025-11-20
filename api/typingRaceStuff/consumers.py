@@ -7,30 +7,32 @@
  */
 """
 
-from datetime import date, timedelta
 import asyncio
-from django.utils import timezone
-from django.conf import settings
-from channels.generic.websocket import AsyncJsonWebsocketConsumer
-from asgiref.sync import sync_to_async
-from django.core.cache import cache
-from channels.db import database_sync_to_async
-from time import time
+from datetime import date, timedelta
 import json
 import logging
-logger = logging.getLogger(__name__)
+from time import time
 
-
+from asgiref.sync import sync_to_async
+from channels.db import database_sync_to_async
+from channels.generic.websocket import AsyncJsonWebsocketConsumer
+from django.conf import settings
+from django.core.cache import cache
+from django.utils import timezone
 
 from api.models import (
-    TypingRaceGameState,
-    TypingRaceGamePlayer,
-    User,
+    ChallengeMembership,
     GamePerformance,
-    ChallengeMembership
+    TypingRaceGamePlayer,
+    TypingRaceGameState,
+    User,
 )
-from api.typingRaceStuff.utils import apply_progress_update_async, _save_leaderboard_cache_to_db
 from api.tasks import close_join_window
+from api.typingRaceStuff.utils import (
+    _save_leaderboard_cache_to_db,
+    apply_progress_update_async,
+)
+logger = logging.getLogger(__name__)
 
 
 # ===== Cache Key Helpers =====
@@ -54,11 +56,8 @@ JOIN_TIMEOUT_SEC = int(getattr(settings, "JOIN_WINDOW_SECONDS", 20) or 20)
 ENABLE_JOIN_DEADLINE = True
 ENABLE_ENDED_CHECK = True
 
-
-
-
 # ==========================================
-# 🏁 Typing Race WebSocket Consumer
+# Typing Race WebSocket Consumer
 # ==========================================
 class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
     """
@@ -67,7 +66,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
     """
 
     # ======================
-    # 🔌 Connection Handling
+    # Connection Handling
     # ======================
     async def connect(self):
         """Handle new client connection and add to the game room."""
@@ -75,11 +74,8 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         self.room_group_name = f"typing_{self.game_id}"
         self.user: User = self.scope["user"]
 
-        #print(f"[Typing][CONNECT] user={self.user}, authenticated={self.user.is_authenticated}")
-
         # Reject unauthenticated users
         if not self.user.is_authenticated:
-            #print("[Typing][DENIED] Unauthenticated user attempted to connect.")
             await self.close()
             return
         
@@ -88,7 +84,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
 
         if ENABLE_JOIN_DEADLINE:
             if not await self._check_join_deadline(gs):
-                await self.accept()  # ✅ need to accept before sending
+                await self.accept()  # need to accept before sending
                 await self.send_json({
                     "type": "error",
                     "message": "Join window has closed for this game."
@@ -99,7 +95,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
 
         if ENABLE_ENDED_CHECK:
             if not await self._check_game_not_ended(gs):
-                await self.accept()  # ✅ need to accept before sending
+                await self.accept()  # need to accept before sending
                 await self.send_json({
                     "type": "error",
                     "message": "This challenge has already been completed today."
@@ -111,19 +107,16 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         # Join the channel group
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
-        #print(f"[Typing][JOIN] {self.user.username} joined room {self.room_group_name}")
 
         # Update cache with connected user IDs
         conns = set(cache.get(_conns_key(self.game_id)) or [])
         conns.add(self.user.id)
         cache.set(_conns_key(self.game_id), list(conns), timeout=CACHE_TTL)
-        #print(f"[Typing][CACHE] Current connections in game {self.game_id}: {list(conns)}")
 
         # Register player in DB
         await self._add_player()
-        #print(f"[Typing][DB] Player {self.user.username} added to TypingRaceGameState {self.game_id}")
 
-        # ✅ Get current connected users
+        # Get current connected users
         conns = set(cache.get(_conns_key(self.game_id)) or [])
 
         def get_connected_users_sync():
@@ -132,14 +125,13 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         
         members = await sync_to_async(get_connected_users_sync)()
 
-        # ✅ Send current online players to self
+        # Send current online players to self
         await self.send_json({
             "type": "player_list",
             "players": members
         })
-        #print(f"[Typing][PLAYER LIST] sent to {self.user.username}: {members}")
 
-        # ✅ Broadcast updated online player list to others
+        # Broadcast updated online player list to others
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -163,12 +155,10 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             "type": "connection_success",
             "message": f"Connected as {self.user.username}",
         })
-        #print(f"[Typing][SEND] connection_success sent to {self.user.username}")
 
     async def disconnect(self, close_code):
         """Handle client disconnection and cleanup."""
         username = self.user.username
-        #print(f"[Typing][DISCONNECT] user={username}, close_code={close_code}")
 
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
@@ -177,32 +167,20 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         if self.user.id in conns:
             conns.remove(self.user.id)
         cache.set(_conns_key(self.game_id), list(conns), timeout=CACHE_TTL)
-        #print(f"[Typing][CACHE] Remaining connections: {list(conns)}")
-
-        # Auto-save zero score for disconnected users
-        #await self._save_zero_score_if_needed()
 
         # Notify others of updated lobby state
         await self._broadcast_lobby_state()
 
         # Cleanup cache if no active players remain
         if not conns:
-            # cache.delete(_conns_key(self.game_id))
-            # cache.delete(_saved_key(self.game_id))
-            # cache.delete(_deadline_key(self.game_id))
-            # #print(f"[Typing][CLEANUP] Cache cleared for empty game_id={self.game_id}")
             asyncio.create_task(self._delayed_cleanup())
 
     # =========================
-    # 💬 Handling Incoming Data
+    # Handling Incoming Data
     # =========================
     async def receive_json(self, data):
         """Process messages received from the client."""
         msg_type = data.get("type")
-        #print(f"[Typing][RECEIVE] {self.user.username} -> {msg_type} | data={data}")
-        # recv_ts = int(time() * 1000)
-        # logger.debug(f"[TIMING][RECV] user={self.user.username} type={msg_type} recv_at={recv_ts}")
-
 
         if msg_type == "start_game":
             await self._handle_start_game()
@@ -219,11 +197,10 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             print(f"[Typing][WARN] Unknown message type={msg_type}")
 
     # =========================
-    # 🚀 Game Event Handlers
+    # Game Event Handlers
     # =========================
     async def _handle_start_game(self):
         """Triggered when a player starts the game. Broadcast start signal."""
-        #print(f"[Typing][START] Game start triggered by {self.user.username}")
         
         print(f"[Typing][START] Game start triggered by {self.user.username}")
         started_key = _started_key(self.game_id)
@@ -237,10 +214,6 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             TypingRaceGameState.objects.filter(id=self.game_id).update
         )(joins_closed=True)
 
-        # Auto-assign zero scores to absent players
-        #await self._auto_save_zero_for_absent_players()
-
-        #cache.delete(_deadline_key(self.game_id))
         await self._close_joins_and_broadcast()
 
     @sync_to_async
@@ -309,8 +282,6 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         if is_completed:
             await self._check_if_everyone_finished()
 
-        #logger.warning(f"[PROGRESS][SENT] {self.user.username} broadcast progress={progress:.2f}%")
-
     async def _check_if_everyone_finished(self):
         """
         Trigger early game end if all *online* players have finished.
@@ -370,8 +341,6 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
 
         logger.warning(f"[Typing][EARLY END] Fully synced and broadcasted (game_id={self.game_id})")
 
-
-
     @database_sync_to_async
     def _get_game_leaderboard(self):
         """Run ORM safely in a synchronous thread."""
@@ -395,7 +364,6 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
     async def _handle_game_finished(self):
         """Handle player finishing the game and broadcast leaderboard if all done."""
         try:
-            #print(f"[Typing][FINISH] {self.user.username} finished game {self.game_id}")
             logger.warning(f"[Typing][FINISH] {self.user.username} triggered game_finished for {self.game_id}")
 
             leaderboard_key = f"typing_leaderboard_{self.game_id}"
@@ -416,13 +384,6 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
                         "winner": winner,
                     },
                 )
-
-                
-                # await sync_to_async(_save_leaderboard_cache_to_db)(self.game_id)
-                # logger.warning(f"[Typing][FINISH] Cached leaderboard persisted to DB for game {self.game_id}")
-
-                # ✅ (Lazy save) Mark this player's finish in cache only — no DB yet
-
             else:
                 
                 leaderboard, all_done = await self._get_game_leaderboard()
@@ -454,7 +415,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
         Called when game time runs out (from frontend).
         Syncs all players’ progress to DB, even if unfinished.
         """
-        # ✅ prevent duplicate timeout handling
+        # prevent duplicate timeout handling
         timeout_key = f"typing_timeout_done_{self.game_id}"
         if cache.get(timeout_key):
             logger.warning(f"[Typing][TIMEOUT] Ignored duplicate timeout for game {self.game_id}")
@@ -463,15 +424,15 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
 
         logger.warning(f"[Typing][TIMEOUT] Game {self.game_id} reached time limit — syncing all results")
 
-        # ✅ Force-save all players' current progress to DB
+        # Force-save all players' current progress to DB
         await sync_to_async(_save_leaderboard_cache_to_db)(self.game_id)
 
-        # ✅ take the final leaderboard snapshot
+        # take the final leaderboard snapshot
         leaderboard, _ = await self._get_game_leaderboard()
         sorted_lb = sorted(leaderboard, key=lambda x: (x.get("rank") or 9999, -x["score"]))
         winner = sorted_lb[0]["username"] if sorted_lb else None
 
-        # ✅ broadcast to all clients
+        # broadcast to all clients
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -482,16 +443,15 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             },
         )
 
-        # ✅ Persist both TypingRaceGamePlayer + GamePerformance (parallel for speed)
+        # Persist both TypingRaceGamePlayer + GamePerformance (parallel for speed)
         await asyncio.gather(
-            #sync_to_async(_save_leaderboard_cache_to_db)(self.game_id),
             self._save_game_performance_from_typing_results(),
         )
         logger.warning(f"[Typing][TIMEOUT] Game {self.game_id} fully synced to DB")
 
 
     # =========================
-    # 📡 Group Event Handlers
+    # Group Event Handlers
     # =========================
     async def leaderboard_update(self, event):
         """Send leaderboard updates to the client."""
@@ -504,7 +464,6 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
     
     async def player_progress_update(self, event):
         """Send a single player's progress update to all clients."""
-        #print(f"[Typing][SEND] player_progress_update -> {self.user.username}")
         await self.send_json({
             "type": "player_progress_update",
             "player": event["player"],
@@ -540,11 +499,10 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
 
     async def lobby_state(self, event):
         """Forward updated lobby state to each client."""
-        #print(f"[Typing][SEND] lobby_state -> {self.user.username}")
         await self.send_json(event)
 
     # =========================
-    # 💾 Helper Methods (DB/Cache)
+    # Helper Methods (DB/Cache)
     # =========================
     async def _delayed_cleanup(self):
         """Wait for a short time before clearing cache ."""
@@ -701,7 +659,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
                 logger.warning(f"[Typing][SCORE] {self.user.username} already completed — skip zero score")
                 return
 
-            # ✅ check cache for completed status
+            # check cache for completed status
             leaderboard_key = f"typing_leaderboard_{self.game_id}"
             lb_cache = cache.get(leaderboard_key)
             if lb_cache:
@@ -710,7 +668,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
                         logger.warning(f"[Typing][SCORE] {self.user.username} marked complete in cache — skip zero score")
                         return
 
-            # ✅ check if a formal record already exists (non auto_generated)
+            # check if a formal record already exists (non auto_generated)
             exists = GamePerformance.objects.filter(
                 challenge=gs.challenge,
                 game=gs.game,
@@ -722,7 +680,7 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
                 logger.warning(f"[Typing][SCORE] {self.user.username} already has a score — skip zero score")
                 return
 
-            # 🧩 If none of the above conditions are met, safely create a 0 score
+            # If none of the above conditions are met, safely create a 0 score
             GamePerformance.objects.update_or_create(
                 challenge=gs.challenge,
                 game=gs.game,
@@ -828,8 +786,6 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
 
         except Exception as e:
             logger.error(f"[PERF][ERROR] game_id={self.game_id} {e}")
-
-
     
     # ===== Helper: join deadline check =====
     async def _check_join_deadline(self, gs):
@@ -844,8 +800,6 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             logger.warning(f"[Typing][JOIN DEADLINE] {self.user.username} denied join for game_state={self.game_id}")
             return False  
         return True
-        
-
 
     # ===== Helper: ended game check =====
     async def _check_game_not_ended(self, gs):
@@ -871,30 +825,6 @@ class TypingRaceConsumer(AsyncJsonWebsocketConsumer):
             logger.warning(f"[Typing][ENDED CHECK] {self.user.username} denied join because game already ended")
             return False
         return True
-    
-    # async def _auto_save_zero_for_absent_players(self):
-    #     """Just record absent players to cache; no DB writes yet."""
-    #     gs = await sync_to_async(
-    #         TypingRaceGameState.objects.select_related("challenge", "game").get
-    #     )(id=self.game_id)
-
-    #     if not bool(getattr(gs.game, "isMultiplayer", False)):
-    #         return
-
-    #     all_members = await sync_to_async(list)(
-    #         ChallengeMembership.objects.filter(
-    #             challengeID=gs.challenge
-    #         ).select_related("uID")
-    #     )
-
-    #     connected_ids = set(cache.get(_conns_key(self.game_id)) or [])
-    #     absent_ids = [m.uID.id for m in all_members if m.uID.id not in connected_ids]
-
-    #     cache.set(f"absent_players_{self.game_id}", absent_ids, timeout=3600)
-    #     logger.warning(f"[Typing][AUTOZERO][CACHE] Marked {len(absent_ids)} absent players for game_id={self.game_id}")
-
-
-
 
 
 

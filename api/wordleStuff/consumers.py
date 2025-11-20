@@ -7,21 +7,22 @@
 """
 
 import asyncio
-import json
 from datetime import date
-from django.utils import timezone
-from channels.generic.websocket import AsyncWebsocketConsumer
-from asgiref.sync import sync_to_async
-from django.core.cache import cache
+import json
 
-from api.wordleStuff.utils import validate_wordle_move_async
+from asgiref.sync import sync_to_async
+from channels.generic.websocket import AsyncWebsocketConsumer
+from django.core.cache import cache
+from django.utils import timezone
+
 from api.models import (
-    WordleGameState,
-    WordleGamePlayer,
-    User,
+    ChallengeMembership,
     GamePerformance,
-    ChallengeMembership
+    User,
+    WordleGamePlayer,
+    WordleGameState,
 )
+from api.wordleStuff.utils import validate_wordle_move_async
 
 # ===== Feature switches =====
 ENABLE_JOIN_DEADLINE = False
@@ -182,7 +183,6 @@ class WordleConsumer(AsyncWebsocketConsumer):
             print(f"[WebSocket][CLEANUP] All players left. Cleaning up cache for game_state={self.game_state_id}")
             cache.delete(_conns_key(self.game_state_id))
             cache.delete(_saved_key(self.game_state_id))
-            # ❌ No need to remove WordleGamePlayer — scores already saved
 
         # --- Notify other players ---
         await self.channel_layer.group_send(
@@ -232,8 +232,6 @@ class WordleConsumer(AsyncWebsocketConsumer):
             }
         )
 
-
-
     async def receive(self, text_data):
         data = json.loads(text_data)
         print(f"[WebSocket][RECEIVE] from {self.user.username}: {data}")
@@ -262,7 +260,6 @@ class WordleConsumer(AsyncWebsocketConsumer):
             print(f"[WebSocket][BROADCAST] move from {self.user.username} -> others in game_state={self.game_state_id}")
 
             # If the game is complete, client will call finalize endpoint
-            # No need to handle completion here anymore
             if is_complete:
                 print(f"[WebSocket][GAME COMPLETE] game_state={self.game_state_id}, user={self.user.username} completed (client will finalize)")
 
@@ -341,8 +338,6 @@ class WordleConsumer(AsyncWebsocketConsumer):
                         "scores": scores,
                     }
                 )
-              
-    
     
     # ===== Group event handlers =====
     async def player_left(self, event):
@@ -433,7 +428,6 @@ class WordleConsumer(AsyncWebsocketConsumer):
         except Exception:
             pass
 
-
     # ===== Helper: join deadline check =====
     async def _check_join_deadline(self, gs):
         now = timezone.now()
@@ -461,7 +455,6 @@ class WordleConsumer(AsyncWebsocketConsumer):
             await self.close(code=4002)
             return False
         return True
-
 
     # ===== Database helpers =====
     @sync_to_async

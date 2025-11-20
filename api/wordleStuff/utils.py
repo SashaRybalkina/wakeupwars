@@ -6,16 +6,28 @@
  */
 """
 
-from api.models import GameCategory, WordleGameState, Challenge, WordleGamePlayer, User, Game, WordleMove, GameSchedule, GameScheduleGameAssociation
+from datetime import timedelta
 import random
+
+from asgiref.sync import sync_to_async
 from django.db import transaction
 from django.db import IntegrityError
-from asgiref.sync import sync_to_async
-from api.words_array import words
 from django.utils import timezone
-from datetime import timedelta
 
-MAX_ATTEMPTS = 5  # frontend also defines 5 rows
+from api.models import (
+    Challenge,
+    Game,
+    GameCategory,
+    GameSchedule,
+    GameScheduleGameAssociation,
+    User,
+    WordleGamePlayer,
+    WordleGameState,
+    WordleMove,
+)
+from api.words_array import words
+
+MAX_ATTEMPTS = 5
 
 def compute_multiplayer_score(rank: int, total_players: int) -> int:
     """
@@ -122,7 +134,7 @@ def get_or_create_game_wordle(challenge_id, user, allow_join: bool = True, alarm
         # expose timings for waiting room like Sudoku
         "created_at": (game_state.created_at.isoformat() if game_state.created_at else None),
         "join_deadline_at": (game_state.join_deadline_at.isoformat() if game_state.join_deadline_at else None),
-        "answer": game_state.answer,  # ⚠️ for debugging only
+        "answer": game_state.answer,
     }
 
 

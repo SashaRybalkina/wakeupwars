@@ -8,35 +8,37 @@
  */
 """
 
-# api/games/typing_race_utils.py
-
 from __future__ import annotations
-from typing import List, Dict, Any
+import asyncio
+import contextlib
+from datetime import date, datetime
+from datetime import timedelta
+from datetime import datetime, timezone as py_tz
+import logging
 from pathlib import Path
 import random
-from datetime import date, datetime
-import logging, time
-import asyncio, contextlib, threading
-logger = logging.getLogger(__name__)
+import threading
+import time
+from typing import Any, Dict, List
 
-
-from django.db import transaction, IntegrityError, close_old_connections
-from django.utils import timezone
-from django.conf import settings
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
+from django.conf import settings
 from django.core.cache import cache
-from datetime import timedelta
+from django.db import IntegrityError, close_old_connections, transaction
+from django.utils import timezone
+from django.utils.timezone import get_current_timezone, make_aware
 
 from api.models import (
-    TypingRaceGameState,
-    TypingRaceGamePlayer,
     Challenge,
     Game,
     GameSchedule,
     GameScheduleGameAssociation,
     PublicChallengeConfiguration,
+    TypingRaceGamePlayer,
+    TypingRaceGameState,
 )
+logger = logging.getLogger(__name__)
 
 CACHE_TTL = 300
 
@@ -61,8 +63,6 @@ def _load_passages_from_file() -> List[str]:
         return [line.strip() for line in f if line.strip()]
 
 TYPING_PASSAGES: List[str] = _load_passages_from_file()
-
-#TYPING_PASSAGES  = ["Typing games are a fun way to improve your speed and accuracy."]
 
 # ===============================
 # Helpers
@@ -90,7 +90,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
     """
     total_start = time.time()
 
-    # === 1️⃣ Fetch Challenge with lock ===
+    # === Fetch Challenge with lock ===
     t1 = time.time()
     try:
         challenge = Challenge.objects.select_for_update().get(id=challenge_id)
@@ -123,7 +123,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
     slot_ts = ts - (ts % window)
     alarm_datetime = datetime.fromtimestamp(slot_ts, tz=base_time.tzinfo)
 
-    # === 2️⃣ Get or cache Typing Game ===
+    # === Get or cache Typing Game ===
     t2 = time.time()
     game_cache_key = f"typing_game_cache_{int(maybe_multi)}_{challenge_id}"
     typing_game = cache.get(game_cache_key)
@@ -160,7 +160,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
 
     is_multiplayer = bool(getattr(typing_game, 'isMultiplayer', False))
 
-    # === 3️⃣ Get_or_create TypingRaceGameState with proper unique constraints ===
+    # === Get_or_create TypingRaceGameState with proper unique constraints ===
     t3 = time.time()
     
     # Prepare defaults for creation
@@ -217,7 +217,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
 
     logger.warning(f"[TYPING][STEP3] Get_or_create GameState (created={created}) took {(time.time()-t3)*1000:.2f}ms")
 
-    # === 4️⃣ Ensure join_deadline exists ===
+    # === Ensure join_deadline exists ===
     t4 = time.time()
     if not getattr(game_state, "join_deadline_at", None):
         base = getattr(game_state, "alarmDateTime", None) or getattr(game_state, "created_at", None) or timezone.now()
@@ -226,11 +226,11 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
         game_state.save(update_fields=["join_deadline_at"])
     logger.warning(f"[TYPING][STEP4] Ensure join_deadline took {(time.time()-t4)*1000:.2f}ms")
 
-    # === 5️⃣ Player creation (sync for multi, async for single) ===
+    # === Player creation (sync for multi, async for single) ===
     t5 = time.time()
     if allow_join:
         if is_multiplayer:
-            # 🧱 Multiplayer — must sync for lobby correctness
+            # Multiplayer — must sync for lobby correctness
             TypingRaceGamePlayer.objects.get_or_create(
                 game_state=game_state,
                 player=user,
@@ -239,7 +239,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
             logger.warning("[TYPING][STEP5] Multiplayer player created synchronously")
 
         else:
-            # 🚀 Singleplayer — return response immediately, create player in background
+            # Singleplayer — return response immediately, create player in background
             def _create_player_background():
                 TypingRaceGamePlayer.objects.get_or_create(
                     game_state=game_state,
@@ -253,7 +253,7 @@ def get_or_create_typing_race_game(challenge_id: int, user, allow_join: bool = T
 
     logger.warning(f"[TYPING][STEP5] Player creation scheduling took {(time.time()-t5)*1000:.2f}ms")
 
-    # === ✅ 6️⃣ Return immediately (especially for singleplayer) ===
+    # === Return immediately (especially for singleplayer) ===
     total_elapsed = (time.time() - total_start) * 1000
     logger.warning(
         f"[TYPING][PROFILE] chall={challenge_id} "
@@ -272,7 +272,7 @@ def apply_progress_update(game_state_id: int, user, correct_typed: int, total_er
     """
     Multiplayer — update ONLY THIS player's progress and accuracy.
     
-    ⚡ Optimization note:
+    Optimization note:
     Instead of writing to the database every time the user types a character,
     this version stores progress data in Django's cache (e.g. Redis or in-memory)
     to reduce database I/O frequency and improve real-time responsiveness.
@@ -280,15 +280,15 @@ def apply_progress_update(game_state_id: int, user, correct_typed: int, total_er
     When the player's progress reaches 100%, it performs one final DB write.
     """
 
-    # === ⏱ Start timing this update call (for performance monitoring) ===
+    # === Start timing this update call (for performance monitoring) ===
     start_time = time.time()
     cache_key = f"typing_progress_{game_state_id}_{user.id}"  # Unique cache key per player per game
     leaderboard_key = f"typing_leaderboard_{game_state_id}"
 
     close_old_connections()
-    # === 🧠 Calculate player's progress and accuracy ===
+    # === Calculate player's progress and accuracy ===
     try:
-        # 🚀 Try to get cached text length first (avoid DB hit)
+        # Try to get cached text length first (avoid DB hit)
         text_len_key = f"typing_text_len_{game_state_id}"
         text_len = cache.get(text_len_key)
         if text_len is None:
@@ -306,7 +306,7 @@ def apply_progress_update(game_state_id: int, user, correct_typed: int, total_er
     typed_total = correct_typed + total_errors  # total characters attempted
     accuracy = ((correct_typed) / typed_total) * 100.0 if typed_total > 0 else 100.0
 
-    # === 💾 Store intermediate progress data in cache ===
+    # === Store intermediate progress data in cache ===
     # This cached data is lightweight and temporary; no DB writes yet.
     cached_data = {
         "user_id": user.id,
@@ -319,13 +319,10 @@ def apply_progress_update(game_state_id: int, user, correct_typed: int, total_er
     }
     cache.set(cache_key, cached_data, timeout=CACHE_TTL)
 
-    # === 🏁 Update leaderboard in cache ===
+    # === Update leaderboard in cache ===
     if progress >= 100.0:
         _update_leaderboard_cache(leaderboard_key, cached_data)
         logger.warning(f"[CACHE][LEADERBOARD] {user.username} finished; leaderboard updated")
-
-        # (Optional) Kick off background save (async task)
-        # _schedule_background_save_to_db(game_state_id)
 
     elapsed = (time.time() - start_time) * 1000
     if int(progress) % 10 == 0 or progress >= 100.0:
@@ -333,7 +330,7 @@ def apply_progress_update(game_state_id: int, user, correct_typed: int, total_er
             f"[CACHE][END] user={user.username} progress={progress:.2f}% acc={accuracy:.2f}% took={elapsed:.2f}ms"
         )
 
-    # === 📤 Return snapshot for broadcast ===
+    # === Return snapshot for broadcast ===
     return {
         "progress": cached_data["progress"],
         "accuracy": cached_data["accuracy"],
@@ -359,16 +356,6 @@ def finalize_single_result(game_state_id: int, user, accuracy: float):
     player.finished_at = timezone.now()
     player.final_score = compute_single_score_from_accuracy(accuracy)
     player.save()
-
-    # should be doing it in the frontend with submitGameView
-    # # Write to GamePerformance for leaderboard
-    # GamePerformance.objects.update_or_create(
-    #     challenge=state.challenge,
-    #     game=state.game,
-    #     user=user,
-    #     date=date.today(),
-    #     defaults={"score": int(player.final_score)}
-    # )
 
     return {
         "progress": player.progress,
@@ -430,18 +417,17 @@ def _update_leaderboard_cache(leaderboard_key: str, player_data: Dict[str, Any])
     cache.set(leaderboard_key, leaderboard, timeout=CACHE_TTL)
     logger.warning(f"[CACHE][LEADERBOARD][SET] {leaderboard}")
 
-from datetime import datetime, timezone as py_tz
-from django.utils.timezone import make_aware, get_current_timezone
+
 
 def _save_leaderboard_cache_to_db(game_state_or_id):
     """
-    🔁 Sync all cached progress (both finished and unfinished players) to MySQL.
+    Sync all cached progress (both finished and unfinished players) to MySQL.
 
     - Called when a multiplayer game ends (either by timeout or all finished).
     - Writes all players' latest progress, accuracy, rank, and score into DB.
     - Finished players get their rank and score.
     - Unfinished players still get recorded (progress + accuracy), but score=0 and rank=None.
-    - ✅ Safe against multiple timeout triggers and will not overwrite completed players.
+    - Safe against multiple timeout triggers and will not overwrite completed players.
     """
     from datetime import datetime, timezone as py_tz
     from django.utils import timezone
@@ -465,7 +451,7 @@ def _save_leaderboard_cache_to_db(game_state_or_id):
 
     logger.warning(f"[DB][SYNC] Writing {len(leaderboard)} cached entries → DB (game_state={game_state_id})")
 
-    # === ✅ Step 1: Save FINISHED players (from leaderboard cache) ===
+    # === Step 1: Save FINISHED players (from leaderboard cache) ===
     finished_ids = set()
     for entry in leaderboard:
         user_id = entry.get("user_id")
@@ -494,11 +480,11 @@ def _save_leaderboard_cache_to_db(game_state_or_id):
                     "finished_at": finished_at,
                 },
             )
-            logger.warning(f"[DB][SYNC] ✅ Finished player {user_id} saved (rank={entry.get('rank')})")
+            logger.warning(f"[DB][SYNC] Finished player {user_id} saved (rank={entry.get('rank')})")
         except Exception as e:
             logger.error(f"[DB][SYNC][ERROR] Failed to save finished player_id={user_id}: {e}")
 
-    # === ✅ Step 2: Save UNFINISHED players (not in leaderboard) ===
+    # === Step 2: Save UNFINISHED players (not in leaderboard) ===
     all_players = TypingRaceGamePlayer.objects.filter(game_state=state)
     unfinished_players = [
         p for p in all_players
@@ -520,11 +506,11 @@ def _save_leaderboard_cache_to_db(game_state_or_id):
             p.rank = None
             p.finished_at = p.finished_at or timezone.now()
             p.save(update_fields=["progress", "accuracy", "is_completed", "final_score", "rank", "finished_at"])
-            logger.warning(f"[DB][SYNC] 🕒 Unfinished player {p.player.username} saved progress={progress:.2f}% acc={accuracy:.2f}%")
+            logger.warning(f"[DB][SYNC] Unfinished player {p.player.username} saved progress={progress:.2f}% acc={accuracy:.2f}%")
         except Exception as e:
             logger.error(f"[DB][SYNC][ERROR] Failed to save unfinished player_id={p.player_id}: {e}")
 
-    # === ✅ Cleanup cache after full sync ===
+    # === Cleanup cache after full sync ===
     cache.delete_many([
         leaderboard_key,
         f"typing_text_len_{game_state_id}",
