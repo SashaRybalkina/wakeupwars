@@ -21,20 +21,11 @@ type Props = {
 };
 
 const AcceptGInvite: React.FC<Props> = ({ navigation }) => {
-  //   const route = useRoute();
-  //   const { friendName } = route.params as {
-  //     friendName: string;
-  //   };
   var friend = 'Dummy Friend';
   var groups = 'Group1, Group2, and Group3';
   const dummyProfiles = Array.from({ length: 10 });
 
   return (
-    // <ImageBackground
-    //   source={require('../../images/tertiary.png')}
-    //   style={styles.background}
-    //   resizeMode="cover"
-    // >
     <View style={styles.background}>
       <View style={styles.backButtonContainer}>
         <TouchableOpacity onPress={() => navigation.navigate('Challenges')}>
@@ -55,15 +46,10 @@ const AcceptGInvite: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
     </View>
-    // </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  //   background: {
-  //     flex: 1,
-  //     alignItems: 'center',
-  //   },
   background: {
     flex: 1,
     alignItems: 'center',

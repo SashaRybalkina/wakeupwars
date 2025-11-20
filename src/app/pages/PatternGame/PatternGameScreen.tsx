@@ -15,7 +15,7 @@ import {
   Alert,
   ImageBackground,
   ActivityIndicator,
-  Vibration,            // NEW: haptic feedback (optional)
+  Vibration,
   Platform,
 } from 'react-native';
 import { getAccessToken } from '../../auth';
@@ -55,12 +55,10 @@ type WsGameOver = {
   type: 'game_over';
   scores: { username: string; rounds_completed: number; score: number }[];
 };
-// NEW: in-game round countdown
 type WsRoundCountdown = {
   type: 'round_countdown';
   seconds: number;
 };
-// NEW: join-window closed event
 type WsJoinWindowClosed = {
   type: 'join_window_closed';
   server_now?: string;
@@ -104,8 +102,6 @@ type ValidateResp = {
 };
 
 type Props = { route: any; navigation: any };
-
-
 
 // Generate WS path based on BASE_URL
 const wsUrlFor = (gameStateId: number, accessToken: string) => {
@@ -941,7 +937,6 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
           <TouchableOpacity
             style={[
               styles.smallBtnPrimary,
-              // NEW: also dim when countdown is active
               (showingPattern || submitting || playerInput.length === 0 || countdown !== null) && { opacity: 0.6 },
             ]}
             onPress={submitAnswer}
@@ -1017,18 +1012,15 @@ const styles = StyleSheet.create({
   smallBtnText: { fontWeight: '600' },
   smallBtnPrimary: { backgroundColor: '#0ea5e9', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
   smallBtnPrimaryText: { color: 'white', fontWeight: '700' },
-
-  // overlays
   overlay: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.35)',
-    zIndex: 20, // ensure above waiting room overlay
+    zIndex: 20,
   },
   countdownText: { fontSize: 64, fontWeight: '900', color: '#fff' },
-
   toast: {
     position: 'absolute',
     top: 90,

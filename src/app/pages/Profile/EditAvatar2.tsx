@@ -35,12 +35,12 @@ const EditAvatar2: React.FC<Props> = ({ navigation }) => {
   const [showColorPicker, setShowColorPicker] = useState<boolean>(false);
 
   const pastelColors = [
-  '#FFB3BA',
-  '#FFDFBA',
-  '#FFFFBA',
-  '#BAFFC9',
-  '#BAE1FF',
-  '#D9BAFF',
+    '#FFB3BA',
+    '#FFDFBA',
+    '#FFFFBA',
+    '#BAFFC9',
+    '#BAE1FF',
+    '#D9BAFF',
   ];
 
   const { user, logout } = useUser();
@@ -49,25 +49,25 @@ const EditAvatar2: React.FC<Props> = ({ navigation }) => {
     if (!user) return;
     const access = await getAccessToken();
     if (!access) {
-                  Alert.alert(
-                    "Session expired",
-                    "Your login session has expired. Please log in again.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await logout();
-                          navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Login" }],
-                          });
-                        },
-                      },
-                    ],
-                    { cancelable: false }
-                  );
+      Alert.alert(
+        "Session expired",
+        "Your login session has expired. Please log in again.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              await logout();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Login" }],
+              });
+            },
+          },
+        ],
+        { cancelable: false }
+      );
 
-                  return;
+      return;
     }
     const res = await fetch(endpoints.extraMemojies(Number(user.id), baseMemojiId), {
       headers: { Authorization: `Bearer ${access}` },
@@ -89,25 +89,25 @@ const EditAvatar2: React.FC<Props> = ({ navigation }) => {
 
     const access = await getAccessToken();
     if (!access) {
-                  Alert.alert(
-                    "Session expired",
-                    "Your login session has expired. Please log in again.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await logout();
-                          navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Login" }],
-                          });
-                        },
-                      },
-                    ],
-                    { cancelable: false }
-                  );
+      Alert.alert(
+        "Session expired",
+        "Your login session has expired. Please log in again.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              await logout();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Login" }],
+              });
+            },
+          },
+        ],
+        { cancelable: false }
+      );
 
-                  return;
+      return;
     }
     const res = await fetch(endpoints.purchaseMemoji(Number(user?.id), memojiId), {
       method: 'POST',
@@ -136,25 +136,25 @@ const EditAvatar2: React.FC<Props> = ({ navigation }) => {
     try {
       const access = await getAccessToken();
       if (!access) {
-                  Alert.alert(
-                    "Session expired",
-                    "Your login session has expired. Please log in again.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await logout();
-                          navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Login" }],
-                          });
-                        },
-                      },
-                    ],
-                    { cancelable: false }
-                  );
+        Alert.alert(
+          "Session expired",
+          "Your login session has expired. Please log in again.",
+          [
+            {
+              text: "OK",
+              onPress: async () => {
+                await logout();
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: "Login" }],
+                });
+              },
+            },
+          ],
+          { cancelable: false }
+        );
 
-                  return;
+        return;
       }
       const res = await fetch(endpoints.setCurrentMemoji(Number(user?.id)), {
         method: 'POST',
@@ -186,94 +186,94 @@ const EditAvatar2: React.FC<Props> = ({ navigation }) => {
       style={styles.background}
       resizeMode="cover"
     >
-    <View style={styles.container}>
-  <View style={styles.backButtonWrapper}>
-    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-      <Ionicons name="arrow-back" size={24} color="#FFF" />
-    </TouchableOpacity>
-  </View>
-      <Text style={styles.coinsText}>{numCoins} 🪙</Text>
-
-
-      <View style={styles.previewContainer}>
-        <View style={[styles.previewFrame, { backgroundColor: selectedColor }]}>
-          {selectedMemoji ? (
-            <Image
-              source={{ uri: `${BASE_URL}${selectedMemoji.imageUrl}` }}
-              style={styles.previewImage}
-              resizeMode="contain"
-            />
-          ) : (
-            <View style={styles.emptyFrame}>
-              <Text style={styles.emptyFrameText}>Select an avatar</Text>
-            </View>
-          )}
+      <View style={styles.container}>
+        <View style={styles.backButtonWrapper}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
         </View>
-      </View>
+        <Text style={styles.coinsText}>{numCoins} 🪙</Text>
 
 
-
-      {/* Horizontal scroll of memojies */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollContainer}>
-        {avatars.map((m) => (
-          <View key={m.id} style={styles.avatarCard}>
-            <TouchableOpacity onPress={() => setSelectedMemoji(m)}>
+        <View style={styles.previewContainer}>
+          <View style={[styles.previewFrame, { backgroundColor: selectedColor }]}>
+            {selectedMemoji ? (
               <Image
-                source={{ uri: `${BASE_URL}${m.imageUrl}` }}
-                style={[
-                  styles.avatar,
-                  selectedMemoji?.id === m.id && styles.selectedAvatar,
-                ]}
+                source={{ uri: `${BASE_URL}${selectedMemoji.imageUrl}` }}
+                style={styles.previewImage}
                 resizeMode="contain"
               />
-            </TouchableOpacity>
-
-            {!m.purchased ? (
-              <TouchableOpacity
-                style={[
-                  styles.purchaseButton,
-                  numCoins < m.price && styles.disabledButton,
-                ]}
-                disabled={numCoins < m.price}
-                onPress={() => handlePurchase(m.id, m.price)}
-              >
-                <Text style={styles.purchaseText}>{m.price} 🪙</Text>
-              </TouchableOpacity>
             ) : (
-              <Text style={styles.purchasedLabel}>Owned</Text>
+              <View style={styles.emptyFrame}>
+                <Text style={styles.emptyFrameText}>Select an avatar</Text>
+              </View>
             )}
           </View>
-        ))}
-      </ScrollView>
+        </View>
 
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.scrollContainer, { marginTop: 10 }]}>
-        {pastelColors.map((color, index) => (
-          <TouchableOpacity
-            key={index}
-            onPress={() => setSelectedColor(color)}
-            style={[
-              styles.colorCircle,
-              { backgroundColor: color },
-              selectedColor === color && styles.selectedColorCircle,
-            ]}
-          />
-        ))}
-      </ScrollView>
+
+        {/* Horizontal scroll of memojies */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollContainer}>
+          {avatars.map((m) => (
+            <View key={m.id} style={styles.avatarCard}>
+              <TouchableOpacity onPress={() => setSelectedMemoji(m)}>
+                <Image
+                  source={{ uri: `${BASE_URL}${m.imageUrl}` }}
+                  style={[
+                    styles.avatar,
+                    selectedMemoji?.id === m.id && styles.selectedAvatar,
+                  ]}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+
+              {!m.purchased ? (
+                <TouchableOpacity
+                  style={[
+                    styles.purchaseButton,
+                    numCoins < m.price && styles.disabledButton,
+                  ]}
+                  disabled={numCoins < m.price}
+                  onPress={() => handlePurchase(m.id, m.price)}
+                >
+                  <Text style={styles.purchaseText}>{m.price} 🪙</Text>
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.purchasedLabel}>Owned</Text>
+              )}
+            </View>
+          ))}
+        </ScrollView>
 
 
-      {/* Done button */}
-      <TouchableOpacity
-        style={[
-          styles.doneButton,
-          !selectedMemoji?.purchased && styles.disabledButton,
-        ]}
-        disabled={!selectedMemoji?.purchased}
-        onPress={handleDone}
-      >
-        <Text style={styles.doneText}>Done</Text>
-      </TouchableOpacity>
-    </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.scrollContainer, { marginTop: 10 }]}>
+          {pastelColors.map((color, index) => (
+            <TouchableOpacity
+              key={index}
+              onPress={() => setSelectedColor(color)}
+              style={[
+                styles.colorCircle,
+                { backgroundColor: color },
+                selectedColor === color && styles.selectedColorCircle,
+              ]}
+            />
+          ))}
+        </ScrollView>
+
+
+        {/* Done button */}
+        <TouchableOpacity
+          style={[
+            styles.doneButton,
+            !selectedMemoji?.purchased && styles.disabledButton,
+          ]}
+          disabled={!selectedMemoji?.purchased}
+          onPress={handleDone}
+        >
+          <Text style={styles.doneText}>Done</Text>
+        </TouchableOpacity>
+      </View>
     </ImageBackground>
   );
 };
@@ -290,12 +290,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-backButtonWrapper: {
-  position: "absolute",
-  top: 50,
-  left: 16,
-  zIndex: 10,
-},
+  backButtonWrapper: {
+    position: "absolute",
+    top: 50,
+    left: 16,
+    zIndex: 10,
+  },
   container: {
     flex: 1,
     alignItems: 'center',

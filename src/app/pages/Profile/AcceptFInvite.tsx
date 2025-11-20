@@ -21,17 +21,8 @@ type Props = {
 };
 
 const AcceptFInvite: React.FC<Props> = ({ navigation }) => {
-  //   const route = useRoute();
-  //   const { friendName } = route.params as {
-  //     friendName: string;
-  //   };
   var friend = 'Dummy Friend';
   return (
-    // <ImageBackground
-    //   source={require('../../images/tertiary.png')}
-    //   style={styles.background}
-    //   resizeMode="cover"
-    // >
     <View style={styles.background}>
       <View style={styles.backButtonContainer}>
         <TouchableOpacity onPress={() => navigation.navigate('Challenges')}>
@@ -46,15 +37,10 @@ const AcceptFInvite: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
     </View>
-    // </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  //   background: {
-  //     flex: 1,
-  //     alignItems: 'center',
-  //   },
   background: {
     flex: 1,
     alignItems: 'center',

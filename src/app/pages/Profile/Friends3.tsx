@@ -51,33 +51,33 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
       (async () => {
         setDataLoading(true)
         try {
-                const access = await getAccessToken();
-                if (!access) {
-                  Alert.alert(
-                    "Session expired",
-                    "Your login session has expired. Please log in again.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await logout();
-                          navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Login" }],
-                          });
-                        },
-                      },
-                    ],
-                    { cancelable: false }
-                  );
+          const access = await getAccessToken();
+          if (!access) {
+            Alert.alert(
+              "Session expired",
+              "Your login session has expired. Please log in again.",
+              [
+                {
+                  text: "OK",
+                  onPress: async () => {
+                    await logout();
+                    navigation.reset({
+                      index: 0,
+                      routes: [{ name: "Login" }],
+                    });
+                  },
+                },
+              ],
+              { cancelable: false }
+            );
 
-                  return;
-                }
-        const res = await fetch(endpoints.userData(friendId), {
-          headers: {
-            Authorization: `Bearer ${access}`
+            return;
           }
-        });
+          const res = await fetch(endpoints.userData(friendId), {
+            headers: {
+              Authorization: `Bearer ${access}`
+            }
+          });
           const data = await res.json();
           console.log(JSON.stringify(data, null, 2))
           if (!cancelled) {
@@ -106,25 +106,25 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
   const fetchBadges = async () => {
     const access = await getAccessToken();
     if (!access) {
-                  Alert.alert(
-                    "Session expired",
-                    "Your login session has expired. Please log in again.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await logout();
-                          navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Login" }],
-                          });
-                        },
-                      },
-                    ],
-                    { cancelable: false }
-                  );
+      Alert.alert(
+        "Session expired",
+        "Your login session has expired. Please log in again.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              await logout();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Login" }],
+              });
+            },
+          },
+        ],
+        { cancelable: false }
+      );
 
-                  return;
+      return;
     }
     const res = await fetch(endpoints.badges(friendId), {
       headers: { Authorization: `Bearer ${access}` },
@@ -151,36 +151,36 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
   const handleAddToGroup = async () => {
     if (isLoading) return;
     setIsLoading(true);
-  
+
     const payload = {
       group_id: groupId,
       recipient_id: friendId,
     };
-  
+
     try {
       const accessToken = await getAccessToken();
       if (!accessToken) {
-                  Alert.alert(
-                    "Session expired",
-                    "Your login session has expired. Please log in again.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await logout();
-                          navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Login" }],
-                          });
-                        },
-                      },
-                    ],
-                    { cancelable: false }
-                  );
+        Alert.alert(
+          "Session expired",
+          "Your login session has expired. Please log in again.",
+          [
+            {
+              text: "OK",
+              onPress: async () => {
+                await logout();
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: "Login" }],
+                });
+              },
+            },
+          ],
+          { cancelable: false }
+        );
 
-                  return;
+        return;
       }
-  
+
       const response = await fetch(endpoints.sendGroupInvite(), {
         method: "POST",
         headers: {
@@ -189,10 +189,10 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
         },
         body: JSON.stringify(payload),
       });
-  
+
       const data = await response.json();
       if (!response.ok) throw new Error(data?.message || "Failed to send invite");
-  
+
       console.log("Friend added to group", data);
       Alert.alert("Success!", `${name || "Friend"} has been invited to your group.`, [
         { text: "OK", onPress: () => navigation.navigate("GroupDetails", { groupId }) },
@@ -202,7 +202,7 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
     } finally {
       setIsLoading(false);
     }
-  };  
+  };
 
   const goToChallenges = () => navigation.navigate("Challenges")
   const goToGroups = () => navigation.navigate("Groups")
@@ -214,145 +214,110 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
   return (
     <ImageBackground source={require("../../images/cgpt4.png")} style={styles.background} resizeMode="cover">
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollViewContent}
-          showsVerticalScrollIndicator={false}
-        >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
+        showsVerticalScrollIndicator={false}
+      >
 
-      <View style={styles.backButtonContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={30} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+        <View style={styles.backButtonContainer}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={30} color="#FFF" />
+          </TouchableOpacity>
+        </View>
 
-      {/* Profile Section */}
-      {!dataLoading && (
-        <UserProfileCard
-          name={name}
-          isCurrentUser={false}
-          skillLevelsOverride={skillLevels}
-          disableSkillDetail={true}
-          currentMemoji={currentMemoji}
-          bgColor={backgroundColor}
-          numCoins={numCoins}
-          badgesGiven={badges}
-        />
-      )}
-{/* 
-      <ScrollView horizontal contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 5 }}>
-        {badges
-          .filter((badge) => badge.earned)
-          .map((badge) => {
-            const borderColor = 'rgba(94, 204, 114, 1)';
-            const opacity = 1;
-
-            return (
-              <TouchableOpacity
-                key={badge.id}
-                onPress={() => setSelectedBadge(badge)}
-                style={{
-                  width: 60,
-                  height: 60,
-                  margin: 5,
-                  borderRadius: 8,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: 2,
-                  borderColor,
-                  backgroundColor: 'rgba(94, 204, 114, 0.2)',
-                }}
-              >
-                <Image
-                  source={{ uri: `${BASE_URL}${badge.imageUrl}` }}
-                  style={{ width: 50, height: 50, opacity }}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-            );
-          })}
-      </ScrollView> */}
-
-      
+        {/* Profile Section */}
+        {!dataLoading && (
+          <UserProfileCard
+            name={name}
+            isCurrentUser={false}
+            skillLevelsOverride={skillLevels}
+            disableSkillDetail={true}
+            currentMemoji={currentMemoji}
+            bgColor={backgroundColor}
+            numCoins={numCoins}
+            badgesGiven={badges}
+          />
+        )}
       </ScrollView>
 
 
-{selectedBadge && (
-  <Modal
-    transparent
-    animationType="fade"
-    visible={!!selectedBadge}
-    onRequestClose={() => setSelectedBadge(null)}
-  >
-    <View style={{
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 20,
-    }}>
-      <View style={{
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 20,
-        width: '100%',
-        maxWidth: 300,
-        alignItems: 'center',
-      }}>
-        <Image
-          source={{ uri: `${BASE_URL}${selectedBadge.imageUrl}` }}
-          style={{ width: 80, height: 80 }}
-          resizeMode="contain"
-        />
-        <Text style={{ fontWeight: 'bold', fontSize: 18, marginTop: 10 }}>
-          {selectedBadge.name}
-        </Text>
-        <Text style={{ fontSize: 14, textAlign: 'center', marginTop: 5 }}>
-          {selectedBadge.description}
-        </Text>
-        <TouchableOpacity
-          onPress={() => setSelectedBadge(null)}
-          style={{ marginTop: 15, padding: 10 }}
+      {selectedBadge && (
+        <Modal
+          transparent
+          animationType="fade"
+          visible={!!selectedBadge}
+          onRequestClose={() => setSelectedBadge(null)}
         >
-          <Text style={{ color: '#007BFF', fontWeight: 'bold' }}>Close</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </Modal>
-)}
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}>
+            <View style={{
+              backgroundColor: '#fff',
+              borderRadius: 12,
+              padding: 20,
+              width: '100%',
+              maxWidth: 300,
+              alignItems: 'center',
+            }}>
+              <Image
+                source={{ uri: `${BASE_URL}${selectedBadge.imageUrl}` }}
+                style={{ width: 80, height: 80 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginTop: 10 }}>
+                {selectedBadge.name}
+              </Text>
+              <Text style={{ fontSize: 14, textAlign: 'center', marginTop: 5 }}>
+                {selectedBadge.description}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setSelectedBadge(null)}
+                style={{ marginTop: 15, padding: 10 }}
+              >
+                <Text style={{ color: '#007BFF', fontWeight: 'bold' }}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
 
 
-{/* Add to Group Button */}
-{!dataLoading && groupId && (
-  <View style={styles.buttonContainer}>
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={handleAddToGroup}
-      disabled={isLoading}
-    >
-      <LinearGradient
-        colors={["#FFD700", "#FFA500"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.addButton}
-      >
-        <View style={styles.buttonContent}>
-          <Ionicons
-            name="person-add"
-            size={24}
-            color="#FFF"
-            style={styles.buttonIcon}
-          />
-          <Text style={styles.addText}>
-            {isLoading ? "Adding..." : "Add to Group"}
-          </Text>
+      {/* Add to Group Button */}
+      {!dataLoading && groupId && (
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleAddToGroup}
+            disabled={isLoading}
+          >
+            <LinearGradient
+              colors={["#FFD700", "#FFA500"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.addButton}
+            >
+              <View style={styles.buttonContent}>
+                <Ionicons
+                  name="person-add"
+                  size={24}
+                  color="#FFF"
+                  style={styles.buttonIcon}
+                />
+                <Text style={styles.addText}>
+                  {isLoading ? "Adding..." : "Add to Group"}
+                </Text>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
-      </LinearGradient>
-    </TouchableOpacity>
-  </View>
-)}
+      )}
 
-      
+
       {/* Create Challenge for Friend Button */}
       {!groupId && !dataLoading && (
         <TouchableOpacity
@@ -408,7 +373,7 @@ const Friends3: React.FC<Props> = ({ navigation }) => {
         </>
       )}
 
-      
+
 
     </ImageBackground>
   )
@@ -462,14 +427,14 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#FFD700",
   },
-buttonContainer: {
-  position: "absolute",
-  bottom: 100, // adjust above nav bar
-  left: 0,
-  right: 0,
-  alignItems: "center",
-  zIndex: 10,
-},
+  buttonContainer: {
+    position: "absolute",
+    bottom: 100, // adjust above nav bar
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 10,
+  },
   addButton: {
     borderRadius: 30,
     paddingVertical: 16,
@@ -603,7 +568,7 @@ buttonContainer: {
     fontSize: 14,
     flexShrink: 1,
   },
-   createChallengeButton: {
+  createChallengeButton: {
     position: "absolute",
     bottom: 105, // above the 80px nav bar + padding
     left: 100,

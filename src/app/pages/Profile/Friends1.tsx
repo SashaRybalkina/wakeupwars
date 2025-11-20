@@ -45,25 +45,25 @@ const Friends1: React.FC<Props> = ({ navigation }) => {
   const fetchWithAutoRefresh = async (url: string) => {
     let accessToken = await getAccessToken();
     if (!accessToken) {
-                  Alert.alert(
-                    "Session expired",
-                    "Your login session has expired. Please log in again.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await logout();
-                          navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Login" }],
-                          });
-                        },
-                      },
-                    ],
-                    { cancelable: false }
-                  );
+      Alert.alert(
+        "Session expired",
+        "Your login session has expired. Please log in again.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              await logout();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Login" }],
+              });
+            },
+          },
+        ],
+        { cancelable: false }
+      );
 
-                  return;
+      return;
     }
     let res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
     if (res.status !== 401) return res;
@@ -95,25 +95,25 @@ const Friends1: React.FC<Props> = ({ navigation }) => {
         setLoading(true)
         const accessToken = await getAccessToken();
         if (!accessToken) {
-                  Alert.alert(
-                    "Session expired",
-                    "Your login session has expired. Please log in again.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await logout();
-                          navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Login" }],
-                          });
-                        },
-                      },
-                    ],
-                    { cancelable: false }
-                  );
+          Alert.alert(
+            "Session expired",
+            "Your login session has expired. Please log in again.",
+            [
+              {
+                text: "OK",
+                onPress: async () => {
+                  await logout();
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: "Login" }],
+                  });
+                },
+              },
+            ],
+            { cancelable: false }
+          );
 
-                  return;
+          return;
         }
         const response = await fetchWithAutoRefresh(endpoints.friends(Number(user.id)))
         // Be robust to empty or non-JSON responses
@@ -121,14 +121,14 @@ const Friends1: React.FC<Props> = ({ navigation }) => {
         let data: any = []
         try {
           data = text ? JSON.parse(text) : []
-        } catch {}
+        } catch { }
         const list = Array.isArray(data)
           ? data
           : (Array.isArray((data as any)?.friends)
-              ? (data as any).friends
-              : (Array.isArray((data as any)?.results)
-                  ? (data as any).results
-                  : []))
+            ? (data as any).friends
+            : (Array.isArray((data as any)?.results)
+              ? (data as any).results
+              : []))
         setFriends(list)
 
         // Fetch friend request count
@@ -243,17 +243,17 @@ const Friends1: React.FC<Props> = ({ navigation }) => {
                     style={styles.friendCard}
                     onPress={() => {
                       if (from === "Messages") {
-                        navigation.navigate("Conversation", { 
-                          otherUserId: friend.id, 
+                        navigation.navigate("Conversation", {
+                          otherUserId: friend.id,
                           otherUserName: friend.name,
                           groupId: null,
                           groupName: null
                         });
                       }
-                      else
-                      {
-                        navigation.navigate("Friends3", { friendId: friend.id, groupId: groupId })}
+                      else {
+                        navigation.navigate("Friends3", { friendId: friend.id, groupId: groupId })
                       }
+                    }
                     }
                   >
                     <View

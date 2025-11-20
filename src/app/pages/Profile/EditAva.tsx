@@ -33,25 +33,25 @@ const EditAva: React.FC<Props> = ({ navigation }) => {
     if (!user) return;
     const access = await getAccessToken();
     if (!access) {
-                  Alert.alert(
-                    "Session expired",
-                    "Your login session has expired. Please log in again.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await logout();
-                          navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Login" }],
-                          });
-                        },
-                      },
-                    ],
-                    { cancelable: false }
-                  );
+      Alert.alert(
+        "Session expired",
+        "Your login session has expired. Please log in again.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              await logout();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Login" }],
+              });
+            },
+          },
+        ],
+        { cancelable: false }
+      );
 
-                  return;
+      return;
     }
     const res = await fetch(endpoints.baseMemojies(), {
       headers: { Authorization: `Bearer ${access}` },
@@ -84,41 +84,41 @@ const EditAva: React.FC<Props> = ({ navigation }) => {
       style={styles.background}
       resizeMode="cover"
     >
-    <View style={styles.container}>
-  <View style={styles.backButtonWrapper}>
-    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-      <Ionicons name="arrow-back" size={24} color="#FFF" />
-    </TouchableOpacity>
-  </View>
-      <Text style={styles.title}>Choose Your Base Avatar</Text>
+      <View style={styles.container}>
+        <View style={styles.backButtonWrapper}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.title}>Choose Your Base Avatar</Text>
 
-      <FlatList
-        data={avatars}
-        numColumns={2}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.gridContainer}
-        renderItem={({ item }) => {
-          const isSelected = selectedMemoji === item.id;
-          return (
-            <TouchableOpacity
-              style={[styles.avatarCard, isSelected && styles.selectedCard]}
-              onPress={() => setSelectedMemoji(item.id)}
-            >
-              <Image
-                source={{ uri: `${BASE_URL}${item.imageUrl}` }}
-                style={styles.avatarImage}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          );
-        }}
-      />
+        <FlatList
+          data={avatars}
+          numColumns={2}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.gridContainer}
+          renderItem={({ item }) => {
+            const isSelected = selectedMemoji === item.id;
+            return (
+              <TouchableOpacity
+                style={[styles.avatarCard, isSelected && styles.selectedCard]}
+                onPress={() => setSelectedMemoji(item.id)}
+              >
+                <Image
+                  source={{ uri: `${BASE_URL}${item.imageUrl}` }}
+                  style={styles.avatarImage}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            );
+          }}
+        />
 
-      <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-        <Text style={styles.nextButtonText}>Next</Text>
-      </TouchableOpacity>
-    </View>
-  </ImageBackground>
+        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+          <Text style={styles.nextButtonText}>Next</Text>
+        </TouchableOpacity>
+      </View>
+    </ImageBackground>
   );
 };
 
@@ -136,12 +136,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
-backButtonWrapper: {
-  position: "absolute",
-  top: 50,
-  left: 16,
-  zIndex: 10,
-},
+  backButtonWrapper: {
+    position: "absolute",
+    top: 50,
+    left: 16,
+    zIndex: 10,
+  },
   container: {
     flex: 1,
     alignItems: 'center',
