@@ -6,15 +6,17 @@
  */
 """
 
-import math
 from datetime import date, timedelta
-from freezegun import freeze_time
+import math
+
 from django.test import TestCase
 from django.utils import timezone
+from freezegun import freeze_time
 
-from api.models import SkillLevel, GamePerformance
+from api.models import GamePerformance, SkillLevel
 from api.services.skill import recompute_skill_for_category
 from api.services.skill_config import SKILL_CONFIG
+
 from .utils import current_skill
 
 # Assuming you have fixtures or setup methods for `user`, `category`, `game`, `challenge`

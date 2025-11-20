@@ -6,11 +6,27 @@
  */
 """
 
-from rest_framework.test import APITestCase
-from rest_framework import status
 from django.utils.timezone import now, timedelta
+from rest_framework import status
+from rest_framework.test import APITestCase
 from rest_framework.test import APIClient
-from api.models import Game, Group, GameSchedule, GameScheduleGameAssociation, PendingGroupChallengeAvailability, Challenge, GameCategory, User, UserAvailability, SkillLevel, PublicChallengeConfiguration, PublicChallengeCategoryAssociation, AlarmSchedule, ChallengeAlarmSchedule
+
+from api.models import (
+    AlarmSchedule,
+    Challenge,
+    ChallengeAlarmSchedule,
+    Game,
+    GameCategory,
+    GameSchedule,
+    GameScheduleGameAssociation,
+    Group,
+    PendingGroupChallengeAvailability,
+    PublicChallengeCategoryAssociation,
+    PublicChallengeConfiguration,
+    SkillLevel,
+    User,
+    UserAvailability,
+)
 
 
 class CollabChallSetupTests(APITestCase):

@@ -8,11 +8,12 @@
 
 from django.test import TestCase
 from django.utils import timezone
-from api.models import GameCategory, User, Challenge, Game, GamePerformance
-from django.utils.timezone import now, timedelta
-from rest_framework.test import APIClient
 from django.utils import timezone
+from django.utils.timezone import now, timedelta
 import pytz
+from rest_framework.test import APIClient
+
+from api.models import Challenge, Game, GameCategory, GamePerformance, User
 
 class TestWinnerCalc(TestCase):
     def setUp(self):

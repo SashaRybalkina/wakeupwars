@@ -112,7 +112,7 @@ ASGI_APPLICATION = 'myserver.asgi.application'
 
 WSGI_APPLICATION = 'myserver.wsgi.application'
 
-
+# Previous database
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.mysql',  # Use MySQL engine
