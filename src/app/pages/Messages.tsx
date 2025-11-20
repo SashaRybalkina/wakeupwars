@@ -1,3 +1,13 @@
+/**
+ * @file Messages.tsx
+ * @description This page allows the user to view conversation previews for 1-1
+ * conversations and group conversations. Groups get automatic conversations even
+ * if no chats were exchanged, and friends require at least one text exchange to
+ * be included in the previews. A user can start a new conversation by switching
+ * to either the Friends or Groups tab, and pressing the "Start New Conversation"
+ * button.
+ */
+
 import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { BASE_URL } from "../api"
