@@ -1,3 +1,9 @@
+/**
+ * @file Groups.tsx
+ * @description Displays a list of the user’s groups, and allows the user to create a 
+ * new group, view all group invites, and view the group details for any group.
+ */
+
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import { endpoints } from "../api"
