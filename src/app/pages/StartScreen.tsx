@@ -1,3 +1,11 @@
+/**
+ * @file StartScreen.tsx
+ * @description Unused start screen that was used in the starting versions of the app.
+ * This screen served as an introduction screen that could lead the user to either the
+ * login or sign up page. The current version of the app just has the login screen as
+ * the starting screen.
+ */
+
 import React from 'react';
 import { ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { NavigationProp } from '@react-navigation/native';
