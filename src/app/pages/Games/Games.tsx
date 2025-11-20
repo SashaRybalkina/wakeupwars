@@ -55,41 +55,41 @@ const Games: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     const fetchGames = async () => {
       try {
-              const accessToken = await getAccessToken();
-              if (!accessToken) {
-                  Alert.alert(
-                    "Session expired",
-                    "Your login session has expired. Please log in again.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await logout();
-                          navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Login" }],
-                          });
-                        },
-                      },
-                    ],
-                    { cancelable: false }
-                  );
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          Alert.alert(
+            "Session expired",
+            "Your login session has expired. Please log in again.",
+            [
+              {
+                text: "OK",
+                onPress: async () => {
+                  await logout();
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: "Login" }],
+                  });
+                },
+              },
+            ],
+            { cancelable: false }
+          );
 
-                  return;
-              }
+          return;
+        }
         // fetch the games in whatever category was selected
         const response = await fetch(endpoints.games(catId, singOrMult), {
-                headers: {
-                  Authorization: `Bearer ${accessToken}`
-                }
-              });
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
         const data = await response.json();
-        setGames(data); 
+        setGames(data);
       } catch (error) {
         console.error('Failed to fetch categories:', error);
       }
     };
-  
+
     fetchGames();
   }, []);
 
@@ -106,19 +106,19 @@ const Games: React.FC<Props> = ({ navigation }) => {
       <View style={[styles.decorativeDot, { bottom: '25%', right: '20%' }]} />
       <View style={[styles.decorativeDot, { bottom: '15%', left: '10%' }]} />
       <View style={[styles.decorativeDot, { top: '45%', left: '5%' }]} />
-      
+
       <View style={styles.backButtonContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={30} color="#FFF" />
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.container}>
         <Text style={styles.title}>{catName} Games</Text>
-        <ScrollView 
+        <ScrollView
           style={styles.scrollViewContainer}
           contentContainerStyle={styles.scrollViewContent}
           showsVerticalScrollIndicator={false}
@@ -127,14 +127,14 @@ const Games: React.FC<Props> = ({ navigation }) => {
             <TouchableOpacity
               key={game.id}
               style={styles.gameButton}
-              onPress={() => navigation.navigate('GameExpanded', { 
-                catType, 
+              onPress={() => navigation.navigate('GameExpanded', {
+                catType,
                 categories: categories,
                 singOrMult: singOrMult,
-                gameId: game.id, 
-                gameName: game.name, 
-                groupId, 
-                groupMembers, 
+                gameId: game.id,
+                gameName: game.name,
+                groupId,
+                groupMembers,
                 onGameSelected,
                 ...(catType === 'Friend' && { friendId }),
                 challName,

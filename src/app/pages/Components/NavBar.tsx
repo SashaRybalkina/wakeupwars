@@ -67,7 +67,7 @@ export default function NavBar({
           Public
         </Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity style={styles.navButton} onPress={goToMessages}>
         <Ionicons
           name="mail-outline"

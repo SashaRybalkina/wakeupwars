@@ -57,7 +57,7 @@ const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoi
   const [tab, setTab] = React.useState<'skills' | 'badges'>(changeTab ? 'badges' : 'skills');
   const [infoVisible, setInfoVisible] = React.useState(false);
   const [coinInfoVisible, setCoinInfoVisible] = React.useState(false);
-  
+
 
   const [badges, setBadges] = useState<Badge[]>(badgesGiven || [] || []);
   // console.log(badgesGiven)
@@ -84,10 +84,10 @@ const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoi
 
   const iconFor = (name?: string) => (
     name?.toLowerCase().includes('math') ? 'calculator-outline' :
-    name?.toLowerCase().includes('word') ? 'book-outline' :
-    name?.toLowerCase().includes('memory') ? 'grid-outline' :
-    name?.toLowerCase().includes('logic') ? 'cube-outline' :
-    'star-outline'
+      name?.toLowerCase().includes('word') ? 'book-outline' :
+        name?.toLowerCase().includes('memory') ? 'grid-outline' :
+          name?.toLowerCase().includes('logic') ? 'cube-outline' :
+            'star-outline'
   );
 
   useEffect(() => {
@@ -99,25 +99,25 @@ const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoi
     if (!user) return;
     const access = await getAccessToken();
     if (!access) {
-                  Alert.alert(
-                    "Session expired",
-                    "Your login session has expired. Please log in again.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await logout();
-                          navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Login" }],
-                          });
-                        },
-                      },
-                    ],
-                    { cancelable: false }
-                  );
+      Alert.alert(
+        "Session expired",
+        "Your login session has expired. Please log in again.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              await logout();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Login" }],
+              });
+            },
+          },
+        ],
+        { cancelable: false }
+      );
 
-                  return;
+      return;
     }
     const res = await fetch(endpoints.badges(Number(user.id)), {
       headers: { Authorization: `Bearer ${access}` },
@@ -135,141 +135,141 @@ const UserProfileCard: React.FC<Props> = ({ name, currentMemoji, bgColor, numCoi
   }
 
 
-const collectBadge = async (badgeId: number) => {
-      const payload = {
-        user_id: user?.id,
-        badge_id: badgeId,
-      }
-  
-      try {
-        const accessToken = await getAccessToken();
-        if (!accessToken) {
-                  Alert.alert(
-                    "Session expired",
-                    "Your login session has expired. Please log in again.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await logout();
-                          navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Login" }],
-                          });
-                        },
-                      },
-                    ],
-                    { cancelable: false }
-                  );
-
-                  return;
-        }
-  
-        const response = await fetch(endpoints.collectBadge(), {
-          method: "POST",
-          headers: {
-            'Content-Type': 'application/json',
-            "Authorization": `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify(payload),
-        })
-  
-        if (!response.ok) throw new Error(`Server error: ${response.status}`)
-  
-        Alert.alert("Success", "Badge Collected!")
-
-        await fetchBadges();
-      } catch (err) {
-        console.error("Failed to collect badge:", err)
-        Alert.alert("Error", "Failed to collect badge.")
-      }
-}
-
-
-const PulsingBadge = ({ badge, onPress }) => {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (isCurrentUser && badge.earned && !badge.collected) {
-      // Start pulsing loop
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(scale, {
-            toValue: 1.15,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scale, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    } else {
-      scale.setValue(1); // reset scale when no longer pulsing
+  const collectBadge = async (badgeId: number) => {
+    const payload = {
+      user_id: user?.id,
+      badge_id: badgeId,
     }
-  }, [badge.earned, badge.collected]);
 
-  let borderColor = badge.collected
-    ? 'rgba(94, 204, 114, 1)'
-    : badge.earned
-      ? 'gold'
-      : 'transparent';
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        Alert.alert(
+          "Session expired",
+          "Your login session has expired. Please log in again.",
+          [
+            {
+              text: "OK",
+              onPress: async () => {
+                await logout();
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: "Login" }],
+                });
+              },
+            },
+          ],
+          { cancelable: false }
+        );
 
-  if (!isCurrentUser) {
-    borderColor = 'rgba(94, 204, 114, 1)'
+        return;
+      }
+
+      const response = await fetch(endpoints.collectBadge(), {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) throw new Error(`Server error: ${response.status}`)
+
+      Alert.alert("Success", "Badge Collected!")
+
+      await fetchBadges();
+    } catch (err) {
+      console.error("Failed to collect badge:", err)
+      Alert.alert("Error", "Failed to collect badge.")
+    }
   }
 
-  let backgroundColor = badge.collected
-    ? 'rgba(94, 204, 114, 0.2)'
-    : badge.earned
-      ? 'rgba(255, 215, 0, 0.15)'
-      : 'rgba(255,255,255,0.1)';
 
-  if (!isCurrentUser) {
-    backgroundColor = 'rgba(94, 204, 114, 0.2)'
-  }
+  const PulsingBadge = ({ badge, onPress }) => {
+    const scale = useRef(new Animated.Value(1)).current;
 
-  const opacity = badge.earned ? 1 : 0.3;
+    useEffect(() => {
+      if (isCurrentUser && badge.earned && !badge.collected) {
+        // Start pulsing loop
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(scale, {
+              toValue: 1.15,
+              duration: 800,
+              useNativeDriver: true,
+            }),
+            Animated.timing(scale, {
+              toValue: 1,
+              duration: 800,
+              useNativeDriver: true,
+            }),
+          ])
+        ).start();
+      } else {
+        scale.setValue(1); // reset scale when no longer pulsing
+      }
+    }, [badge.earned, badge.collected]);
 
-  return (
-    <TouchableOpacity
-      key={badge.id}
-      onPress={onPress}
-      activeOpacity={0.9}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          width: 60,
-          height: 60,
-          margin: 5,
-          borderRadius: 8,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: badge.earned ? 2 : 0,
-          borderColor,
-          backgroundColor,
-          shadowColor: badge.earned && !badge.collected ? 'gold' : 'transparent',
-          shadowOpacity: badge.earned && !badge.collected ? 0.8 : 0,
-          shadowRadius: badge.earned && !badge.collected ? 8 : 0,
-          shadowOffset: { width: 0, height: 0 },
-        }}
+    let borderColor = badge.collected
+      ? 'rgba(94, 204, 114, 1)'
+      : badge.earned
+        ? 'gold'
+        : 'transparent';
+
+    if (!isCurrentUser) {
+      borderColor = 'rgba(94, 204, 114, 1)'
+    }
+
+    let backgroundColor = badge.collected
+      ? 'rgba(94, 204, 114, 0.2)'
+      : badge.earned
+        ? 'rgba(255, 215, 0, 0.15)'
+        : 'rgba(255,255,255,0.1)';
+
+    if (!isCurrentUser) {
+      backgroundColor = 'rgba(94, 204, 114, 0.2)'
+    }
+
+    const opacity = badge.earned ? 1 : 0.3;
+
+    return (
+      <TouchableOpacity
+        key={badge.id}
+        onPress={onPress}
+        activeOpacity={0.9}
       >
-        <Image
-          source={{ uri: `${BASE_URL}${badge.imageUrl}` }}
+        <Animated.View
           style={{
-            width: 50,
-            height: 50,
-            opacity,
+            transform: [{ scale }],
+            width: 60,
+            height: 60,
+            margin: 5,
+            borderRadius: 8,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: badge.earned ? 2 : 0,
+            borderColor,
+            backgroundColor,
+            shadowColor: badge.earned && !badge.collected ? 'gold' : 'transparent',
+            shadowOpacity: badge.earned && !badge.collected ? 0.8 : 0,
+            shadowRadius: badge.earned && !badge.collected ? 8 : 0,
+            shadowOffset: { width: 0, height: 0 },
           }}
-          resizeMode="contain"
-        />
-      </Animated.View>
-    </TouchableOpacity>
-  );
-};
+        >
+          <Image
+            source={{ uri: `${BASE_URL}${badge.imageUrl}` }}
+            style={{
+              width: 50,
+              height: 50,
+              opacity,
+            }}
+            resizeMode="contain"
+          />
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  };
 
 
   return (
@@ -277,55 +277,43 @@ const PulsingBadge = ({ badge, onPress }) => {
       {isCurrentUser ? (
         <View style={styles.headerWrap}>
           <View style={styles.headerCard}>
-      <View style={styles.avatarWrapper}>
-      {/* Inner avatar container (clipped circle) */}
-      <View style={[styles.avatarContainer, { backgroundColor: bgColor }]}>
-        {currentMemoji?.imageUrl ? (
-          <Image
-            source={{ uri: `${BASE_URL}${currentMemoji.imageUrl}` }}
-            style={styles.avatar}
-            resizeMode="contain"
-          />
-        ) : (
-          <Text style={styles.avatarInitials}>
-            {getInitials(user?.name || "Anonymous")}
-          </Text>
-        )}
-      </View>
-
-      {/* <View style={[styles.avatarContainer, { backgroundColor: bgColor }]}>
-        <Image
-          source={
-            currentMemoji?.imageUrl
-              ? { uri: `${BASE_URL}${currentMemoji.imageUrl}` }
-              : require('../../../../assets/memojies/JaneBase.webp')
-          }
-          style={styles.avatar}
-          resizeMode="contain"
-        />
-        </View> */}
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() =>
-            navigation.navigate('EditAva', {
-              currentMemojiId: currentMemoji?.id,
-            })
-          }
-        >
-          <Ionicons name="pencil" size={18} color="#fff" />
-        </TouchableOpacity>
-        </View>
+            <View style={styles.avatarWrapper}>
+              {/* Inner avatar container (clipped circle) */}
+              <View style={[styles.avatarContainer, { backgroundColor: bgColor }]}>
+                {currentMemoji?.imageUrl ? (
+                  <Image
+                    source={{ uri: `${BASE_URL}${currentMemoji.imageUrl}` }}
+                    style={styles.avatar}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Text style={styles.avatarInitials}>
+                    {getInitials(user?.name || "Anonymous")}
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() =>
+                  navigation.navigate('EditAva', {
+                    currentMemojiId: currentMemoji?.id,
+                  })
+                }
+              >
+                <Ionicons name="pencil" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
             <Text style={styles.profileName} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
-  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-    <Text style={styles.coinText}>{numCoins} 🪙</Text>
-    <TouchableOpacity
-      onPress={() => setCoinInfoVisible(true)}
-      style={{ marginLeft: 4 , marginTop: 5, shadowColor: 'rgba(0, 0, 0, 0.95)', shadowOffset: { width: 2, height: 2 }, shadowRadius: 2 }}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-    >
-      <Ionicons name="help-circle" size={22} color="rgba(255,255,255,0.85)" />
-    </TouchableOpacity>
-  </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+              <Text style={styles.coinText}>{numCoins} 🪙</Text>
+              <TouchableOpacity
+                onPress={() => setCoinInfoVisible(true)}
+                style={{ marginLeft: 4, marginTop: 5, shadowColor: 'rgba(0, 0, 0, 0.95)', shadowOffset: { width: 2, height: 2 }, shadowRadius: 2 }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="help-circle" size={22} color="rgba(255,255,255,0.85)" />
+              </TouchableOpacity>
+            </View>
             <View style={styles.actionsRow}>
               <TouchableOpacity style={[styles.actionItem, styles.actionItemLeft]} onPress={() => navigation.navigate('Friends1')}>
                 <Ionicons name="people" size={42} color="#9ed3ffff" style={styles.actionIcon} />
@@ -345,20 +333,20 @@ const PulsingBadge = ({ badge, onPress }) => {
             <Text style={styles.profileName} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
             <Text style={styles.coinText}>{numCoins} 🪙</Text>
           </View>
-      <View style={styles.avatarWrapper}>
-      {/* Inner avatar container (clipped circle) */}
-      <View style={[styles.avatarContainer, { backgroundColor: bgColor }]}>
-        <Image
-          source={
-            currentMemoji?.imageUrl
-              ? { uri: `${BASE_URL}${currentMemoji.imageUrl}` }
-              : require('../../../../assets/memojies/JaneBase.webp')
-          }
-          style={styles.avatar}
-          resizeMode="contain"
-        />
-        </View>
-        </View>
+          <View style={styles.avatarWrapper}>
+            {/* Inner avatar container (clipped circle) */}
+            <View style={[styles.avatarContainer, { backgroundColor: bgColor }]}>
+              <Image
+                source={
+                  currentMemoji?.imageUrl
+                    ? { uri: `${BASE_URL}${currentMemoji.imageUrl}` }
+                    : require('../../../../assets/memojies/JaneBase.webp')
+                }
+                style={styles.avatar}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
         </View>
       )}
 
@@ -409,17 +397,17 @@ const PulsingBadge = ({ badge, onPress }) => {
                       >
                         <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
                           <Svg width={size} height={size}>
-                            <Circle cx={size/2} cy={size/2} r={r} stroke="rgba(255,255,255,0.20)" strokeWidth={stroke} fill="transparent" />
+                            <Circle cx={size / 2} cy={size / 2} r={r} stroke="rgba(255,255,255,0.20)" strokeWidth={stroke} fill="transparent" />
                             <Circle
-                              cx={size/2}
-                              cy={size/2}
+                              cx={size / 2}
+                              cy={size / 2}
                               r={r}
                               stroke="#ffc400ff"
                               strokeWidth={stroke}
                               strokeDasharray={`${dash}, ${c}`}
                               strokeLinecap="round"
                               fill="transparent"
-                              transform={`rotate(-90 ${size/2} ${size/2})`}
+                              transform={`rotate(-90 ${size / 2} ${size / 2})`}
                             />
                           </Svg>
                           <Ionicons name={iconName as any} size={32} color="#FFF" style={{ position: 'absolute' }} />
@@ -467,86 +455,86 @@ const PulsingBadge = ({ badge, onPress }) => {
       </View>
 
 
-{selectedBadge && (
-  <Modal
-    transparent
-    animationType="fade"
-    visible={!!selectedBadge}
-    onRequestClose={() => setSelectedBadge(null)}
-  >
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-      }}
-    >
-      <View
-        style={{
-          backgroundColor: '#fff',
-          borderRadius: 12,
-          padding: 20,
-          width: '100%',
-          maxWidth: 300,
-          alignItems: 'center',
-        }}
-      >
-        <Image
-          source={{ uri: `${BASE_URL}${selectedBadge.imageUrl}` }}
-          style={{ width: 80, height: 80 }}
-          resizeMode="contain"
-        />
-        <Text style={{ fontWeight: 'bold', fontSize: 18, marginTop: 10 }}>
-          {selectedBadge.name}
-        </Text>
-        <Text
-          style={{
-            fontSize: 14,
-            textAlign: 'center',
-            marginTop: 5,
-            color: '#333',
-          }}
+      {selectedBadge && (
+        <Modal
+          transparent
+          animationType="fade"
+          visible={!!selectedBadge}
+          onRequestClose={() => setSelectedBadge(null)}
         >
-          {selectedBadge.description}
-        </Text>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: 20,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: '#fff',
+                borderRadius: 12,
+                padding: 20,
+                width: '100%',
+                maxWidth: 300,
+                alignItems: 'center',
+              }}
+            >
+              <Image
+                source={{ uri: `${BASE_URL}${selectedBadge.imageUrl}` }}
+                style={{ width: 80, height: 80 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginTop: 10 }}>
+                {selectedBadge.name}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 14,
+                  textAlign: 'center',
+                  marginTop: 5,
+                  color: '#333',
+                }}
+              >
+                {selectedBadge.description}
+              </Text>
 
-        {/* ✅ Progress dots if badge has progress info */}
-        {selectedBadge.progress && (
-          <View style={{ marginTop: 15, alignItems: 'center' }}>
-            <Text style={{ fontWeight: '600', marginBottom: 8 }}>
-              Progress: {selectedBadge.progress.current}/{selectedBadge.progress.goal}
-            </Text>
+              {/* Progress dots if badge has progress info */}
+              {selectedBadge.progress && (
+                <View style={{ marginTop: 15, alignItems: 'center' }}>
+                  <Text style={{ fontWeight: '600', marginBottom: 8 }}>
+                    Progress: {selectedBadge.progress.current}/{selectedBadge.progress.goal}
+                  </Text>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-              {Array.from({ length: selectedBadge.progress.goal }).map((_, i) => (
-                <View
-                  key={i}
-                  style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: 7,
-                    marginHorizontal: 4,
-                    backgroundColor:
-                      i < selectedBadge.progress.current ? '#4CAF50' : '#ccc',
-                  }}
-                />
-              ))}
+                  <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                    {Array.from({ length: selectedBadge.progress.goal }).map((_, i) => (
+                      <View
+                        key={i}
+                        style={{
+                          width: 14,
+                          height: 14,
+                          borderRadius: 7,
+                          marginHorizontal: 4,
+                          backgroundColor:
+                            i < selectedBadge.progress.current ? '#4CAF50' : '#ccc',
+                        }}
+                      />
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              <TouchableOpacity
+                onPress={() => setSelectedBadge(null)}
+                style={{ marginTop: 20, paddingVertical: 8, paddingHorizontal: 20 }}
+              >
+                <Text style={{ color: '#007BFF', fontWeight: 'bold' }}>Close</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        )}
-
-        <TouchableOpacity
-          onPress={() => setSelectedBadge(null)}
-          style={{ marginTop: 20, paddingVertical: 8, paddingHorizontal: 20 }}
-        >
-          <Text style={{ color: '#007BFF', fontWeight: 'bold' }}>Close</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </Modal>
-)}
+        </Modal>
+      )}
 
 
       <Modal transparent visible={infoVisible} animationType="fade" onRequestClose={() => setInfoVisible(false)}>
@@ -581,8 +569,8 @@ const PulsingBadge = ({ badge, onPress }) => {
         </View>
       </Modal>
 
-  </View>
-);
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
@@ -595,17 +583,17 @@ const styles = StyleSheet.create({
     marginTop: 14,
     alignItems: 'center',
   },
-headerCard: {
-  width: '90%',
-  backgroundColor: 'rgba(0, 0, 0, 0.13)',
-  borderRadius: 18,
-  paddingTop: 60, // half the avatar size
-  paddingBottom: 23,
-  paddingHorizontal: 18,
-  borderWidth: 1,
-  borderColor: 'rgba(255,255,255,0.28)',
-  alignItems: 'center', // center children horizontally
-},
+  headerCard: {
+    width: '90%',
+    backgroundColor: 'rgba(0, 0, 0, 0.13)',
+    borderRadius: 18,
+    paddingTop: 60, // half the avatar size
+    paddingBottom: 23,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+    alignItems: 'center', // center children horizontally
+  },
 
   avatarOnCard: {
     position: 'absolute',
@@ -613,26 +601,26 @@ headerCard: {
     alignSelf: 'center',
   },
 
-avatarWrapper: {
-  position: 'absolute',
-  top: -60, // half the avatar height
-  alignSelf: 'center',
-  width: 120,
-  height: 120,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
+  avatarWrapper: {
+    position: 'absolute',
+    top: -60, // half the avatar height
+    alignSelf: 'center',
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-avatarContainer: {
-  width: 120,
-  height: 120,
-  borderRadius: 60,
-  overflow: 'hidden',
-  borderWidth: 3,
-  borderColor: '#FFD700',
-  alignItems: 'center',
-  justifyContent: 'center',
-},
+  avatarContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: '#FFD700',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
 
   avatar: {
@@ -770,7 +758,7 @@ avatarContainer: {
     textShadowColor: 'rgba(0, 0, 0, 0.30)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
-    
+
   },
   infoBackdrop: {
     flex: 1,
@@ -886,33 +874,33 @@ avatarContainer: {
     marginTop: 8,
   },
 
-profileName: {
-  fontSize: 26,
-  fontWeight: 'bold',
-  color: '#FFF',
-  marginTop: 12, // space below avatar
-  marginBottom: 6, // space above coins
-  textAlign: 'center',
-  textShadowColor: 'rgba(0, 0, 0, 0.75)',
-  textShadowOffset: { width: 1, height: 1 },
-  textShadowRadius: 3,
-},
+  profileName: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginTop: 12, // space below avatar
+    marginBottom: 6, // space above coins
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
 
-coinText: {
-  color: "#fff",
-  fontSize: 16,
-  fontWeight: "600",
-  marginTop: 4,
-  textAlign: 'center',
-},
-avatarInitials: {
-  color: "#000000ff",
-  fontSize: 24,
-  fontWeight: "bold",
-  textAlign: "center",
-  textAlignVertical: "center", // Android
-  flex: 1,
-},
+  coinText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  avatarInitials: {
+    color: "#000000ff",
+    fontSize: 24,
+    fontWeight: "bold",
+    textAlign: "center",
+    textAlignVertical: "center", // Android
+    flex: 1,
+  },
 
 });
 

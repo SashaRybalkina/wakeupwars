@@ -6,9 +6,9 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
+  ActivityIndicator,
+  Alert,
+  FlatList,
   ImageBackground,
   Modal,
   ScrollView,
@@ -47,7 +47,7 @@ const STATIC_CATEGORIES: Category[] = [
     id: 12,
     categoryName: "Math",
     games: [
-      { id: 9,  name: "Singleplayer Sudoku", route: "Sudoku", isMultiplayer: false },
+      { id: 9, name: "Singleplayer Sudoku", route: "Sudoku", isMultiplayer: false },
       { id: 10, name: "Group Sudoku", route: "Sudoku", isMultiplayer: true },
       { id: 43, name: "Sudoku", route: "Sudoku", isMultiplayer: null },
     ],
@@ -92,25 +92,23 @@ const GameSelection: React.FC<Props> = ({ navigation }) => {
   };
 
 
-const filteredCats = STATIC_CATEGORIES
-  // Step 1: Filter categories if specified
-  .filter(cat =>
-    !categories || categories.some(c => c.id === cat.id)
-  )
-  // Step 2: Filter games based on singOrMult
-  .map(cat => ({
-    ...cat,
-    games: cat.games.filter(game => {
-      if (singOrMult === "Singleplayer") return game.isMultiplayer === false;
-      if (singOrMult === "Multiplayer") return game.isMultiplayer === true;
-      if (singOrMult === "Neither") return game.isMultiplayer === null;
-      return true; // fallback if something unexpected is passed in
-    }),
-  }))
-  // Step 3: Only keep categories that still have games
-  .filter(cat => cat.games.length > 0);
-
-
+  const filteredCats = STATIC_CATEGORIES
+    // Step 1: Filter categories if specified
+    .filter(cat =>
+      !categories || categories.some(c => c.id === cat.id)
+    )
+    // Step 2: Filter games based on singOrMult
+    .map(cat => ({
+      ...cat,
+      games: cat.games.filter(game => {
+        if (singOrMult === "Singleplayer") return game.isMultiplayer === false;
+        if (singOrMult === "Multiplayer") return game.isMultiplayer === true;
+        if (singOrMult === "Neither") return game.isMultiplayer === null;
+        return true; // fallback if something unexpected is passed in
+      }),
+    }))
+    // Step 3: Only keep categories that still have games
+    .filter(cat => cat.games.length > 0);
 
   const { logout } = useUser();
   const [cats, setCats] = useState<Category[]>(filteredCats);
@@ -120,59 +118,14 @@ const filteredCats = STATIC_CATEGORIES
 
   const [modalGame, setModalGame] = useState<Game | null>(null);
 
-
-  // useEffect(() => {
-  //   const fetchCats = async () => {
-  //     try {
-  //       const accessToken = await getAccessToken();
-  //       if (!accessToken) {
-                  // Alert.alert(
-                  //   "Session expired",
-                  //   "Your login session has expired. Please log in again.",
-                  //   [
-                  //     {
-                  //       text: "OK",
-                  //       onPress: async () => {
-                  //         await logout();
-                  //         navigation.reset({
-                  //           index: 0,
-                  //           routes: [{ name: "Login" }],
-                  //         });
-                  //       },
-                  //     },
-                  //   ],
-                  //   { cancelable: false }
-                  // );
-
-                  // return;
-  //       }
-
-  //       const response = await fetch(
-  //         endpoints.someCats(categories ? categories.map(c => c.id) : [], singOrMult),
-  //         { headers: { Authorization: `Bearer ${accessToken}` } }
-  //       );
-  //       const data: Category[] = await response.json();
-  //       setCats(data);
-  //       // Select first category by default
-  //       if (data.length > 0) setSelectedCat(data[0].id);
-  //     } catch (err) {
-  //       console.error("Failed to fetch categories:", err);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-  //   fetchCats();
-  // }, []);
-
-
   const handleSelect = (id: number, name: string, categoryId: number) => {
     if (onGameSelected) {
       onGameSelected({ id, name });
     }
     else if (onGameSelected2) {
-      onGameSelected2({id, name}, categoryId)
+      onGameSelected2({ id, name }, categoryId)
     }
-    
+
     navigation.goBack();
   };
 
@@ -188,108 +141,108 @@ const filteredCats = STATIC_CATEGORIES
   const selectedCategory = cats.find(c => c.id === selectedCat);
 
   return (
-<ImageBackground
-  source={require('../../images/cgpt4.png')}
-  style={styles.background}
-  resizeMode="cover"
->
-        <View style={styles.container}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={28} color="#FFF" />
-          </TouchableOpacity>
-
-          <Text style={styles.pageTitle}>Select Game</Text>
-{/* Tabs */}
-<View style={[styles.tabsWrapper, { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' }]}>
-  {cats.map((cat) => (
-    <TouchableOpacity
-      key={cat.id}
-      style={[
-        styles.choiceButton,
-        selectedCat === cat.id && styles.choiceButtonSelected,
-      ]}
-      onPress={() => setSelectedCat(cat.id)}
+    <ImageBackground
+      source={require('../../images/cgpt4.png')}
+      style={styles.background}
+      resizeMode="cover"
     >
-      <Text
-        style={[
-          styles.tabButtonText,
-          selectedCat === cat.id && styles.tabButtonTextActive,
-        ]}
-      >
-        {cat.categoryName}
-      </Text>
-    </TouchableOpacity>
-  ))}
-</View>
-
-
-
-{/* Game list */}
-<View style={styles.gameListContainer}>
-  {selectedCategory?.games.map((game) => {
-    const meta = getGameMeta(game.id, game.name);
-
-    return (
-      <View key={game.id} style={styles.gameItemContainer}>
-        {/* Pressable container to open modal */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => setModalGame(game)}
-          style={styles.gameContainer}
-        >
-      <View style={styles.imageFrame}>
-        <ImageBackground
-          source={meta.image}
-          style={styles.imageFill}
-          imageStyle={styles.imageFillImg}
-          resizeMode="cover"
-        />
-      </View>
-
-          <Text style={styles.gameName}>{game.name}</Text>
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={28} color="#FFF" />
         </TouchableOpacity>
 
-        {/* Select button stays independent */}
-        <TouchableOpacity
-          style={styles.selectButton}
-          onPress={() => handleSelect(game.id, game.name, selectedCategory.id)}
-        >
-          <Text style={styles.selectButtonText}>Select</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  })}
+        <Text style={styles.pageTitle}>Select Game</Text>
+        {/* Tabs */}
+        <View style={[styles.tabsWrapper, { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' }]}>
+          {cats.map((cat) => (
+            <TouchableOpacity
+              key={cat.id}
+              style={[
+                styles.choiceButton,
+                selectedCat === cat.id && styles.choiceButtonSelected,
+              ]}
+              onPress={() => setSelectedCat(cat.id)}
+            >
+              <Text
+                style={[
+                  styles.tabButtonText,
+                  selectedCat === cat.id && styles.tabButtonTextActive,
+                ]}
+              >
+                {cat.categoryName}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
 
-{/* Single modal for all games */}
-<Modal
-  visible={modalGame !== null}
-  transparent
-  animationType="fade"
-  onRequestClose={() => setModalGame(null)}
->
-  <View style={styles.modalOverlay}>
-    <View style={styles.modalContent}>
-      {modalGame && (
-        <>
-          <Text style={styles.modalTitle}>{modalGame.name}</Text>
-          <Text style={styles.modalDesc}>
-            {getGameMeta(modalGame.id, modalGame.name).desc}
-          </Text>
-          <TouchableOpacity
-            style={styles.modalCloseButton}
-            onPress={() => setModalGame(null)}
+
+        {/* Game list */}
+        <View style={styles.gameListContainer}>
+          {selectedCategory?.games.map((game) => {
+            const meta = getGameMeta(game.id, game.name);
+
+            return (
+              <View key={game.id} style={styles.gameItemContainer}>
+                {/* Pressable container to open modal */}
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => setModalGame(game)}
+                  style={styles.gameContainer}
+                >
+                  <View style={styles.imageFrame}>
+                    <ImageBackground
+                      source={meta.image}
+                      style={styles.imageFill}
+                      imageStyle={styles.imageFillImg}
+                      resizeMode="cover"
+                    />
+                  </View>
+
+                  <Text style={styles.gameName}>{game.name}</Text>
+                </TouchableOpacity>
+
+                {/* Select button stays independent */}
+                <TouchableOpacity
+                  style={styles.selectButton}
+                  onPress={() => handleSelect(game.id, game.name, selectedCategory.id)}
+                >
+                  <Text style={styles.selectButtonText}>Select</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+
+
+          {/* Single modal for all games */}
+          <Modal
+            visible={modalGame !== null}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setModalGame(null)}
           >
-            <Text style={styles.modalCloseButtonText}>Close</Text>
-          </TouchableOpacity>
-        </>
-      )}
-    </View>
-  </View>
-</Modal>
-  </View>
-  </View>
-</ImageBackground>
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                {modalGame && (
+                  <>
+                    <Text style={styles.modalTitle}>{modalGame.name}</Text>
+                    <Text style={styles.modalDesc}>
+                      {getGameMeta(modalGame.id, modalGame.name).desc}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.modalCloseButton}
+                      onPress={() => setModalGame(null)}
+                    >
+                      <Text style={styles.modalCloseButtonText}>Close</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </View>
+          </Modal>
+        </View>
+      </View>
+    </ImageBackground>
 
   );
 };
@@ -299,64 +252,64 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-gameItemContainer: {
-  alignItems: 'center',
-},
+  gameItemContainer: {
+    alignItems: 'center',
+  },
 
-gameContainer: {
-  alignItems: "center",  // ✅ centers the image horizontally
-  borderRadius: 12,
-},
+  gameContainer: {
+    alignItems: "center",
+    borderRadius: 12,
+  },
 
-gameImg: {
-  width: '80%',          // already good
-  aspectRatio: 2/2,
-  alignSelf: 'center',   // ✅ this ensures it's centered within its container
-  marginVertical: 10,
-  marginLeft: 0,
-  borderColor: '#000',
-  borderBlockStartColor: '#000',
-  borderWidth: 5,
-  shadowColor: 'rgba(0, 0, 0, 0.5)',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.25,
-  shadowRadius: 3.84,
-  borderRadius: 50,
-},
-imageFrame: {
-  width: '70%',
-  aspectRatio: 1,                
-  alignSelf: 'center',
-  overflow: 'hidden',            
-  marginBottom: 20,
-  borderColor: 'rgba(0, 0, 0, 0.03)',
-  borderWidth: 3,
-  borderRadius:30,
-},
-imageFill: {
-  width: '100%',
-  height: '100%',
-},
-imageFillImg: {
-  borderRadius: 20,              // ensures rounded bitmap on Android
-},
-gameImgStyle: {
-},
+  gameImg: {
+    width: '80%',
+    aspectRatio: 2 / 2,
+    alignSelf: 'center',
+    marginVertical: 10,
+    marginLeft: 0,
+    borderColor: '#000',
+    borderBlockStartColor: '#000',
+    borderWidth: 5,
+    shadowColor: 'rgba(0, 0, 0, 0.5)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    borderRadius: 50,
+  },
+  imageFrame: {
+    width: '70%',
+    aspectRatio: 1,
+    alignSelf: 'center',
+    overflow: 'hidden',
+    marginBottom: 20,
+    borderColor: 'rgba(0, 0, 0, 0.03)',
+    borderWidth: 3,
+    borderRadius: 30,
+  },
+  imageFill: {
+    width: '100%',
+    height: '100%',
+  },
+  imageFillImg: {
+    borderRadius: 20,
+  },
+  gameImgStyle: {
+  },
 
-gameName: {
-  marginTop: 10,
-  fontSize: 18,
-  fontWeight: '600',
-  color: 'white',
-  textShadowColor: 'rgba(0, 0, 0, 0.4)',
-  textShadowOffset: { width: 1, height: 1 },
-  textShadowRadius: 1,
-},
+  gameName: {
+    marginTop: 10,
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'white',
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 1,
+  },
 
   tabsWrapper: {
-  height: 60,
-  marginTop: 10,
-},
+    height: 60,
+    marginTop: 10,
+  },
 
   selectButton: {
     width: "60%",
@@ -422,14 +375,14 @@ gameName: {
     borderColor: "rgba(255, 255, 255, 0.2)",
   },
   choiceButtonSelected: { backgroundColor: "rgba(255, 215, 0, 0.3)", borderColor: "#FFD700" },
-tabButtonText: {
-  color: '#fff',
-  fontWeight: '600',
-  fontSize: 14,
-},
-tabButtonTextActive: {
-  fontWeight: '700',
-},
+  tabButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  tabButtonTextActive: {
+    fontWeight: '700',
+  },
   pageTitle: {
     fontSize: 29,
     fontWeight: "700",
@@ -454,7 +407,7 @@ tabButtonTextActive: {
   container: {
     flex: 1,
     width: '100%',
-    paddingTop: 80, // reduced from 120 to move content up
+    paddingTop: 80,
     paddingHorizontal: 15,
   },
   title: {
@@ -468,13 +421,13 @@ tabButtonTextActive: {
     textShadowRadius: 3,
   },
   // Tabs ScrollView
-tabsContainer: {
-  flexDirection: 'row',
-  height: 50,
-  paddingHorizontal: 10,
-  marginTop: 10,
-},
-categoriesScroll: { paddingVertical: 5 },
+  tabsContainer: {
+    flexDirection: 'row',
+    height: 50,
+    paddingHorizontal: 10,
+    marginTop: 10,
+  },
+  categoriesScroll: { paddingVertical: 5 },
   gameItem: {
     marginBottom: 12,
     backgroundColor: 'rgba(80,90,140,0.5)',
@@ -497,15 +450,15 @@ categoriesScroll: { paddingVertical: 5 },
     backgroundColor: 'rgba(255, 255, 255, 0.5)',
     borderRadius: 6,
   },
-gameListContainer: {
-  flex: 1,
-  paddingHorizontal: 15,
-  marginTop: 30, // pushes list further down from category tabs
-},
-imageWrapper: {
-  width: '100%',
-  alignItems: 'center',
-},
+  gameListContainer: {
+    flex: 1,
+    paddingHorizontal: 15,
+    marginTop: 30, // pushes list further down from category tabs
+  },
+  imageWrapper: {
+    width: '100%',
+    alignItems: 'center',
+  },
 
 });
 

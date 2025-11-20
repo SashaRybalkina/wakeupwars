@@ -42,46 +42,46 @@ const SomeCategories: React.FC<Props> = ({ navigation }) => {
 
   const [cats, setCats] = useState<{ id: number; categoryName: string }[]>([]);
   const { logout } = useUser();
-  
+
   useEffect(() => {
     const fetchCats = async () => {
       try {
-              const accessToken = await getAccessToken();
-              if (!accessToken) {
-                  Alert.alert(
-                    "Session expired",
-                    "Your login session has expired. Please log in again.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await logout();
-                          navigation.reset({
-                            index: 0,
-                            routes: [{ name: "Login" }],
-                          });
-                        },
-                      },
-                    ],
-                    { cancelable: false }
-                  );
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          Alert.alert(
+            "Session expired",
+            "Your login session has expired. Please log in again.",
+            [
+              {
+                text: "OK",
+                onPress: async () => {
+                  await logout();
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: "Login" }],
+                  });
+                },
+              },
+            ],
+            { cancelable: false }
+          );
 
-                  return;
-              }
+          return;
+        }
         // fetch the categories for multiplayer/singleplayer (whatever was selected)
         const response = await fetch(endpoints.someCats(categories.map(c => c.id)), {
-                headers: {
-                  Authorization: `Bearer ${accessToken}`
-                }
-              });
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
         const data = await response.json();
-        setCats(data); 
+        setCats(data);
         console.log("Data: " + data);
       } catch (error) {
         console.error('Failed to fetch categories:', error);
       }
     };
-  
+
     fetchCats();
   }, []);
 
@@ -98,19 +98,19 @@ const SomeCategories: React.FC<Props> = ({ navigation }) => {
       <View style={[styles.decorativeDot, { bottom: '25%', right: '20%' }]} />
       <View style={[styles.decorativeDot, { bottom: '15%', left: '10%' }]} />
       <View style={[styles.decorativeDot, { top: '45%', left: '5%' }]} />
-      
+
       <View style={styles.backButtonContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={30} color="#FFF" />
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.container}>
         <Text style={styles.title}>Categories</Text>
-        <ScrollView 
+        <ScrollView
           style={styles.scrollViewContainer}
           contentContainerStyle={styles.scrollViewContent}
           showsVerticalScrollIndicator={false}
@@ -119,16 +119,16 @@ const SomeCategories: React.FC<Props> = ({ navigation }) => {
             <TouchableOpacity
               key={cat.id}
               style={styles.categoryButton}
-                  onPress={() => {
-                    navigation.navigate("Games", {
-                      catType: catType,
-                      catName: cat.categoryName,
-                      catId: cat.id,
-                      categories: categories,
-                      singOrMult: singOrMult,
-                      onGameSelected,
-                    })
-                  }}
+              onPress={() => {
+                navigation.navigate("Games", {
+                  catType: catType,
+                  catName: cat.categoryName,
+                  catId: cat.id,
+                  categories: categories,
+                  singOrMult: singOrMult,
+                  onGameSelected,
+                })
+              }}
             >
               <Text style={styles.categoryButtonText}>{cat.categoryName}</Text>
             </TouchableOpacity>

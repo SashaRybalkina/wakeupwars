@@ -21,8 +21,6 @@ type Props = {
   navigation: NavigationProp<any>;
 };
 
-
-
 const GameExpanded: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
   console.log("Game expanded route params:", route.params);
@@ -53,13 +51,11 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
     if (catType == 'Personal') navigation.navigate('PersChall2Copy');
     else if (catType == 'Group') navigation.navigate('GroupChallCollab2', { name: challName, groupId, members: groupMembers, alarmSchedule });
     else if (catType === 'Public') {
-      navigation.navigate('CreatePublicChall2', { 
+      navigation.navigate('CreatePublicChall2', {
         singOrMult: singOrMult,
         categories: categories,
       });
-      // navigation.dispatch(StackActions.pop(3));
     }
-    // else if (catType == 'Schedule') navigation.navigate('ChallSchedule', { challId, challName });
     else if (catType == 'Friend') navigation.navigate('CreateChallengeForFriend', { friendId }); // here, groupId is actually friendId
   };
 
@@ -76,16 +72,16 @@ const GameExpanded: React.FC<Props> = ({ navigation }) => {
       <View style={[styles.decorativeDot, { bottom: '25%', right: '20%' }]} />
       <View style={[styles.decorativeDot, { bottom: '15%', left: '10%' }]} />
       <View style={[styles.decorativeDot, { top: '45%', left: '5%' }]} />
-      
+
       <View style={styles.backButtonContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={30} color="#FFF" />
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.container}>
         <Text style={styles.title}>{gameName}</Text>
         <ImageBackground
