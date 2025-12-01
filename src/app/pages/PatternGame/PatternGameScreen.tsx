@@ -98,6 +98,8 @@ type ValidateResp = {
   is_complete: boolean;
   current_round?: number;
   scores?: { username: string; rounds_completed: number; score: number }[];
+  final_score?: number;
+  user_final_score?: number;
   error?: string;
 };
 
@@ -788,7 +790,7 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
           } catch (e) {
             console.error('[Pattern] finalize on complete failed', e);
           }
-          Alert.alert('🎉 Finished', `Great job! +${j.round_score}`, [
+          Alert.alert('🎉 Finished', `Game Complete! Final Score: ${j.final_score || j.user_final_score || 'N/A'}`, [
             { text: 'OK', onPress: () => navigation.navigate('ChallDetails', { challId: challengeId, challName, whichChall }) },
           ]);
         } else {
@@ -838,7 +840,7 @@ const PatternGameScreen: React.FC<Props> = ({ route, navigation }) => {
 
         {isMultiplayer && waitingActive && (
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 10 }}>
-            <View style={{ width: '80%', padding: 16, backgroundColor: '#222', borderRadius: 12, borderWidth: 1, borderColor: '#444' }}>
+            <View style={{ width: '85%', padding: 16, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 1, borderColor: '#444' }}>
               <Text style={{ color: 'white', fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 8 }}>Waiting Room</Text>
               {remainingSec != null && (
                 <Text style={{ color: 'white', textAlign: 'center' }}>Starts in {formatTime(remainingSec)}</Text>

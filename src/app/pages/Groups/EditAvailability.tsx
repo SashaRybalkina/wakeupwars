@@ -31,7 +31,7 @@ const DAYS = ["M", "T", "W", "TH", "F", "S", "SU"];
 const DayOfWeekLabels: Record<number, string> = { 1: "M", 2: "T", 3: "W", 4: "TH", 5: "F", 6: "S", 7: "SU" }
 
 const TIMES = Array.from({ length: 144 }, (_, i) => {
-  const totalMinutes = 12 * 60 + i * 5; // 12:00 PM .. 11:55 PM
+  const totalMinutes = 11 * 60 + i * 5; // 12:00 PM .. 11:55 PM
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
