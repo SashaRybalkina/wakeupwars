@@ -3342,6 +3342,8 @@ class ValidatePatternMoveView(APIView):
         Response (incorrect):
         { success: false, result: "incorrect", round_score, is_complete, current_round }
         """
+        from api.models import PatternMemorizationGamePlayer
+        
         game_state_id = request.data.get('game_state_id')
         round_number  = request.data.get('round_number')
         player_seq    = request.data.get('player_sequence') or []
@@ -3370,7 +3372,6 @@ class ValidatePatternMoveView(APIView):
             now = timezone.now()
             if gs.joins_closed or (gs.join_deadline_at and now > gs.join_deadline_at):
                 # Check if user is already a player in this game
-                from api.models import PatternMemorizationGamePlayer
                 is_player = PatternMemorizationGamePlayer.objects.filter(game_state=gs, player=user).exists()
                 if not is_player:
                     return Response(
