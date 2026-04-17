@@ -72,4 +72,7 @@ yarn.lock
 .expo-bundle/
 .expo-source-maps/
 
-wakeupwars_private_key.json
+wakeupwars_private_key.jsonnode_modules/
+android/build/
+android/app/build/
+*.apk
